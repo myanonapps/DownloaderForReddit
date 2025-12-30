@@ -32,7 +32,7 @@ class FfmpegInfoDialog(QtWidgets.QDialog):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.layout = QtWidgets.QVBoxLayout()
         self.setWindowTitle('FFmpeg Info')
-        self.setWindowIcon(QtGui.QIcon('Resources/Images/RedditDownloaderIcon.png'))
+        self.setWindowIcon(QtGui.QIcon('Resources/images/RedditDownloaderIcon.png'))
 
         self.label = QtWidgets.QLabel(
             """
