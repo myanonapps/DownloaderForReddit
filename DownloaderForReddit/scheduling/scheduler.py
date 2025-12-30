@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from threading import Event
 import schedule
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from .tasks import DownloadTask, Interval
 from ..utils import injector, system_util

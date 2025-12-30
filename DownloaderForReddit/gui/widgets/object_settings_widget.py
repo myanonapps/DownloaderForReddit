@@ -1,12 +1,13 @@
 import os
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QMenu, QButtonGroup, QFileDialog
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
+from PyQt6.QtWidgets import QWidget, QMenu, QButtonGroup, QFileDialog
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCursor
+
+from DownloaderForReddit.database.model_enums import CommentDownload, CommentSortMethod, DuplicateControlMethod, LimitOperator, NsfwFilter, PostSortMethod
 
 from ...guiresources.widgets.object_settings_widget_auto import Ui_ObjectSettingsWidget
 from ...database.models import User, Subreddit, Post
-from ...database.model_enums import *
 from ...utils import TokenParser, injector
 from ...core import const
 
@@ -63,7 +64,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
             self.sync_sort_methods(self.object_type)
 
     def sync_sort_methods(self, object_type):
-        pos = self.post_sort_combo.findData(PostSortMethod.RISING, Qt.UserRole)
+        pos = self.post_sort_combo.findData(PostSortMethod.RISING, Qt.ItemDataRole.UserRole)
         if object_type == 'SUBREDDIT':
             if pos < 0:
                 self.post_sort_combo.insertItem(2, 'RISING', PostSortMethod.RISING)
@@ -91,13 +92,13 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
 
         self.hash_content_checkbox.stateChanged.connect(self.sync_duplicate_controls_enabled)
         self.duplicate_control_method_combo.currentIndexChanged.connect(self.sync_duplicate_controls_enabled)
-        self.post_download_naming_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.post_download_naming_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.post_download_naming_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.post_download_naming_line_edit))
         self.post_download_naming_available_tokens_button.clicked.connect(
             lambda: self.path_token_context_menu(self.post_download_naming_line_edit))
 
-        self.post_save_path_structure_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.post_save_path_structure_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.post_save_path_structure_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.post_save_path_structure_line_edit))
         self.post_save_structure_available_tokens_button.clicked.connect(
@@ -106,13 +107,13 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
             lambda: self.custom_post_save_path_line_edit.setText(self.choose_file_path())
         )
 
-        self.comment_download_naming_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.comment_download_naming_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.comment_download_naming_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.comment_download_naming_line_edit))
         self.comment_download_naming_available_tokens_button.clicked.connect(
             lambda: self.path_token_context_menu(self.comment_download_naming_line_edit))
 
-        self.comment_save_path_structure_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.comment_save_path_structure_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.comment_save_path_structure_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.comment_save_path_structure_line_edit))
         self.comment_save_structure_available_tokens_button.clicked.connect(
@@ -133,14 +134,14 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         for value in DuplicateControlMethod:
             self.duplicate_control_method_combo.addItem(value.display_name, value)
 
-        self.duplicate_naming_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.duplicate_naming_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.duplicate_naming_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.duplicate_naming_line_edit)
         )
         self.duplicate_naming_available_tokens_button.clicked.connect(
             lambda: self.path_token_context_menu(self.duplicate_naming_line_edit)
         )
-        self.duplicate_save_structure_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.duplicate_save_structure_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.duplicate_save_structure_line_edit.customContextMenuRequested.connect(
             lambda: self.path_token_context_menu(self.duplicate_save_structure_line_edit)
         )
@@ -179,7 +180,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.setup_checkbox(self.download_self_post_text_checkbox, 'download_self_post_text')
         self.self_post_file_format_combo.currentIndexChanged.connect(
             lambda: self.set_object_value('self_post_file_format',
-                                          self.self_post_file_format_combo.currentData(Qt.UserRole))
+                                          self.self_post_file_format_combo.currentData(Qt.ItemDataRole.UserRole))
         )
         self.setup_checkbox(self.download_videos_checkbox, 'download_videos')
         self.setup_checkbox(self.download_images_checkbox, 'download_images')
@@ -226,7 +227,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         )
         self.comment_file_format_combo.currentIndexChanged.connect(
             lambda: self.set_object_value('comment_file_format',
-                                          self.comment_file_format_combo.currentData(Qt.UserRole))
+                                          self.comment_file_format_combo.currentData(Qt.ItemDataRole.UserRole))
         )
         self.comment_download_naming_line_edit.textChanged.connect(self.sync_comment_path_example)
         self.comment_download_naming_line_edit.textChanged.connect(
@@ -283,7 +284,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         menu = QMenu()
         for key in TokenParser.token_dict.keys():
             menu.addAction(key.replace('_', ' ').title(), lambda token=key: self.insert_token(line_edit, token))
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def insert_token(self, line_edit, token):
         if line_edit.hasSelectedText():
@@ -390,11 +391,11 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         value = self.get_value(attr)
         if value is not None:
             if value:
-                checkbox.setCheckState(2)
+                checkbox.setCheckState(Qt.CheckState.Checked)
             else:
-                checkbox.setCheckState(0)
+                checkbox.setCheckState(Qt.CheckState.Unchecked)
         else:
-            checkbox.setCheckState(1)
+            checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
 
     def sync_combo(self, combo, attr):
         value = self.get_value(attr)

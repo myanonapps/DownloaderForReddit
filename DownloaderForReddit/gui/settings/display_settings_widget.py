@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from PyQt5.QtWidgets import QCheckBox, QColorDialog, QMenu
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QCursor
+from PyQt6.QtWidgets import QCheckBox, QColorDialog, QMenu
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QCursor
 
 from DownloaderForReddit.guiresources.settings.display_settings_widget_auto import Ui_DispalySettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
@@ -58,13 +58,13 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.datetime_token_button.clicked.connect(self.datetime_token_context_menu)
         self.date_token_button.clicked.connect(self.date_token_context_menu)
 
-        self.datetime_format_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.datetime_format_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.datetime_format_line_edit.customContextMenuRequested.connect(self.datetime_token_context_menu)
         self.datetime_format_line_edit.textChanged.connect(
             lambda: self.set_date_example(self.datetime_format_line_edit, self.date_time_format_example_label)
         )
 
-        self.date_format_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.date_format_line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.date_format_line_edit.customContextMenuRequested.connect(self.date_token_context_menu)
         self.date_format_line_edit.textChanged.connect(
             lambda: self.set_date_example(self.date_format_line_edit, self.date_format_example_label)
@@ -155,14 +155,14 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         for tup in self.date_tokens + self.time_tokens:
             menu.addAction(': '.join(tup),
                            lambda token=tup[0]: self.insert_token(self.datetime_format_line_edit, token))
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def date_token_context_menu(self):
         menu = QMenu()
         for tup in self.date_tokens:
             menu.addAction(': '.join(tup),
                            lambda token=tup[0]: self.insert_token(self.date_format_line_edit, token))
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def insert_token(self, line_edit, token):
         if line_edit.hasSelectedText():
@@ -181,7 +181,7 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
 
     def apply_settings(self):
         self.settings.short_title_char_length = self.short_title_length_spin_box.value()
-        show_countdown = self.schedule_countdown_combo.currentData(Qt.UserRole)
+        show_countdown = self.schedule_countdown_combo.currentData(Qt.ItemDataRole.UserRole)
         self.settings.show_schedule_countdown = show_countdown
         self.main_window.schedule_widget.setVisible(show_countdown == 'SHOW')
         self.settings.scroll_to_last_added = self.scroll_to_last_added_checkbox.isChecked()

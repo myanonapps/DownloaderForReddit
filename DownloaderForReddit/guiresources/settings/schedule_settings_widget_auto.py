@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\schedule_settings_widget.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_ScheduleSettingsWidget(object):
@@ -33,12 +33,12 @@ class Ui_ScheduleSettingsWidget(object):
         self.label.setObjectName("label")
         self.verticalLayout_6.addWidget(self.label)
         self.splitter = QtWidgets.QSplitter(self.scheduling_group_box)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
         self.splitter.setSizePolicy(sizePolicy)
-        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setObjectName("splitter")
         self.scheduled_downloads_list_widget = QtWidgets.QListWidget(self.splitter)
         self.scheduled_downloads_list_widget.setObjectName("scheduled_downloads_list_widget")
@@ -102,7 +102,7 @@ class Ui_ScheduleSettingsWidget(object):
         self.schedule_download_button = QtWidgets.QPushButton(self.layoutWidget)
         self.schedule_download_button.setObjectName("schedule_download_button")
         self.verticalLayout_5.addWidget(self.schedule_download_button)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout_5.addItem(spacerItem)
         self.verticalLayout_6.addWidget(self.splitter)
         self.verticalLayout_7.addWidget(self.scheduling_group_box)

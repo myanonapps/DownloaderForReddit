@@ -2,19 +2,19 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\export_wizard.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_ExportWizard(object):
     def setupUi(self, ExportWizard):
         ExportWizard.setObjectName("ExportWizard")
         ExportWizard.resize(819, 353)
-        ExportWizard.setWizardStyle(QtWidgets.QWizard.ModernStyle)
+        ExportWizard.setWizardStyle(QtWidgets.QWizard.WizardStyle.ModernStyle)
         self.page_one = QtWidgets.QWizardPage()
         self.page_one.setObjectName("page_one")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.page_one)

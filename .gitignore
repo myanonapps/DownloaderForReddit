@@ -129,3 +129,6 @@ dmypy.json
 
 # Pycharm IDE settings
 .idea/
+
+# Microsoft Visual Code
+.vscode

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QLabel, QCheckBox, QHBoxLayout, QWidget, QListWidgetItem
+from PyQt6.QtWidgets import QDialog, QLabel, QCheckBox, QHBoxLayout, QWidget, QListWidgetItem
 
 from ..guiresources.invalid_reddit_object_dialog_auto import Ui_InvalidRedditObjectDialog
 

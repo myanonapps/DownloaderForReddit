@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QDialogButtonBox
+from PyQt6.QtWidgets import QDialog, QDialogButtonBox
 
 from DownloaderForReddit.guiresources.settings.settings_dialog_auto import Ui_SettingsDialog
 from .core_settings_widget import CoreSettingsWidget
@@ -55,7 +55,7 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
 
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.close)
-        self.button_box.button(QDialogButtonBox.Apply).clicked.connect(self.apply)
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply)
 
     def set_current_display(self, view_name):
         widget = self.settings_map[view_name]

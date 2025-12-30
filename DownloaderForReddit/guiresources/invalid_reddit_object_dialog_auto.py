@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\invalid_reddit_object_dialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_InvalidRedditObjectDialog(object):
@@ -36,14 +36,14 @@ class Ui_InvalidRedditObjectDialog(object):
         self.decision_list.setObjectName("decision_list")
         self.decision_box.addWidget(self.decision_list)
         self.line = QtWidgets.QFrame(InvalidRedditObjectDialog)
-        self.line.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        self.line.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         self.line.setObjectName("line")
         self.decision_box.addWidget(self.line)
         self.verticalLayout.addLayout(self.decision_box)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         self.button_box = QtWidgets.QDialogButtonBox(InvalidRedditObjectDialog)
-        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         self.button_box.setObjectName("button_box")
         self.verticalLayout_2.addWidget(self.button_box)
 

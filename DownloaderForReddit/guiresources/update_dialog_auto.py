@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\update_dialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_update_dialog_box(object):
@@ -18,7 +18,7 @@ class Ui_update_dialog_box(object):
         font.setPointSize(10)
         update_dialog_box.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/update.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/update.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         update_dialog_box.setWindowIcon(icon)
         self.gridLayout_2 = QtWidgets.QGridLayout(update_dialog_box)
         self.gridLayout_2.setObjectName("gridLayout_2")
@@ -37,7 +37,7 @@ class Ui_update_dialog_box(object):
         font = QtGui.QFont()
         font.setPointSize(8)
         self.go_to_settings_label.setFont(font)
-        self.go_to_settings_label.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.go_to_settings_label.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.go_to_settings_label.setObjectName("go_to_settings_label")
         self.gridLayout.addWidget(self.go_to_settings_label, 5, 0, 1, 1)
         self.link_label = QtWidgets.QLabel(update_dialog_box)
@@ -47,14 +47,14 @@ class Ui_update_dialog_box(object):
         font = QtGui.QFont()
         font.setPointSize(10)
         self.buttonBox.setFont(font)
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.gridLayout.addWidget(self.buttonBox, 6, 0, 1, 1)
         self.direct_link_label = QtWidgets.QLabel(update_dialog_box)
         self.direct_link_label.setObjectName("direct_link_label")
         self.gridLayout.addWidget(self.direct_link_label, 2, 0, 1, 1)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         self.gridLayout.addItem(spacerItem, 3, 0, 1, 1)
         self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
 

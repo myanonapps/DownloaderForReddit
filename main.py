@@ -27,7 +27,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import ctypes
 import sys
 import logging
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 
 from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
 from DownloaderForReddit.messaging.message_receiver import MessageReceiver
@@ -97,7 +97,7 @@ def main():
     schedule_thread.start()
 
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

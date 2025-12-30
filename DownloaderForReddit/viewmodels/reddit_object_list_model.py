@@ -1,6 +1,6 @@
 import logging
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QObject, pyqtSignal, QThread
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QObject, pyqtSignal, QThread
+from PyQt6.QtGui import QColor
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 
@@ -248,13 +248,13 @@ class RedditObjectListModel(QAbstractListModel):
         except AttributeError:
             return 0
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
         if index.isValid():
             try:
-                if role == Qt.DisplayRole or role == Qt.EditRole:
+                if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
                     return self.reddit_objects[row].name
-                elif role == Qt.ForegroundRole:
+                elif role == Qt.ItemDataRole.ForegroundRole:
                     if not self.reddit_objects[row].download_enabled and \
                             self.settings_manager.colorize_disabled_reddit_objects:
                         r, g, b = self.settings_manager.disabled_reddit_object_display_color
@@ -267,9 +267,9 @@ class RedditObjectListModel(QAbstractListModel):
                         return QColor(r, g, b, 255)
                     else:
                         return None
-                elif role == Qt.ToolTipRole:
+                elif role == Qt.ItemDataRole.ToolTipRole:
                     return self.set_tooltips(self.reddit_objects[row])
-                elif role == Qt.UserRole:
+                elif role == Qt.ItemDataRole.UserRole:
                     return self.reddit_objects[row]
                 else:
                     return None
@@ -321,7 +321,7 @@ class RedditObjectListModel(QAbstractListModel):
                 return key
 
     def flags(self, QModelIndex):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
 
     def refresh(self):
         """

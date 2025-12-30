@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\existing_names_dialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_ExistingNameDialog(object):
@@ -41,8 +41,8 @@ class Ui_ExistingNameDialog(object):
         self.name_table_widget.verticalHeader().setStretchLastSection(False)
         self.verticalLayout.addWidget(self.name_table_widget)
         self.button_box = QtWidgets.QDialogButtonBox(ExistingNameDialog)
-        self.button_box.setOrientation(QtCore.Qt.Horizontal)
-        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         self.button_box.setObjectName("button_box")
         self.verticalLayout.addWidget(self.button_box)
 

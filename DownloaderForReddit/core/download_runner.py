@@ -1,10 +1,12 @@
+import json
+import os
 import platform
 import logging
 from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
 import prawcore
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 from collections import namedtuple
 from praw.models import Redditor
 from sqlalchemy import or_

@@ -1,8 +1,8 @@
 import os
 from time import time
-from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy,
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy,
                              QCheckBox, QLineEdit, QPushButton)
-from PyQt5.QtGui import QColor
+from PyQt6.QtGui import QColor
 
 from .abstract_settings_widget import AbstractSettingsWidget
 from DownloaderForReddit.core import const
@@ -45,7 +45,7 @@ class SupportedVideoSettingsWidget(AbstractSettingsWidget):
         layout.addLayout(search_layout)
 
         self.list_widget = QListWidget()
-        self.list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.list_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.list_widget)
 
         button_box = QHBoxLayout()

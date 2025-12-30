@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from queue import Queue
 from threading import Thread, Event
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from .submission_handler import SubmissionHandler
 from DownloaderForReddit.core.download.downloader import Downloader

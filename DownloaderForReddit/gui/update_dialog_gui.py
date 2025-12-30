@@ -23,7 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from PyQt5.QtWidgets import QDialog
+from PyQt6.QtWidgets import QDialog
 
 from ..guiresources.update_dialog_auto import Ui_update_dialog_box
 from ..utils import injector

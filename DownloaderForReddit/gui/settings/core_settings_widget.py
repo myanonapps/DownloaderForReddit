@@ -1,7 +1,7 @@
 import os
-from PyQt5.QtWidgets import QFileDialog, QCheckBox, QListWidgetItem
-from PyQt5.QtGui import QValidator
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QFileDialog, QCheckBox, QListWidgetItem
+from PyQt6.QtGui import QValidator
+from PyQt6.QtCore import Qt
 
 from DownloaderForReddit.guiresources.settings.core_settings_widget_auto import Ui_CoreSettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
@@ -85,7 +85,7 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
         self.settings.download_reddit_hosted_videos = self.download_reddit_hosted_videos_checkbox.isChecked()
         self.settings.use_multi_part_downloader = self.multi_part_download_groupbox.isChecked()
         threshold_size = \
-            int(self.multipart_threshold_spinbox.value() * self.threshold_size_combo.currentData(Qt.UserRole))
+            int(self.multipart_threshold_spinbox.value() * self.threshold_size_combo.currentData(Qt.ItemDataRole.UserRole))
         self.settings.multi_part_threshold = threshold_size
         self.settings.multi_part_thread_count = self.multi_part_thread_count_spinbox.value()
         self.settings.download_on_add = self.download_on_add_checkbox.isChecked()
@@ -119,6 +119,6 @@ class FormatValidator(QValidator):
 
     def validate(self, text, pos):
         if '%[dir_name]' in text:
-            return QValidator.Acceptable, text, pos
+            return QValidator.State.Acceptable, text, pos
         else:
-            return QValidator.Invalid, text, pos
+            return QValidator.State.Invalid, text, pos
