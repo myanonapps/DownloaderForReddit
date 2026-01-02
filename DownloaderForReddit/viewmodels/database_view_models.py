@@ -252,13 +252,13 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
             if content.is_image:
                 path = content.get_full_file_path()
             elif content.is_animated:
-                path = os.path.join(const.RESOURCES, 'Images', 'video_placeholder.png')
+                path = os.path.join(const.RESOURCES, 'images', 'video_placeholder.png')
             elif content.is_text:
-                path = os.path.join(const.RESOURCES, 'Images', 'text_placeholder.png')
+                path = os.path.join(const.RESOURCES, 'images', 'text_placeholder.png')
             else:
-                path = os.path.join(const.RESOURCES, 'Images', 'missing_file_icon.png')
+                path = os.path.join(const.RESOURCES, 'images', 'missing_file_icon.png')
             if not os.path.exists(path):
-                path = os.path.join(const.RESOURCES, 'Images', 'missing_file_icon.png')
+                path = os.path.join(const.RESOURCES, 'images', 'missing_file_icon.png')
             pixmap = QPixmap(path).scaled(QSize(500, 500), Qt.KeepAspectRatio)
             icon = QIcon()
             icon.addPixmap(pixmap, QIcon.Normal)
