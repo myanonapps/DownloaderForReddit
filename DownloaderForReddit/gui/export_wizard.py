@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from PyQt5.QtWidgets import QWizard, QFileDialog
+from PyQt6.QtWidgets import QWizard, QFileDialog
 
 from ..guiresources.export_wizard_auto import Ui_ExportWizard
 from ..utils import injector, system_util, general_utils

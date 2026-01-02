@@ -2,10 +2,10 @@ import logging
 from datetime import datetime
 from queue import Queue
 from threading import Thread, Event
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
-from .submission_handler import SubmissionHandler
 from DownloaderForReddit.core.download.downloader import Downloader
+from .submission_handler import SubmissionHandler
 from .runner import verify_run
 from ..database.models import DownloadSession, Post
 from ..utils import injector, reddit_utils
@@ -37,6 +37,7 @@ class UpdateRunner(QObject):
         self.downloader = None
         self.download_queue = Queue(maxsize=-1)
         self.download_session_id = None
+        self.post_list = None
 
     def run(self):
         self.logger.debug('Update runner starting')
@@ -90,8 +91,13 @@ class UpdateRunner(QObject):
                 post.score = submission.score
                 Message.send_info(f'{post.title} score updated\n'
                                   f'    Old score: {old_score}  |  New Score: {post.score}')
-            except:
+            except Exception:
                 self.logger.error('Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
+                                                                  'author': post.author.name,
+                                                                  'subreddit': post.subreddit.name}, exc_info=True)
+                Message.send_warning(f'Failed to update score for {post.title}')
+            except BaseException:
+                self.logger.error('Somebody throwing a BaseException. Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
                                                                   'author': post.author.name,
                                                                   'subreddit': post.subreddit.name}, exc_info=True)
                 Message.send_warning(f'Failed to update score for {post.title}')
@@ -113,7 +119,7 @@ class UpdateRunner(QObject):
         self.finished.emit()
 
     def start_downloader(self):
-        self.downloader = Downloader(self.download_queue, self.download_session_id)
+        self.downloader = Downloader(self.download_queue, self.download_session_id, stop_run=None)
         self.download_thread = Thread(target=self.downloader.run)
         self.download_thread.start()
 
@@ -123,7 +129,7 @@ class UpdateRunner(QObject):
             post = session.query(Post).get(post_id)
             submission = self.reddit_instance.submission(id=post.reddit_id)
             submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
-                                                   self.download_queue)
+                                                   self.download_queue, stop_run=None)
             submission_handler.extract_comments()
 
     def stop(self):

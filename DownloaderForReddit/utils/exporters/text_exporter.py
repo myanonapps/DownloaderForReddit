@@ -47,8 +47,7 @@ def format_post_output(post):
     :param post: The post that is to be formatted.
     :return: The supplied posts attributes in a readable formatted string.
     """
-    return 'Author: %s\nSubreddit: %s\nTitle: %s\nCreated: %s\nUrl: %s\nStatus: %s\nSave Status: %s' % \
-           (post.author, post.subreddit, post.title, post.date_posted, post.url, post.status, post.save_status)
+    return f'Author: {post.author}\nSubreddit: {post.subreddit}\nTitle: {post.title}\nCreated: {post.date_posted}\nUrl: {post.url}\nStatus: {post.status}\nSave Status: {post.save_status}'
 
 
 def export_url_list(url_list, file_path):
@@ -59,7 +58,7 @@ def export_url_list(url_list, file_path):
     """
     with open(file_path, 'a') as file:
         for url in url_list:
-            file.write('%s\n' % url)
+            file.write(f'{url}\n')
     logger.info('Exported url list to text file', extra={'export_count': len(url_list)})
 
 

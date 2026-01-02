@@ -364,7 +364,7 @@ class RedditObject(BaseModel):
 
     @property
     def total_score_display(self):
-        return '{:,}'.format(self.total_score)
+        return f'{self.total_score:,}'
 
     @property
     def post_count(self):
@@ -534,12 +534,12 @@ class DownloadSession(BaseModel):
 
 
 @event.listens_for(DownloadSession.end_time, 'set')
-def set_download_session_duration(target, value, oldValue, initiator):
+def set_download_session_duration(target, value, old_value, initiator): # pylint: disable=unused-argument
     target.duration = value.timestamp() - target.start_time.timestamp()
 
 
 @event.listens_for(DownloadSession, 'before_insert')
-def set_download_session_name(mapper, connection, target):
+def set_download_session_name(mapper, connection, target): # pylint: disable=unused-argument
     if target.name is None:
         try:
             number = target.get_session().query(DownloadSession.id).order_by(DownloadSession.id.desc()).first()[0] + 1
@@ -618,7 +618,7 @@ class Post(BaseModel):
 
     @property
     def score_display(self):
-        return '{:,}'.format(self.score)
+        return f'{self.score:,}'
 
     @property
     def extraction_date_display(self):
@@ -695,7 +695,7 @@ class Comment(BaseModel):
 
     @property
     def score_display(self):
-        return '{:,}'.format(self.score)
+        return 'f{self.score:,}'
 
     @property
     def extraction_date_display(self):

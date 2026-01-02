@@ -72,18 +72,16 @@ def merge_videos():
                     merged_content = create_merged_content(video_content)
                     merged_content.download_title = general_utils.ensure_content_download_path(merged_content)
 
-                    cmd = 'ffmpeg -i "%s" -i "%s" -c:v copy -c:a aac -strict experimental "%s" -y' % \
-                          (video_content.get_full_file_path(), audio_content.get_full_file_path(),
-                           merged_content.get_full_file_path())
+                    cmd = f'ffmpeg -i "{video_content.get_full_file_path()}" -i "{audio_content.get_full_file_path()}" -c:v copy -c:a aac -strict experimental "{merged_content.get_full_file_path()}" -y'
                     si = subprocess.STARTUPINFO()
                     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    CREATE_NO_WINDOW = 0x08000000
+                    CREATE_NO_WINDOW = 0x08000000 # pylint: disable=invalid-name
                     subprocess.call(cmd, startupinfo=si, creationflags=CREATE_NO_WINDOW)
                     if injector.get_settings_manager().match_file_modified_to_post_date:
                         system_util.set_file_modify_time(merged_content.get_full_file_path(),
                                                          ms.date_modified.timestamp())
                     clean_up(video_content, audio_content, merged_content, session)
-                except:
+                except: # pylint: disable=bare-except
                     failed_count += 1
                     logger.error('Failed to merge video', extra={'video_id': ms.video_id, 'audio_id': ms.audio_id},
                                  exc_info=True)

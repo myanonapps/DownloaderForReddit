@@ -22,13 +22,13 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import requests
 import logging
+import requests
 
-from ..database import Content, Post
+from ..database import Content
 from ..core.content_filter import ContentFilter
 from ..core.errors import Error
-from ..utils import injector
+from ..utils import injector, reddit_utils
 from ..messaging.message import Message
 from ..utils.filename_generator import FilenameGenerator
 
@@ -83,7 +83,7 @@ class BaseExtractor:
         Method that dictates which extraction method will be used.  Responsible for deciding how an extractor is
         chosen based on the particular website.
         """
-        pass
+        pass # pylint: disable=unnecessary-pass
 
     def extract_single(self):
         """
@@ -91,7 +91,7 @@ class BaseExtractor:
         that are the actual url that is downloaded) but to extract the direct url from a container page that is common
         among content hosting websites.
         """
-        pass
+        pass # pylint: disable=unnecessary-pass
 
     def extract_album(self):
         """
@@ -99,7 +99,7 @@ class BaseExtractor:
         websites have different methods of accessing the sequential items in an album page.  This method should
         extract each item in an album, assign it a sequential number and add it to the content list.
         """
-        pass
+        pass # pylint: disable=unnecessary-pass
 
     def extract_direct_link(self):
         """
@@ -109,8 +109,8 @@ class BaseExtractor:
         the same and subclasses can call this method directly.  There are some cases where this is not the case and
         this method must be overwritten.
         """
-        domain, id_with_ext = self.url.rsplit('/', 1)
-        media_id, extension = id_with_ext.rsplit('.', 1)
+        domain, id_with_ext = self.url.rsplit('/', 1) # pylint: disable=unused-variable
+        media_id, extension = id_with_ext.rsplit('.', 1) # pylint: disable=unused-variable
         self.make_content(self.url, extension)
 
     def get_json(self, url):
@@ -121,6 +121,7 @@ class BaseExtractor:
         else:
             self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message='Failed to retrieve json data from link',
                                        status_code=response.status_code)
+            return None
 
     def get_text(self, url):
         """See get_json"""
@@ -130,6 +131,7 @@ class BaseExtractor:
         else:
             self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message='Failed to retrieve data from link',
                                        status_code=response.status_code)
+            return None
 
     def make_content(self, url, extension, count=None, name_modifier='', **kwargs):
         """
@@ -239,7 +241,7 @@ class BaseExtractor:
         extra = {'extractor_data': self.get_log_data()}
         extra.update(kwargs)
         if log:
-            self.logger.error(f'Failed to extract content: {message}', extra=extra, exc_info=log_exception)
+            self.logger.error('Failed to extract content: %s', message, extra=extra, exc_info=log_exception)
         message += f'\nTitle: {self.post.title}\nUrl: {self.url}'
         Message.send_extraction_error(message)
 
@@ -256,3 +258,30 @@ class BaseExtractor:
             'extracted_content_count': len(self.extracted_content),
             'extraction_failed': self.failed_extraction,
         }
+
+    def get_host_submission(self):
+        """
+        Finds the actual submission that holds the content to be extracted.  If the post is the original post containing
+        the content, then that submission is returned.  If the post is a crosspost from another location,
+        the parent crosspost is returned as it is the post which holds the content.
+        :return: The top level post which holds the content to be downloaded
+        """
+        submission = self.submission
+        if not submission:
+            try:
+                r = reddit_utils.get_reddit_instance()
+                submission = r.submission(self.post.reddit_id)
+            except Exception as e:
+                raise e
+
+        if not submission:
+            return submission
+
+        if hasattr(submission, 'crosspost_parent'):
+            try:
+                r = reddit_utils.get_reddit_instance()
+                parent_submission = r.submission(submission.crosspost_parent.split('_')[1])
+                return parent_submission
+            except AttributeError:
+                pass
+        return submission

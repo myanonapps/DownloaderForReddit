@@ -1,13 +1,13 @@
 import os
-import requests
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
+import requests
 
-from . import HEADERS
 from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.utils import injector
 
+from . import HEADERS
 
 class MultipartDownloader(Runner):
 
@@ -24,8 +24,10 @@ class MultipartDownloader(Runner):
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(self.download(content, path, size))
-        except:
+        except Exception:
             self.logger.error('Multi-part download failed', extra={'url': content.url, 'path': path}, exc_info=True)
+        except BaseException:
+            self.logger.error('Somebody throwing BaseException. Multi-part download failed', extra={'url': content.url, 'path': path}, exc_info=True)
         finally:
             loop.close()
 
@@ -92,8 +94,11 @@ class MultipartDownloader(Runner):
             except requests.exceptions.ChunkedEncodingError:
                 self.log_part_error('Connection experienced a chunk encoding error and closed before complete',
                                     extra={'url': url, 'range': f'{start} - {end}'}, log=tries >= 3)
-            except:
+            except Exception:
                 self.log_part_error('Unknown error occurred', extra={'url': url, 'range': f'{start} - {end}'},
+                                    log=tries >= 3)
+            except BaseException:
+                self.log_part_error('Someone throwing a BaseException. Unknown error occurred', extra={'url': url, 'range': f'{start} - {end}'},
                                     log=tries >= 3)
 
     def get_headers(self, content, start, end):

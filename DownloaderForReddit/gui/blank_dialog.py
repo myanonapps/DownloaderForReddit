@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout
-from PyQt5.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QDialog, QVBoxLayout
+from PyQt6.QtCore import pyqtSignal
 
 
 class BlankDialog(QDialog):
@@ -14,6 +14,6 @@ class BlankDialog(QDialog):
         for x in widgets:
             self.layout().addWidget(x)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event): # pylint: disable=invalid-name
         self.closing.emit()
         super().closeEvent(event)

@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt
+from PyQt6.QtCore import Qt
 
 from DownloaderForReddit.guiresources.settings.notification_settings_widget_auto import Ui_NotificationSettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
@@ -6,7 +6,7 @@ from .abstract_settings_widget import AbstractSettingsWidget
 
 class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettingsWidget):
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs): # pylint: disable=unused-argument
         super().__init__()
         level_map = {
             0: 'All Releases',
@@ -39,7 +39,7 @@ class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettings
         self.status_tray_message_display_length_spinbox.setValue(self.settings.tray_icon_message_display_length)
 
     def apply_settings(self):
-        self.settings.update_notification_level = self.update_level_combo.currentData(Qt.UserRole)
+        self.settings.update_notification_level = self.update_level_combo.currentData(Qt.ItemDataRole.UserRole)
         self.settings.auto_display_failed_downloads = self.auto_display_failed_downloads_checkbox.isChecked()
         self.settings.remove_reddit_object_warning = self.remove_reddit_object_warning_checkbox.isChecked()
         self.settings.remove_reddit_object_list_warning = \

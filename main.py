@@ -27,7 +27,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import ctypes
 import sys
 import logging
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 
 from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
 from DownloaderForReddit.messaging.message_receiver import MessageReceiver
@@ -39,13 +39,12 @@ from DownloaderForReddit.version import __version__
 
 
 if sys.platform == 'win32':
-    myappid = 'SomeGuySoftware.DownloaderForReddit.%s' % __version__
-    AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    MYAPPID = f'SomeGuySoftware.DownloaderForReddit.{__version__}'
+    AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(MYAPPID)
 
 
 def log_unhandled_exception(exc_type, value, traceback):
-    logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
-    logger.critical('Unhandled exception', exc_info=(exc_type, value, traceback))
+    logging.getLogger(f'DownloaderForReddit.{__name__}').critical('Unhandled exception', exc_info=(exc_type, value, traceback))
     sys.exit(-1)
 
 
@@ -97,7 +96,7 @@ def main():
     schedule_thread.start()
 
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

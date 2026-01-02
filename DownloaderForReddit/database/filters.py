@@ -19,8 +19,8 @@ class Filter(ABC):
     op_map = {
         'eq': lambda attr, value: attr == value,
         'not': lambda attr, value: attr != value,
-        'lt': lambda attr, value: or_(attr == None, attr < value),
-        'lte': lambda attr, value: or_(attr == None, attr <= value),
+        'lt': lambda attr, value: or_(attr == None, attr < value), # pylint: disable=singleton-comparison
+        'lte': lambda attr, value: or_(attr == None, attr <= value), # pylint: disable=singleton-comparison
         'gt': lambda attr, value: attr > value,
         'gte': lambda attr, value: attr >= value,
         'in': lambda attr, value: attr.in_(value),
@@ -86,7 +86,7 @@ class Filter(ABC):
             try:
                 f = self.op_map[operator](attr, value)
                 query = query.filter(f)
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
         query = self.order_query(query, order_by, desc)
         return query
@@ -129,7 +129,7 @@ class Filter(ABC):
         try:
             choices = []
             field = self.model.__table__.c[attr]
-            if type(field.type) == Enum:
+            if type(field.type) == Enum: # pylint: disable=unidiomatic-typecheck
                 enum = field.type.enum_class
                 for value in enum:
                     choices.append((value.display_name.title(), value))

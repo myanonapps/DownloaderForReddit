@@ -1,9 +1,10 @@
 import os
 import logging
-from PyQt5.QtWidgets import QDialog, QFileDialog, QApplication
-from PyQt5.QtCore import Qt, pyqtSignal
-from pyqtspinner.spinner import WaitingSpinner
 from threading import Thread
+from PyQt6.QtWidgets import QDialog, QFileDialog, QApplication
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor
+from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
 from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
 from ..utils import injector, system_util, reddit_utils
@@ -23,6 +24,8 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
         self.list_model = list_model
+        self.spinner = None
+        self.thread = None
         self.setWindowTitle(f'Add {self.list_model.list_type.capitalize()}')
         self.single_add_label.setText(f'Enter new {self.list_model.list_type.lower()}')
         self.tab_widget.setCurrentIndex(0)
@@ -96,11 +99,12 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
             else:
                 self.logger.error('Failed to import file.  File does not exist.', extra={'file_path': file_path})
                 return None
+        return None
 
     def validate_imported_objects(self, imported_objects):
-        self.spinner = WaitingSpinner(parent=None, roundness=80.0, opacity=10.0, fade=72.0, radius=10.0,
-                                 lines=12, line_length=12.0, line_width=4.0, speed=1.4, color=(0, 0, 0))
-        self.spinner.setParent(self.multi_object_list_widget)
+        spin_pars = SpinnerParameters(disable_parent_when_spinning=True, roundness=80.0, minimum_trail_opacity=10.0, trail_fade_percentage=72.0, inner_radius=10,
+                                      number_of_lines=12, line_length=12, line_width=4, revolutions_per_second=1.4, color=QColor(0, 0, 0))
+        self.spinner = WaitingSpinner(self.multi_object_list_widget, spin_pars)
         self.validation_finished.connect(self.spinner.stop)  # signal used to stop timer in correct thread
         self.spinner.start()
         self.thread = Thread(target=self.validate_objects, args=imported_objects)
@@ -150,7 +154,7 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
                     existing_names[ro.name] = lists
             if len(existing_names) > 0:
                 dialog = ExistingNamesDialog(existing_names)
-                dialog.exec_()
+                dialog.exec()
                 for key, value in dialog.decisions.items():
                     if not value:
                         self.exclude.append(key)
@@ -164,11 +168,11 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
             if ro.name not in self.exclude:
                 self.list_model.add_complete_reddit_object(ro)
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event):  # pylint: disable=invalid-name
         key = event.key()
-        if key in (Qt.Key_Enter, Qt.Key_Return):
+        if key in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
             if self.tab_widget.currentIndex() == 0:
-                shift = QApplication.keyboardModifiers() == Qt.ShiftModifier
+                shift = QApplication.keyboardModifiers() == Qt.KeyboardModifier.ShiftModifier
                 if shift:
                     name = self.single_object_line_edit.text().strip()
                     if name != '' and name not in self.added:

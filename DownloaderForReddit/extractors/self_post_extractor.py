@@ -27,7 +27,7 @@ class SelfPostExtractor(BaseExtractor):
             self.logger.error('Failed to save self post',
                               extra={'url': self.url, 'user': self.user, 'subreddit': self.subreddit}, exc_info=True)
 
-    def make_content(self, url, extension, count=None, name_modifier=None):
+    def make_content(self, url, extension, count=None, name_modifier=None, **kwargs):
         content = Content(
             title=self.make_title(),
             extension=extension,
@@ -37,7 +37,7 @@ class SelfPostExtractor(BaseExtractor):
             post=self.post,
             directory_path=self.make_dir_path()
         )
-        self.check_file_path(content)
+        self.__check_file_path(content)
         self.download_text_post(content)
         session = self.post.get_session()
         session.add(content)
@@ -47,19 +47,19 @@ class SelfPostExtractor(BaseExtractor):
     def download_text_post(self, content):
         try:
             with open(content.get_full_file_path(), 'w', encoding='utf-8') as file:
-                text = self.get_text(content.extension)
+                text = self.__get_text(content.extension)
                 file.write(text)
                 content.set_downloaded(self.download_session_id)
         except Exception as e:
             content.set_download_error(Error.TEXT_FAILURE, 'Failed to save text post', extra={'error': e})
 
-    def get_text(self, ext):
+    def __get_text(self, ext):
         if ext == 'txt':
             return self.comment.body if self.comment is not None else self.post.text
         else:
             return self.comment.body_html if self.comment is not None else self.post.text_html
 
-    def check_file_path(self, content):
+    def __check_file_path(self, content):
         self.create_dir_path(content.directory_path)
         unique_count = 1
         base_path = system_util.clean(content.title)

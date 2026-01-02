@@ -55,5 +55,5 @@ def convert_download_nsfw(nsfw):
 def get_date_limit(date_limit):
     try:
         return datetime.fromtimestamp(date_limit)
-    except:
+    except: # pylint: disable=bare-except
         return None

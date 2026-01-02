@@ -1,13 +1,13 @@
 import time
-from PyQt5.QtWidgets import QListWidgetItem, QCheckBox, QWidget, QLabel, QVBoxLayout, QFrame, QMenu
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
+from PyQt6.QtWidgets import QListWidgetItem, QCheckBox, QWidget, QLabel, QVBoxLayout, QFrame, QMenu
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCursor
 
-from .abstract_settings_widget import AbstractSettingsWidget
 from DownloaderForReddit.guiresources.settings.schedule_settings_widget_auto import Ui_ScheduleSettingsWidget
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.scheduling.tasks import DownloadTask, Interval
 from DownloaderForReddit.database.models import RedditObjectList
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
@@ -22,7 +22,7 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         self.load_ui()
         self.schedule_download_button.clicked.connect(self.add_task)
 
-        self.scheduled_downloads_list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.scheduled_downloads_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.scheduled_downloads_list_widget.customContextMenuRequested.connect(self.task_list_widget_context_menu)
 
     def load_ui(self):
@@ -79,10 +79,10 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         if self.check_value_entry():
             self.error_label.setVisible(False)
             task = DownloadTask(
-                interval=self.interval_combo.currentData(Qt.UserRole),
+                interval=self.interval_combo.currentData(Qt.ItemDataRole.UserRole),
                 value=self.interval_value_line_edit.text(),
-                user_list=self.user_list_combo.currentData(Qt.UserRole),
-                subreddit_list=self.subreddit_list_combo.currentData(Qt.UserRole),
+                user_list=self.user_list_combo.currentData(Qt.ItemDataRole.UserRole),
+                subreddit_list=self.subreddit_list_combo.currentData(Qt.ItemDataRole.UserRole),
                 active=True
             )
             with self.db.get_scoped_session() as session:
@@ -110,7 +110,7 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
 
     def check_value_format(self):
         text = self.interval_value_line_edit.text()
-        interval = self.interval_combo.currentData(Qt.UserRole)
+        interval = self.interval_combo.currentData(Qt.ItemDataRole.UserRole)
         if interval == Interval.MINUTE:
             try:
                 time.strptime(text, ':%S')
@@ -149,8 +149,8 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         layout.addWidget(checkbox)
 
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
 
         layout.addWidget(line)
         widget.setLayout(layout)
@@ -169,7 +169,7 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
     def task_list_widget_context_menu(self):
         menu = QMenu()
         menu.addAction('Remove Task', lambda: self.remove_task(self.scheduled_downloads_list_widget.currentRow()))
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def remove_task(self, row):
         item = self.scheduled_downloads_list_widget.takeItem(row)

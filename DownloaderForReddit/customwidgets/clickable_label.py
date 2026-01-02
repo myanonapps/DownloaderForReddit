@@ -23,7 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 
 class ClickableLabel(QtWidgets.QLabel):
@@ -33,6 +33,6 @@ class ClickableLabel(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(ClickableLabel, self).__init__(parent)
 
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
+    def mousePressEvent(self, event):  # pylint: disable=invalid-name
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.clicked.emit()

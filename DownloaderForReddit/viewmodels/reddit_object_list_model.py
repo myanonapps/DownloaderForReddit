@@ -1,6 +1,6 @@
 import logging
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QObject, pyqtSignal, QThread
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QObject, pyqtSignal, QThread
+from PyQt6.QtGui import QColor
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 
@@ -207,7 +207,7 @@ class RedditObjectListModel(QAbstractListModel):
             self.sort_list()
 
     def add_complete_reddit_object(self, reddit_object):
-        reddit_object, created = self.db.get_or_create(type(reddit_object), session=self.session,
+        reddit_object, created = self.db.get_or_create(type(reddit_object), session=self.session, # pylint: disable=unused-variable
                                                        name=reddit_object.name)
         if reddit_object.id not in self.get_id_list(download_enabled=False):
             self.insertRow(reddit_object)
@@ -216,7 +216,7 @@ class RedditObjectListModel(QAbstractListModel):
     def finish_adding(self):
         self.finished_add.emit()
 
-    def insertRow(self, item, parent=QModelIndex(), *args, **kwargs):
+    def insertRow(self, item, parent=QModelIndex(), *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         if item is not None:
             self.beginInsertRows(parent, self.rowCount() - 1, self.rowCount())
             self.list.reddit_objects.append(item)
@@ -227,34 +227,34 @@ class RedditObjectListModel(QAbstractListModel):
             return True
         return False
 
-    def removeRows(self, position, rows, parent=QModelIndex(), *args):
+    def removeRows(self, position, rows, parent=QModelIndex(), *args): # pylint: disable=invalid-name,unused-argument
         self.beginRemoveRows(parent, position, position - 1)
-        for x in range(rows):
+        for x in range(rows): # pylint: disable=unused-variable
             self.list.reddit_objects.remove(self.list.reddit_objects[position])
         self.endRemoveRows()
         self.session.commit()
         return True
 
-    def removeRow(self, row, parent=QModelIndex(), *args):
+    def removeRow(self, row, parent=QModelIndex(), *args): # pylint: disable=invalid-name,unused-argument
         self.beginRemoveRows(parent, row, row)
         del self.list.reddit_objects[row]
         self.endRemoveRows()
         self.session.commit()
         return True
 
-    def rowCount(self, parent=QModelIndex(), *args, **kwargs):
+    def rowCount(self, parent=QModelIndex(), *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         try:
             return len(self.reddit_objects) if self.reddit_objects else 0
         except AttributeError:
             return 0
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
         if index.isValid():
             try:
-                if role == Qt.DisplayRole or role == Qt.EditRole:
+                if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
                     return self.reddit_objects[row].name
-                elif role == Qt.ForegroundRole:
+                elif role == Qt.ItemDataRole.ForegroundRole:
                     if not self.reddit_objects[row].download_enabled and \
                             self.settings_manager.colorize_disabled_reddit_objects:
                         r, g, b = self.settings_manager.disabled_reddit_object_display_color
@@ -267,9 +267,9 @@ class RedditObjectListModel(QAbstractListModel):
                         return QColor(r, g, b, 255)
                     else:
                         return None
-                elif role == Qt.ToolTipRole:
+                elif role == Qt.ItemDataRole.ToolTipRole:
                     return self.set_tooltips(self.reddit_objects[row])
-                elif role == Qt.UserRole:
+                elif role == Qt.ItemDataRole.UserRole:
                     return self.reddit_objects[row]
                 else:
                     return None
@@ -312,7 +312,7 @@ class RedditObjectListModel(QAbstractListModel):
         tooltip = ''
         for key, value in tooltip_dict.items():
             if self.settings_manager.main_window_tooltip_display_dict[key]:
-                tooltip += '%s\n' % value
+                tooltip += f'{value}\n'
         return tooltip.strip()
 
     def nsfw_filter_display(self, filter_method):
@@ -320,8 +320,8 @@ class RedditObjectListModel(QAbstractListModel):
             if value == filter_method:
                 return key
 
-    def flags(self, QModelIndex):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+    def flags(self, index: QModelIndex): # pylint: disable=invalid-name,unused-argument
+        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
 
     def refresh(self):
         """
@@ -371,7 +371,7 @@ class ObjectValidator(QObject):
         for name in self.name_list:
             creation_tuple = object_creator.create_reddit_object(name, self.list_defaults)
             if creation_tuple is not None:
-                reddit_object_id, created = creation_tuple
+                reddit_object_id, created = creation_tuple # pylint: disable=unused-variable
                 self.new_object_signal.emit(reddit_object_id)
             else:
                 self.invalid_name_signal.emit(name)

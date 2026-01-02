@@ -22,12 +22,12 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import praw
-import prawcore
 import logging
 from datetime import datetime
 from collections import namedtuple
 from cryptography.fernet import Fernet
+import praw
+import prawcore
 
 from ..core import const
 from ..messaging.message import Message
@@ -42,7 +42,7 @@ CLIENT_ID = 'frGEUVAuHGL2PQ'
 REDIRECT_URL = 'http://127.0.0.1:8086/'
 
 
-logger = logging.getLogger('DownloaderForReddit.{}'.format(__name__))
+logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
 connection_is_authorized = False
 _token = None
@@ -118,7 +118,7 @@ def check_authorized_connection():
         logger.error('Praw request failed', exc_info=True)
     except prawcore.ResponseException:
         logger.error('Praw response failed', exc_info=True)
-    except:
+    except: # pylint: disable=bare-except
         # Handle unknown exception here to keep the application from completely crashing.
         logger.error('Error checking reddit account', exc_info=True)
     return None
@@ -158,7 +158,7 @@ class NameChecker:
         :type object_type: str, None
         """
         super().__init__()
-        self.logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.r = get_reddit_instance()
         self.continue_run = True
         self.object_type = object_type
@@ -181,8 +181,11 @@ class NameChecker:
             return ValidationSet(name=actual_name, date_created=created, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
             return ValidationSet(name=name, date_created=None, valid=False)
-        except:
+        except Exception:
             self.logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
+            return ValidationSet(name=name, date_created=None, valid=False)
+        except BaseException:
+            self.logger.error('Somebody is throwing a BaseException. Unable to validate user name', extra={'user_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)
 
     def check_subreddit_name(self, name):
@@ -194,6 +197,9 @@ class NameChecker:
             return ValidationSet(name=actual_name, date_created=created, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
             return ValidationSet(name=name, date_created=None, valid=False)
-        except:
+        except Exception:
             self.logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
+            return ValidationSet(name=name, date_created=None, valid=False)
+        except BaseException:
+            self.logger.error('Somebody is throwing a BaseException. Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)

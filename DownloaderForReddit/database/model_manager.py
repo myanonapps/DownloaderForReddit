@@ -90,7 +90,7 @@ class ModelManger:
         """
         batch_count = math.ceil(query.count() / 999)
         offset = 0
-        for batch in range(batch_count):
+        for batch in range(batch_count): # pylint: disable=unused-variable
             sub_query = query.offset(offset).limit(999).subquery()
             batch_query = session.query(model).filter(model.id.in_(sub_query))
             batch_query.delete(synchronize_session='fetch')

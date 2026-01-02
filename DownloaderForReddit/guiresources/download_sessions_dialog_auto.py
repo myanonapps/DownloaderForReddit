@@ -2,11 +2,11 @@
 
 # Form implementation generated from reading ui file 'DownloadSessionsDialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.8.2
+# Created by: PyQt6 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 class Ui_DownloadSessionDialog(object):
     def setupUi(self, DownloadSessionDialog):
@@ -28,16 +28,16 @@ class Ui_DownloadSessionDialog(object):
         self.show_comments_checkbox = QtWidgets.QCheckBox(DownloadSessionDialog)
         self.show_comments_checkbox.setObjectName("show_comments_checkbox")
         self.horizontalLayout.addWidget(self.show_comments_checkbox)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout.addItem(spacerItem)
         self.verticalLayout_6.addLayout(self.horizontalLayout)
         self.splitter = QtWidgets.QSplitter(DownloadSessionDialog)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
         self.splitter.setSizePolicy(sizePolicy)
-        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setObjectName("splitter")
         self.download_session_widget = QtWidgets.QWidget(self.splitter)
         self.download_session_widget.setObjectName("download_session_widget")
@@ -45,7 +45,7 @@ class Ui_DownloadSessionDialog(object):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.download_session_list_view = QtWidgets.QListView(self.download_session_widget)
-        self.download_session_list_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.download_session_list_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.download_session_list_view.setObjectName("download_session_list_view")
         self.verticalLayout.addWidget(self.download_session_list_view)
         self.reddit_object_widget = QtWidgets.QWidget(self.splitter)
@@ -54,7 +54,7 @@ class Ui_DownloadSessionDialog(object):
         self.verticalLayout_2.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.reddit_object_list_view = QtWidgets.QListView(self.reddit_object_widget)
-        self.reddit_object_list_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.reddit_object_list_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.reddit_object_list_view.setObjectName("reddit_object_list_view")
         self.verticalLayout_2.addWidget(self.reddit_object_list_view)
         self.post_widget = QtWidgets.QWidget(self.splitter)
@@ -63,15 +63,15 @@ class Ui_DownloadSessionDialog(object):
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.post_splitter = QtWidgets.QSplitter(self.post_widget)
-        self.post_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.post_splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.post_splitter.setObjectName("post_splitter")
         self.post_table_view = QtWidgets.QTableView(self.post_splitter)
-        self.post_table_view.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
-        self.post_table_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.post_table_view.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.post_table_view.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.post_table_view.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        self.post_table_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.post_table_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.post_table_view.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.post_table_view.setShowGrid(False)
-        self.post_table_view.setGridStyle(QtCore.Qt.NoPen)
+        self.post_table_view.setGridStyle(QtCore.Qt.PenStyle.NoPen)
         self.post_table_view.setObjectName("post_table_view")
         self.post_table_view.horizontalHeader().setCascadingSectionResizes(False)
         self.post_text_browser = QtWidgets.QTextBrowser(self.post_splitter)
@@ -84,13 +84,13 @@ class Ui_DownloadSessionDialog(object):
         self.verticalLayout_4.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
         self.content_list_view = QtWidgets.QListView(self.content_widget)
-        self.content_list_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.content_list_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.content_list_view.setIconSize(QtCore.QSize(0, 0))
-        self.content_list_view.setFlow(QtWidgets.QListView.LeftToRight)
-        self.content_list_view.setResizeMode(QtWidgets.QListView.Adjust)
-        self.content_list_view.setLayoutMode(QtWidgets.QListView.Batched)
+        self.content_list_view.setFlow(QtWidgets.QListView.Flow.LeftToRight)
+        self.content_list_view.setResizeMode(QtWidgets.QListView.ResizeMode.Adjust)
+        self.content_list_view.setLayoutMode(QtWidgets.QListView.LayoutMode.Batched)
         self.content_list_view.setGridSize(QtCore.QSize(0, 0))
-        self.content_list_view.setViewMode(QtWidgets.QListView.IconMode)
+        self.content_list_view.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.content_list_view.setBatchSize(10)
         self.content_list_view.setWordWrap(True)
         self.content_list_view.setObjectName("content_list_view")
@@ -101,7 +101,7 @@ class Ui_DownloadSessionDialog(object):
         self.verticalLayout_5.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_5.setObjectName("verticalLayout_5")
         self.comment_tree_view = QtWidgets.QTreeView(self.comment_widget)
-        self.comment_tree_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.comment_tree_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.comment_tree_view.setObjectName("comment_tree_view")
         self.verticalLayout_5.addWidget(self.comment_tree_view)
         self.verticalLayout_6.addWidget(self.splitter)

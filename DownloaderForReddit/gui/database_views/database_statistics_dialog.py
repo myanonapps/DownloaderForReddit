@@ -1,14 +1,14 @@
 import os
 import logging
-from PyQt5.QtWidgets import QDialog, QLabel, QVBoxLayout, QFormLayout, QScrollArea, QWidget, QFrame
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QFont, QIcon, QPixmap
-from sqlalchemy.sql import func
-from sqlalchemy import desc, extract
 from datetime import datetime
 import calendar
 from time import time
 from operator import attrgetter
+from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout, QFormLayout, QScrollArea, QWidget, QFrame
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QFont, QIcon, QPixmap
+from sqlalchemy.sql import func
+from sqlalchemy import desc, extract
 
 from DownloaderForReddit.database.models import (DownloadSession, RedditObject, User, Subreddit, Post, Content, Comment,
                                                  RedditObjectList, ListAssociation)
@@ -26,7 +26,7 @@ class DatabaseStatisticsDialog(QDialog):
 
         self.setWindowTitle('Database Statistics')
         icon = QIcon()
-        icon.addPixmap(QPixmap('Resources/images/statistics_icon.png'), QIcon.Normal, QIcon.Off)
+        icon.addPixmap(QPixmap('Resources/images/statistics_icon.png'), QIcon.Mode.Normal, QIcon.State.Off)
         self.setWindowIcon(icon)
 
         geom = self.settings_manager.database_statistics_geom
@@ -39,8 +39,8 @@ class DatabaseStatisticsDialog(QDialog):
         self.stat_widget.setLayout(self.stat_layout)
 
         self.scroll_area = QScrollArea(self)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.stat_widget)
 
@@ -54,7 +54,7 @@ class DatabaseStatisticsDialog(QDialog):
         try:
             with self.db.get_scoped_session() as session:
                 total_reddit_objects = session.query(RedditObject.id).count()
-                total_significant = session.query(RedditObject.id).filter(RedditObject.significant == True).count()
+                total_significant = session.query(RedditObject.id).filter(RedditObject.significant == True).count() # pylint: disable=singleton-comparison
 
                 self.reddit_object_map = [
                     ('Total Users/Subreddits', total_reddit_objects),
@@ -68,7 +68,7 @@ class DatabaseStatisticsDialog(QDialog):
                 total_score = session.query(func.sum(Post.score)).scalar()
 
                 total_users = session.query(User.id).count()
-                total_significant_users = session.query(User.id).filter(User.significant == True).count()
+                total_significant_users = session.query(User.id).filter(User.significant == True).count() # pylint: disable=singleton-comparison
 
                 oldest_user = session.query(User).order_by(User.date_added).first()
                 newest_user = session.query(User).order_by(desc(User.date_added)).first()
@@ -81,17 +81,16 @@ class DatabaseStatisticsDialog(QDialog):
 
                 user_score = session.query(User, func.sum(Post.score).label('score'))\
                     .join(Post, Post.author_id == User.id).group_by(User.id)
-                significant_user_high_score = user_score.filter(User.significant == True).order_by(desc('score')).first()
-                non_sig_user_high_score = user_score.filter(User.significant == False).order_by(desc('score')).first()
-                significant_user_low_score = user_score.filter(User.significant == True).order_by('score').first()
-                non_sig_user_low_score = user_score.filter(User.significant == False).order_by('score').first()
+                significant_user_high_score = user_score.filter(User.significant == True).order_by(desc('score')).first() # pylint: disable=singleton-comparison
+                non_sig_user_high_score = user_score.filter(User.significant == False).order_by(desc('score')).first() # pylint: disable=singleton-comparison
+                significant_user_low_score = user_score.filter(User.significant == True).order_by('score').first() # pylint: disable=singleton-comparison
+                non_sig_user_low_score = user_score.filter(User.significant == False).order_by('score').first() # pylint: disable=singleton-comparison
 
                 user_image_query = self.get_user_extension_query(session, 'IMG')
                 user_video_query = self.get_user_extension_query(session, 'VID')
                 user_gif_query = self.get_user_extension_query(session, 'GIF')
 
-                self_post_sub = session.query(Post.significant_reddit_object_id, func.count(Post.id).label('count')) \
-                    .filter(Post.is_self == True).group_by(Post.significant_reddit_object_id).subquery()
+                self_post_sub = session.query(Post.significant_reddit_object_id, func.count(Post.id).label('count')).filter(Post.is_self == True).group_by(Post.significant_reddit_object_id).subquery() # pylint: disable=singleton-comparison
                 user_self_post_query = session.query(User, 'count') \
                     .outerjoin(self_post_sub, self_post_sub.c.significant_reddit_object_id == User.id) \
                     .order_by(desc('count')).first()
@@ -149,7 +148,7 @@ class DatabaseStatisticsDialog(QDialog):
                 ]
 
                 total_subreddits = session.query(Subreddit.id).count()
-                total_significant_subreddits = session.query(Subreddit.id).filter(Subreddit.significant == True).count()
+                total_significant_subreddits = session.query(Subreddit.id).filter(Subreddit.significant == True).count() # pylint: disable=singleton-comparison
                 non_significant_subreddits = total_subreddits - total_significant_subreddits
 
                 oldest_sub = session.query(Subreddit).order_by(Subreddit.date_added).first()
@@ -177,11 +176,10 @@ class DatabaseStatisticsDialog(QDialog):
 
                 sub_score = session.query(Subreddit, func.sum(Post.score).label('score')) \
                     .join(Post, Post.subreddit_id == Subreddit.id).group_by(Subreddit.id)
-                significant_sub_high_score = sub_score.filter(Subreddit.significant == True) \
-                    .order_by(desc('score')).first()
-                non_sig_sub_high_score = sub_score.filter(Subreddit.significant == False).order_by(desc('score')).first()
-                significant_sub_low_score = sub_score.filter(Subreddit.significant == True).order_by('score').first()
-                non_sig_sub_low_score = sub_score.filter(Subreddit.significant == False).order_by('score').first()
+                significant_sub_high_score = sub_score.filter(Subreddit.significant == True).order_by(desc('score')).first() # pylint: disable=singleton-comparison
+                non_sig_sub_high_score = sub_score.filter(Subreddit.significant == False).order_by(desc('score')).first() # pylint: disable=singleton-comparison
+                significant_sub_low_score = sub_score.filter(Subreddit.significant == True).order_by('score').first() # pylint: disable=singleton-comparison
+                non_sig_sub_low_score = sub_score.filter(Subreddit.significant == False).order_by('score').first() # pylint: disable=singleton-comparison
 
                 self.subreddit_map = [
                     ('Total Subreddits',
@@ -295,17 +293,16 @@ class DatabaseStatisticsDialog(QDialog):
                         f'({self.get_percentage(self.get(list_with_lowest_score, "score"), total_score)} of total score)')
                 ]
 
-                nsfw_post_count = session.query(Post.id).filter(Post.nsfw == True).count()
-                non_nsfw_post_count = session.query(Post.id).filter(Post.nsfw == False).count()
-                self_post_count = session.query(Post.id).filter(Post.is_self == True).count()
+                nsfw_post_count = session.query(Post.id).filter(Post.nsfw == True).count() # pylint: disable=singleton-comparison
+                non_nsfw_post_count = session.query(Post.id).filter(Post.nsfw == False).count() # pylint: disable=singleton-comparison
+                self_post_count = session.query(Post.id).filter(Post.is_self == True).count() # pylint: disable=singleton-comparison
                 common_title_query = session.query(func.count(Post.id).label('count'), Post.title.label('title')) \
                     .group_by(Post.title).order_by(desc('count')).first()
                 total_domains = session.query(Post.domain).distinct().count()
                 domain_query = session.query(func.count(Post.id).label('count'), Post.domain.label('domain')) \
                     .group_by(Post.domain).order_by(desc('count')).first()
 
-                error_base_query = session.query(func.count(Post.id).label('count'), Post.extraction_error.label('error')) \
-                    .filter(Post.extraction_error != None)
+                error_base_query = session.query(func.count(Post.id).label('count'), Post.extraction_error.label('error')).filter(Post.extraction_error != None) # pylint: disable=singleton-comparison
                 error_count = error_base_query.first().count
                 error_aggregate = error_base_query.group_by(Post.extraction_error)
                 common_error_query = error_aggregate.order_by(desc('count')).first()
@@ -317,39 +314,32 @@ class DatabaseStatisticsDialog(QDialog):
                 newest_posted_post = session.query(Post).order_by(desc(Post.date_posted)).first()
 
                 post_date_query = session.query(func.count(Post.id).label('count'),
-                                                func.DATE(Post.date_posted).label('date')) \
-                    .group_by(func.DATE(Post.date_posted)).filter(Post.date_posted != None)
+                                                func.DATE(Post.date_posted).label('date')).group_by(func.DATE(Post.date_posted)).filter(Post.date_posted != None) # pylint: disable=singleton-comparison
                 most_posted_date = post_date_query.order_by(desc('count')).first()
                 least_posted_date = post_date_query.order_by('count').first()
                 month_query = session.query(func.count(Post.id).label('count'),
-                                            extract('month', Post.date_posted).label('month')) \
-                    .group_by(extract('month', Post.date_posted)).filter(Post.date_posted != None)
+                                            extract('month', Post.date_posted).label('month')).group_by(extract('month', Post.date_posted)).filter(Post.date_posted != None) # pylint: disable=singleton-comparison
                 top_month_query = month_query.order_by(desc('count')).first()
                 bottom_month_query = month_query.order_by('count').first()
                 dow_query = session.query(func.count(Post.id).label('count'),
-                                          extract('dow', Post.date_posted).label('dow')) \
-                    .group_by(extract('dow', Post.date_posted)).filter(Post.date_posted != None)
+                                          extract('dow', Post.date_posted).label('dow')).group_by(extract('dow', Post.date_posted)).filter(Post.date_posted != None) # pylint: disable=singleton-comparison
                 top_dow_query = dow_query.order_by(desc('count')).first()
                 bottom_dow_query = dow_query.order_by('count').first()
                 year_query = session.query(func.count(Post.id).label('count'),
-                                           extract('year', Post.date_posted).label('year')) \
-                    .group_by(extract('year', Post.date_posted)).filter(Post.date_posted != None)
+                                           extract('year', Post.date_posted).label('year')).group_by(extract('year', Post.date_posted)).filter(Post.date_posted != None)  # pylint: disable=singleton-comparison
                 top_year_query = year_query.order_by(desc('count')).first()
                 bottom_year_query = year_query.order_by('count').first()
 
                 extraction_date_query = session.query(func.count(Post.id).label('count'),
-                                                      func.DATE(Post.extraction_date).label('date')) \
-                    .group_by(func.DATE(Post.extraction_date)).filter(Post.extraction_date != None)
+                                                      func.DATE(Post.extraction_date).label('date')).group_by(func.DATE(Post.extraction_date)).filter(Post.extraction_date != None) # pylint: disable=singleton-comparison
                 most_extracted_date = extraction_date_query.order_by(desc('count')).first()
                 least_extracted_date = extraction_date_query.order_by('count').first()
                 extraction_month_query = session.query(func.count(Post.id).label('count'),
-                                                       extract('month', Post.extraction_date).label('month')) \
-                    .group_by(extract('month', Post.extraction_date)).filter(Post.extraction_date != None)
+                                                       extract('month', Post.extraction_date).label('month')).group_by(extract('month', Post.extraction_date)).filter(Post.extraction_date != None) # pylint: disable=singleton-comparison
                 most_extracted_month = extraction_month_query.order_by(desc('count')).first()
                 least_extracted_month = extraction_month_query.order_by('count').first()
                 dow_extraction = session.query(func.count(Post.id).label('count'),
-                                               extract('dow', Post.extraction_date).label('dow')) \
-                    .group_by(extract('dow', Post.extraction_date)).filter(Post.extraction_date != None)
+                                               extract('dow', Post.extraction_date).label('dow')).group_by(extract('dow', Post.extraction_date)).filter(Post.extraction_date != None) # pylint: disable=singleton-comparison
                 top_dow_extraction = dow_extraction.order_by(desc('count')).first()
                 bottom_dow_extraction = dow_extraction.order_by('count').first()
 
@@ -361,7 +351,7 @@ class DatabaseStatisticsDialog(QDialog):
 
                 self.post_map = [
                     ('Total Posts', post_count),
-                    ('Total Extracted Posts', session.query(Post.id).filter(Post.extracted == True).count()),
+                    ('Total Extracted Posts', session.query(Post.id).filter(Post.extracted == True).count()),  # pylint: disable=singleton-comparison
                     ('Total NSFW Posts',
                         f'{self.format_number(nsfw_post_count)}  '
                         f'({self.get_percentage(nsfw_post_count, post_count)} of all posts)'),
@@ -482,41 +472,35 @@ class DatabaseStatisticsDialog(QDialog):
                 ]
 
                 content_count = session.query(Content.id).count()
-                downloaded_content_count = session.query(Content.id).filter(Content.downloaded == True).count()
+                downloaded_content_count = session.query(Content.id).filter(Content.downloaded == True).count() # pylint: disable=singleton-comparison
 
-                content_exts = session.query(func.count(Content.id).label('count'), Content.extension.label('ext')) \
-                    .group_by(Content.extension).filter(Content.extension != None)
+                content_exts = session.query(func.count(Content.id).label('count'), Content.extension.label('ext')).group_by(Content.extension).filter(Content.extension != None)  # pylint: disable=singleton-comparison
                 most_used_extension = content_exts.order_by(desc('count')).first()
                 least_used_extension = content_exts.order_by('count').first()
 
-                content_from_posts = session.query(Content.id).filter(Content.comment_id == None).count()
+                content_from_posts = session.query(Content.id).filter(Content.comment_id == None).count() # pylint: disable=singleton-comparison
 
-                download_error_count = session.query(Content.id).filter(Content.download_error != None).count()
+                download_error_count = session.query(Content.id).filter(Content.download_error != None).count() # pylint: disable=singleton-comparison
                 content_error_base = session.query(func.count(Content.id).label('count'),
-                                                   Content.download_error.label('error')) \
-                    .filter(Content.download_error != None)
+                                                   Content.download_error.label('error')).filter(Content.download_error != None)  # pylint: disable=singleton-comparison
                 content_error_aggregate = content_error_base.group_by(Content.download_error)
                 common_download_error_query = content_error_aggregate.order_by(desc('count')).first()
                 least_common_download_error_query = content_error_aggregate.order_by('count').first()
 
                 content_date_query = session.query(func.count(Content.id).label('count'),
-                                                   func.DATE(Content.download_date).label('date')) \
-                    .group_by(func.DATE(Content.download_date)).filter(Content.download_date != None)
+                                                   func.DATE(Content.download_date).label('date')).group_by(func.DATE(Content.download_date)).filter(Content.download_date != None) # pylint: disable=singleton-comparison
                 most_downloaded_date = content_date_query.order_by(desc('count')).first()
                 least_downloaded_date = content_date_query.order_by('count').first()
                 content_month_query = session.query(func.count(Content.id).label('count'),
-                                                    extract('month', Content.download_date).label('month')) \
-                    .group_by(extract('month', Content.download_date)).filter(Content.download_date != None)
+                                                    extract('month', Content.download_date).label('month')).group_by(extract('month', Content.download_date)).filter(Content.download_date != None) # pylint: disable=singleton-comparison
                 content_top_month_query = content_month_query.order_by(desc('count')).first()
                 content_bottom_month_query = content_month_query.order_by('count').first()
                 content_dow_query = session.query(func.count(Content.id).label('count'),
-                                                  extract('dow', Content.download_date).label('dow')) \
-                    .group_by(extract('dow', Content.download_date)).filter(Content.download_date != None)
+                                                  extract('dow', Content.download_date).label('dow')).group_by(extract('dow', Content.download_date)).filter(Content.download_date != None) # pylint: disable=singleton-comparison
                 content_top_dow_query = content_dow_query.order_by(desc('count')).first()
                 content_bottom_dow_query = content_dow_query.order_by('count').first()
                 content_year_query = session.query(func.count(Content.id).label('count'),
-                                                   extract('year', Content.download_date).label('year')) \
-                    .group_by(extract('year', Content.download_date)).filter(Content.download_date != None)
+                                                   extract('year', Content.download_date).label('year')).group_by(extract('year', Content.download_date)).filter(Content.download_date != None) # pylint: disable=singleton-comparison
                 content_top_year = content_year_query.order_by(desc('count')).first()
                 content_bottom_year = content_year_query.order_by('count').first()
 
@@ -586,7 +570,7 @@ class DatabaseStatisticsDialog(QDialog):
                 ]
 
                 session_count = session.query(DownloadSession.id).count()
-                completed_sessions = session.query(DownloadSession.id).filter(DownloadSession.end_time != None).count()
+                completed_sessions = session.query(DownloadSession.id).filter(DownloadSession.end_time != None).count()  # pylint: disable=singleton-comparison
                 incomplete_sessions = session_count - completed_sessions
                 oldest_session = session.query(DownloadSession).order_by(DownloadSession.start_time).first()
                 newest_session = session.query(DownloadSession).order_by(desc(DownloadSession.start_time)).first()
@@ -599,24 +583,19 @@ class DatabaseStatisticsDialog(QDialog):
                 most_downloaded = session_content_download.order_by(desc('count')).first()[0]
                 least_downloaded = session_content_download.order_by('count').first()[0]
 
-                shortest_download_session = session.query(DownloadSession).filter(DownloadSession.duration != None) \
-                    .filter(DownloadSession.duration >= 0).order_by(DownloadSession.duration).first()
-                longest_download_session = session.query(DownloadSession).filter(DownloadSession.duration != None) \
-                    .filter(DownloadSession.duration >= 0).order_by(desc(DownloadSession.duration)).first()
+                shortest_download_session = session.query(DownloadSession).filter(DownloadSession.duration != None).filter(DownloadSession.duration >= 0).order_by(DownloadSession.duration).first() # pylint: disable=singleton-comparison
+                longest_download_session = session.query(DownloadSession).filter(DownloadSession.duration != None).filter(DownloadSession.duration >= 0).order_by(desc(DownloadSession.duration)).first() # pylint: disable=singleton-comparison
 
                 run_date_query = session.query(func.count(DownloadSession.id).label('count'),
-                                               func.DATE(DownloadSession.start_time).label('date')) \
-                    .group_by(func.DATE(DownloadSession.start_time)).filter(DownloadSession.start_time != None)
+                                               func.DATE(DownloadSession.start_time).label('date')).group_by(func.DATE(DownloadSession.start_time)).filter(DownloadSession.start_time != None) # pylint: disable=singleton-comparison
                 most_run_date = run_date_query.order_by(desc('count')).first()
                 least_run_date = run_date_query.order_by('count').first()
                 run_month_query = session.query(func.count(DownloadSession.id).label('count'),
-                                                extract('month', DownloadSession.start_time).label('month')) \
-                    .group_by(extract('month', DownloadSession.start_time)).filter(DownloadSession.start_time != None)
+                                                extract('month', DownloadSession.start_time).label('month')).group_by(extract('month', DownloadSession.start_time)).filter(DownloadSession.start_time != None) # pylint: disable=singleton-comparison
                 most_run_month = run_month_query.order_by(desc('count')).first()
                 least_run_month = run_month_query.order_by('count').first()
                 run_dow_query = session.query(func.count(DownloadSession.id).label('count'),
-                                              extract('dow', DownloadSession.start_time).label('dow')) \
-                    .group_by(extract('dow', DownloadSession.start_time)).filter(DownloadSession.start_time != None)
+                                              extract('dow', DownloadSession.start_time).label('dow')).group_by(extract('dow', DownloadSession.start_time)).filter(DownloadSession.start_time != None) # pylint: disable=singleton-comparison
                 top_run_dow = run_dow_query.order_by(desc('count')).first()
                 bottom_run_dow = run_dow_query.order_by('count').first()
 
@@ -646,18 +625,18 @@ class DatabaseStatisticsDialog(QDialog):
                      system_util.format_duration_full(self.get(shortest_download_session, 'duration'))),
                     ('Posts Extracted', session.query(Post.id)
                      .filter(Post.download_session_id == shortest_download_session.id)
-                     .filter(Post.extracted == True).count()),
+                     .filter(Post.extracted == True).count()), # pylint: disable=singleton-comparison
                     ('Content Downloaded', session.query(Content.id)
                      .filter(Content.download_session_id == shortest_download_session.id)
-                     .filter(Content.downloaded == True).count()),
+                     .filter(Content.downloaded == True).count()), # pylint: disable=singleton-comparison
                     ('Longest Download Session', longest_download_session.name),
                     ('Longest Download Time', system_util.format_duration_full(longest_download_session.duration)),
                     ('Posts Extracted', session.query(Post.id)
                      .filter(Post.download_session_id == longest_download_session.id)
-                     .filter(Post.extracted == True).count()),
+                     .filter(Post.extracted == True).count()), # pylint: disable=singleton-comparison
                     ('Content Downloaded', session.query(Content.id)
                      .filter(Content.download_session_id == longest_download_session.id)
-                     .filter(Content.downloaded == True).count()),
+                     .filter(Content.downloaded == True).count()), # pylint: disable=singleton-comparison
 
                     ('SEPARATOR', None),
                     ('Most Run Date', self.format_date_string(self.get(most_run_date, 'date'))),
@@ -702,7 +681,7 @@ class DatabaseStatisticsDialog(QDialog):
                                                                           'total_items': self.item_count,
                                                                           'database_file_size': self.database_size})
 
-        except:
+        except: # pylint: disable=bare-except
             item_count = self.get_total_row_count(session)
             self.logger.error('Failed to load database statistics', extra={'total_database_items': item_count},
                               exc_info=True)
@@ -764,11 +743,11 @@ class DatabaseStatisticsDialog(QDialog):
 
     def make_horz_line(self, heavy=False):
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
+        line.setFrameShape(QFrame.Shape.HLine)
         if heavy:
             line.setLineWidth(3)
         else:
-            line.setFrameShadow(QFrame.Sunken)
+            line.setFrameShadow(QFrame.Shadow.Sunken)
         return line
 
     def add_layout_from_map(self, item_map):
@@ -785,14 +764,14 @@ class DatabaseStatisticsDialog(QDialog):
                 tooltip = None
 
             if key == 'SEPARATOR':
-                layout.setWidget(row, QFormLayout.SpanningRole, self.make_horz_line())
+                layout.setWidget(row, QFormLayout.ItemRole.SpanningRole, self.make_horz_line())
             elif key == 'SUB_HEADER':
                 label = QLabel(value)
                 font = QFont()
                 font.setBold(True)
                 font.setPointSize(9)
                 label.setFont(font)
-                layout.setWidget(row, QFormLayout.SpanningRole, label)
+                layout.setWidget(row, QFormLayout.ItemRole.SpanningRole, label)
             else:
                 value_type = type(value)
                 if value_type == int:
@@ -813,7 +792,7 @@ class DatabaseStatisticsDialog(QDialog):
 
     def format_number(self, number):
         try:
-            return '{:,}'.format(number)
+            return f'{number:,}'
         except (TypeError, AttributeError):
             return None
 
@@ -853,7 +832,7 @@ class DatabaseStatisticsDialog(QDialog):
             count += session.query(model.id).count()
         return count
 
-    def closeEvent(self, event):
+    def closeEvent(self, event): # pylint: disable=invalid-name,unused-argument
         self.settings_manager.database_statistics_geom = {
             'width': self.width(),
             'height': self.height(),

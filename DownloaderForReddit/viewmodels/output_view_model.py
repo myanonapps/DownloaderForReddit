@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant, pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant, pyqtSignal
+from PyQt6.QtGui import QColor
 
 from ..utils import injector, html_formatting
 
@@ -33,16 +33,16 @@ class OutputViewModel(QAbstractListModel):
         if message.priority.value >= self.display_priority.value:
             self.insertRow(message)
 
-    def rowCount(self, *args):
+    def rowCount(self, *args): # pylint: disable=invalid-name,unused-argument
         return len(self.display_messages)
 
-    def insertRow(self, item, parent=QModelIndex(), *args):
+    def insertRow(self, item, parent=QModelIndex(), *args): # pylint: disable=invalid-name,unused-argument
         self.beginInsertRows(parent, self.rowCount() - 1, self.rowCount())
         self.display_messages.append(item)
         self.endInsertRows()
         self.added.emit()
 
-    def removeRow(self, row, parent=QModelIndex(), *args):
+    def removeRow(self, row, parent=QModelIndex(), *args): # pylint: disable=invalid-name,unused-argument
         self.beginRemoveRows(parent, row, row)
         del self.display_messages[row]
         self.endRemoveRows()
@@ -53,16 +53,16 @@ class OutputViewModel(QAbstractListModel):
         self.display_messages.clear()
         self.endRemoveRows()
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             if self.settings_manager.show_priority_level:
                 text = self.display_messages[row].output
             else:
                 text = self.display_messages[row].message
             formatted_text = html_formatting.format_html(text)
             return formatted_text
-        if role == Qt.ForegroundRole and self.settings_manager.use_color_output:
+        if role == Qt.ItemDataRole.ForegroundRole and self.settings_manager.use_color_output:
             r, g, b = getattr(self.settings_manager, f'{self.display_messages[row].priority.name.lower()}_color')
             return QColor(r, g, b)
         return QVariant()

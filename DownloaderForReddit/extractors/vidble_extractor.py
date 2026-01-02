@@ -61,14 +61,14 @@ class VidbleExtractor(BaseExtractor):
         return soup.find_all('img')
 
     def extract_single(self):
-        domain, vidble_id = self.url.rsplit('/', 1)
+        domain, vidble_id = self.url.rsplit('/', 1) # pylint: disable=unused-variable
         # There should only be one image
         img = self.get_imgs()[0]
         # We only need to get the filename from the image
         link = img.get('src')
         if link is not None:
-            base, extension = link.rsplit('.', 1)
-            file_name = "{}.{}".format(vidble_id, extension)
+            base, extension = link.rsplit('.', 1) # pylint: disable=unused-variable
+            file_name = f"{vidble_id}.{extension}"
             url = self.vidble_base + '/' + file_name
             self.make_content(url, extension, media_id=vidble_id)
 
@@ -82,6 +82,6 @@ class VidbleExtractor(BaseExtractor):
             domain, file_name = raw_pic.rsplit('/', 1)
             file_name = file_name.replace('_med', '')
             base, extension = file_name.rsplit('.', 1)
-            url = "https:{}/{}".format(domain, file_name)
+            url = f"https:{domain}/{file_name}"
             self.make_content(url, extension, count=count, media_id=base)
             count += 1

@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import (QLabel, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QListWidgetItem, QToolButton,
+from PyQt6.QtWidgets import (QLabel, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QListWidgetItem, QToolButton,
                              QInputDialog)
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QColor
 
 from DownloaderForReddit.guiresources.settings.quick_filter_settings_widget_auto import Ui_QuickFilterSettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
@@ -71,8 +71,8 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
 
     def get_line(self):
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         return line
 
     def remove_filter(self, widget, name):

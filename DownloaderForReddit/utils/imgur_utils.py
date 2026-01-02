@@ -49,7 +49,7 @@ def _send_request(url_extension, retries=1):
     if retries < 0:
         return
     headers = {
-        'Authorization': 'Client-ID {}'.format(injector.settings_manager.imgur_client_id)
+        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
     }
     if time() > credit_reset_time:
         check_credits()
@@ -75,7 +75,7 @@ def check_credits():
     global num_credits, credit_reset_time
     url = _FREE_ENDPOINT + "credits"
     headers = {
-        'Authorization': 'Client-ID {}'.format(injector.settings_manager.imgur_client_id)
+        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
     }
     response = requests.get(url, headers=headers, timeout=10)
     if response.status_code != 200:
@@ -96,13 +96,13 @@ def get_link(json):
 
 
 def get_album_images(album_id):
-    json = _send_request('album/{}/images'.format(album_id))
+    json = _send_request(f'album/{album_id}/images')
     data = json['data']
     urls = [get_link(x) for x in data]
     return urls
 
 
 def get_single_image(image_id):
-    json = _send_request('image/{}'.format(image_id))
+    json = _send_request(f'image/{image_id}')
     data = json['data']
     return get_link(data)

@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\notification_settings_widget.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_NotificationSettingsWidget(object):
@@ -26,7 +26,7 @@ class Ui_NotificationSettingsWidget(object):
         self.update_level_combo.setMinimumSize(QtCore.QSize(200, 0))
         self.update_level_combo.setObjectName("update_level_combo")
         self.horizontalLayout.addWidget(self.update_level_combo)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout.addItem(spacerItem)
         self.verticalLayout_2.addLayout(self.horizontalLayout)
         self.auto_display_failed_downloads_checkbox = QtWidgets.QCheckBox(NotificationSettingsWidget)
@@ -70,11 +70,11 @@ class Ui_NotificationSettingsWidget(object):
         self.status_tray_message_display_length_spinbox = QtWidgets.QSpinBox(self.system_tray_group_box)
         self.status_tray_message_display_length_spinbox.setObjectName("status_tray_message_display_length_spinbox")
         self.horizontalLayout_2.addWidget(self.status_tray_message_display_length_spinbox)
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem1)
         self.verticalLayout_3.addLayout(self.horizontalLayout_2)
         self.verticalLayout_2.addWidget(self.system_tray_group_box)
-        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout_2.addItem(spacerItem2)
 
         self.retranslateUi(NotificationSettingsWidget)

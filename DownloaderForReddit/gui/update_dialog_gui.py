@@ -23,7 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from PyQt5.QtWidgets import QDialog
+from PyQt6.QtWidgets import QDialog
 
 from ..guiresources.update_dialog_auto import Ui_update_dialog_box
 from ..utils import injector
@@ -53,13 +53,10 @@ class UpdateDialog(QDialog, Ui_update_dialog_box):
         self.label.setWordWrap(True)
         self.link_label.setOpenExternalLinks(True)
         self.link_label.setWordWrap(True)
-        self.label.setText("A new version of The Downloader for Reddit is available.\n\nCurrent Version: %s\nNew "
-                           "Version: %s" %
-                           (self.old_version,  self.new_version))
+        self.label.setText(f"A new version of The Downloader for Reddit is available.\n\nCurrent Version: {self.old_version}\nNew Version: {self.new_version}")
         self.link_label.setText('Please follow this link to download the new version: '
                                 '<a href="https://github.com/MalloyDelacroix/DownloaderForReddit/releases">Downloader '
-                                'for Reddit - Version %s '
-                                '</a>' % self.new_version)
+                                f'for Reddit - Version {self.new_version}</a>')
         self.link_label.setToolTip("https://github.com/MalloyDelacroix/DownloaderForReddit/releases")
 
         self.direct_link_label.setVisible(False)
@@ -72,7 +69,7 @@ class UpdateDialog(QDialog, Ui_update_dialog_box):
     def close_dialog(self):
         self.close()
 
-    def closeEvent(self, QCloseEvent):
+    def closeEvent(self, QCloseEvent): # pylint: disable=invalid-name,unused-argument
         if self.do_not_notify_checkbox.isChecked():
             self.settings_manager.ignore_update = self.new_version
             self.settings_manager.update_dialog_geom = self.saveGeometry()

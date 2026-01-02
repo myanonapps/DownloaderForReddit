@@ -25,10 +25,13 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
 
+import prawcore
+
 from .base_extractor import BaseExtractor
 from ..core.errors import Error
 from ..core import const
 from ..utils import reddit_utils
+from ..messaging.message import Message
 
 
 class RedditUploadsExtractor(BaseExtractor):
@@ -37,50 +40,92 @@ class RedditUploadsExtractor(BaseExtractor):
 
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
-        self.submission = self.get_host_submission()
 
-    def get_host_submission(self):
-        if hasattr(self.submission, 'crosspost_parent'):
-            try:
-                r = reddit_utils.get_reddit_instance()
-                parent_submission = r.submission(self.submission.crosspost_parent.split('_')[1])
-                parent_submission.title
-                return parent_submission
-            except AttributeError:
-                pass
-        return self.submission
 
     def extract_content(self):
         try:
+            self.submission = self.get_host_submission()
             if 'gallery' in self.url:
                 self.extract_album()
             elif self.url.lower().endswith(const.ALL_EXT):
                 self.extract_direct_link()
             else:
                 self.extract_single()
-        except:
-            message = 'Failed to locate content'
+        except prawcore.exceptions.TooManyRequests:
+            message = (
+                f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
+                f'For more information, please visit the link below\n'
+                f'{const.RATE_LIMIT_DOC_URL}'
+            )
+            self.handle_failed_extract(error=Error.RATE_LIMIT_ERROR, message=message, extractor_error_message=message,
+                                       exc_info=True)
+
+        except prawcore.RequestException:
+            message = 'Failed to extract content'
+            self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                       exc_info=True)
+        except prawcore.ResponseException:
+            message = 'Failed to extract content'
+            self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                       exc_info=True)
+        except Exception:
+            message = 'Failed to extract content'
+            self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                       exc_info=True)
+        except BaseException:
+            message = 'Somebody throwing a BaseException. Failed to locate content'
             self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
                                        exc_info=True)
 
     def extract_album(self):
         try:
+            if not self.submission:
+                self.handle_failed_extract(
+                                        error=Error.FAILED_TO_EXTRACT,
+                                        message='No submission to extract album from',
+                                        log_exception=False,
+                                        )
+                return
+            if not hasattr(self.submission, 'media_metadata'):
+                self.handle_failed_extract(
+                                        error=Error.FAILED_TO_EXTRACT,
+                                        message='No media meta data to extract album from',
+                                        log_exception=False,
+                                        )
+                return
             count = 1
             for value in self.submission.media_metadata.values():
                 try:
+                    media_id = getattr(value, 'id', None)
+                    if "s" not in value:
+                        self.logger.error("Album image missing 's': {%s}", media_id)
+                        Message.send_extraction_error(f'Album image missing "s": {media_id}\nTitle: {self.post.title}\nUrl: {self.url}')
+                        continue
                     container = value['s']
+
+                    if  "u" not in container:
+                        self.logger.error("Album image missing 'u': {%s}", media_id)
+                        Message.send_extraction_error(f"Album image missing 'u': {media_id}\nTitle: {self.post.title}\nUrl: {self.url}")
+                        continue
+
                     url = container['u']
                     ext = url[url.rfind('.') + 1: url.rfind('?width')]
-                    media_id = getattr(value, 'id', None)
+
                     self.make_content(url, ext, count, media_id=media_id)
                     count += 1
                 except KeyError:
                     # some images in albums are not valid for whatever reason, so we ignore them and move on
                     pass
-        except:
+        except Exception:
             self.handle_failed_extract(
                 error=Error.FAILED_TO_EXTRACT,
                 message='Failed to extract images from reddit gallery',
+                log_exception=True,
+            )
+        except BaseException:
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_EXTRACT,
+                message='Somebody throwing a BaseException. Failed to extract images from reddit gallery',
                 log_exception=True,
             )
 

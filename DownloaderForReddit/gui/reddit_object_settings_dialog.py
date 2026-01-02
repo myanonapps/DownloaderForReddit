@@ -1,6 +1,6 @@
 import logging
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import pyqtSignal, QItemSelectionModel
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import pyqtSignal, QItemSelectionModel
 
 from ..guiresources.reddit_object_settings_dialog_auto import Ui_RedditObjectSettingsDialog
 from ..viewmodels.reddit_object_list_model import RedditObjectListModel
@@ -39,7 +39,7 @@ class RedditObjectSettingsDialog(QtWidgets.QDialog, Ui_RedditObjectSettingsDialo
         selected_objects = [self.list_model.reddit_objects[index] for index in indices]
         for row in indices:
             index = self.list_model.createIndex(row, 0)
-            self.reddit_objects_list_view.selectionModel().select(index, QItemSelectionModel.Select)
+            self.reddit_objects_list_view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.Select)
 
         self.set_objects(selected_objects)
         self.reddit_objects_list_view.selectionModel().selectionChanged.connect(self.select_objects)
@@ -72,7 +72,7 @@ class RedditObjectSettingsDialog(QtWidgets.QDialog, Ui_RedditObjectSettingsDialo
         self.list_model.session.commit()
         self.download_signal.emit([x.id for x in self.selected_objects])
 
-    def closeEvent(self, event):
+    def closeEvent(self, event): # pylint: disable=invalid-name,unused-argument
         self.settings_manager.main_window_geom = {
             'width': self.width(),
             'height': self.height(),

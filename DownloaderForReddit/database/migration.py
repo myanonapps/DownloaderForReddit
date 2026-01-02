@@ -1,10 +1,10 @@
 import os
 import logging
+from sqlalchemy import desc
+from sqlalchemy.exc import OperationalError, IntegrityError
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import desc
-from sqlalchemy.exc import OperationalError, IntegrityError
 
 from .database_handler import DatabaseHandler
 from .model_enums import DuplicateControlMethod
@@ -46,8 +46,7 @@ class Migrator:
             else:
                 self.session.add(Version(version=version.__version__))
                 self.session.commit()
-                self.logger.info(f'Migration not performed: no version information found in database.  Database entry'
-                                 f'for version {version.__version__} has been created.')
+                self.logger.info('Migration not performed: no version information found in database.  Database entry for version %s has been created.', version.__version__)
         finally:
             self.session.close()
 

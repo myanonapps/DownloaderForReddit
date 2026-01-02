@@ -11,7 +11,7 @@ class CommentFilter:
 
     def filter_extraction(self, comment: Comment, reddit_object: RedditObject):
         if comment.is_submitter:
-            return any((reddit_object.extract_comments != CommentDownload.DO_NOT_DOWNLOAD, 
+            return any((reddit_object.extract_comments != CommentDownload.DO_NOT_DOWNLOAD,
                         reddit_object.download_comments != CommentDownload.DO_NOT_DOWNLOAD,
                         reddit_object.download_comment_content != CommentDownload.DO_NOT_DOWNLOAD))
         else:

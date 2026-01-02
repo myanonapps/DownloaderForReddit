@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import (QWidget, QTextBrowser, QFontComboBox, QComboBox, QLabel, QMenu, QHBoxLayout,
+from PyQt6.QtWidgets import (QWidget, QTextBrowser, QFontComboBox, QComboBox, QLabel, QMenu, QHBoxLayout,
                              QWidgetAction)
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QCursor, QFont
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QCursor, QFont
 
 from ...utils import injector
 
@@ -20,7 +20,7 @@ class PostTextBrowser(QTextBrowser):
         self.post_text_font = QFont(self.settings_manager.database_view_post_text_font, self.post_text_font_size)
         self.setFont(self.post_text_font)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.context_menu)
 
     def context_menu(self):
@@ -57,8 +57,8 @@ class PostTextBrowser(QTextBrowser):
         menu.addAction(font_size_item)
         menu.addSeparator()
         if not self.stand_alone:
-            menu.addAction('Detach Text Box', lambda: self.detach_signal.emit())
-        menu.exec_(QCursor.pos())
+            menu.addAction('Detach Text Box', self.detach_signal.emit)
+        menu.exec(QCursor.pos())
 
     def set_post_text_font(self, font=None, size=None):
         """

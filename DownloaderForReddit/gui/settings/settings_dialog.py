@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import QDialog, QDialogButtonBox
+from PyQt6.QtWidgets import QDialog, QDialogButtonBox
 
 from DownloaderForReddit.guiresources.settings.settings_dialog_auto import Ui_SettingsDialog
+from DownloaderForReddit.utils import injector
 from .core_settings_widget import CoreSettingsWidget
 from .download_settings_widget import DownloadSettingsWidget
 from .display_settings_widget import DisplaySettingsWidget
@@ -12,7 +13,6 @@ from .supported_video_settings_widget import SupportedVideoSettingsWidget
 from .quick_filter_settings_widget import QuickFilterSettingsWidget
 from .default_filter_settings_widget import DefaultFilterSettingsWidget
 from .notification_settings_widget import NotificationSettingsWidget
-from DownloaderForReddit.utils import injector
 
 
 class SettingsDialog(QDialog, Ui_SettingsDialog):
@@ -55,7 +55,7 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
 
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.close)
-        self.button_box.button(QDialogButtonBox.Apply).clicked.connect(self.apply)
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply)
 
     def set_current_display(self, view_name):
         widget = self.settings_map[view_name]
@@ -87,7 +87,7 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
             view.apply()
         self.settings_manager.save_all()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event): # pylint: disable=invalid-name
         self.settings_manager.settings_dialog_geom = {
             'width': self.width(),
             'height': self.height(),

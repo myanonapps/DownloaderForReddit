@@ -341,5 +341,5 @@ def export_comments_to_json(comment_list, file_path, nested=False):
 def _export(collection, file_path, encoder):
     with open(file_path, mode='a', encoding='utf-8') as file:
         json.dump(collection.__dict__, file, cls=encoder, indent=4, ensure_ascii=False)
-    logger.info(f'Exported {collection.__class__.__name__} to json file',
+    logger.info('Exported %s to json file', collection.__class__.__name__,
                 extra={'encoder': encoder.__name__, 'export_count': collection.size()})

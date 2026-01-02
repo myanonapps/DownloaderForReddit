@@ -58,7 +58,7 @@ def open_in_system(item):
         else:
             opener = 'open' if sys.platform == 'darwin' else 'xdg-open'
             subprocess.call([opener, item])
-    except:
+    except: # pylint: disable=bare-except
         logger.error('Failed to open in system', extra={'item_url': item}, exc_info=True)
 
 
@@ -123,7 +123,7 @@ def set_file_modify_time(file_path, epoch):
     try:
         os.utime(file_path, times=(epoch, epoch))
         return True
-    except:
+    except: # pylint: disable=bare-except
         if log_utils.modified_date_log_count < 3:
             log_utils.modified_date_log_count += 1
             logger.error('Failed to set date modified for file', extra={'file': file_path, 'date_modified': epoch},
@@ -144,7 +144,7 @@ def get_data_directory():
         if sys.platform == 'win32':
             path = os.path.join(os.getenv('APPDATA'), data_dir)
         elif sys.platform.startswith('linux'):
-            path = os.path.join(os.path.expanduser('~'), '.%s' % data_dir)
+            path = os.path.join(os.path.expanduser('~'), f'.{data_dir}')
         elif sys.platform == 'darwin':
             path = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', data_dir)
         else:
@@ -174,7 +174,7 @@ def import_data_file(directory, file):
 
 
 def epoch_to_datetime(epoch_time):
-    if type(epoch_time) == int or type(epoch_time) == float:
+    if isinstance(epoch_time, (int,float)):
         return datetime.datetime.fromtimestamp(epoch_time)
     else:
         return None

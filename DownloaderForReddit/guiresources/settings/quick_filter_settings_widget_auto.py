@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\quick_filter_settings_widget.ui'
 #
-# Created by: PyQt5 UI code generator 5.14.1
+# Created by: PyQt6 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_QuickFilterSettingsWidget(object):
@@ -17,7 +17,7 @@ class Ui_QuickFilterSettingsWidget(object):
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(QuickFilterSettingsWidget)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.splitter = QtWidgets.QSplitter(QuickFilterSettingsWidget)
-        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setObjectName("splitter")
         self.widget = QtWidgets.QWidget(self.splitter)
         self.widget.setObjectName("widget")
@@ -29,7 +29,7 @@ class Ui_QuickFilterSettingsWidget(object):
         self.add_new_quick_filter_button.setObjectName("add_new_quick_filter_button")
         self.verticalLayout_2.addWidget(self.add_new_quick_filter_button)
         self.name_list_widget = QtWidgets.QListWidget(self.widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.name_list_widget.sizePolicy().hasHeightForWidth())
@@ -45,9 +45,9 @@ class Ui_QuickFilterSettingsWidget(object):
         self.filter_input_widget.setObjectName("filter_input_widget")
         self.verticalLayout.addWidget(self.filter_input_widget)
         self.filter_list_widget = QtWidgets.QListWidget(self.widget1)
-        self.filter_list_widget.setMovement(QtWidgets.QListView.Static)
-        self.filter_list_widget.setLayoutMode(QtWidgets.QListView.Batched)
-        self.filter_list_widget.setViewMode(QtWidgets.QListView.ListMode)
+        self.filter_list_widget.setMovement(QtWidgets.QListView.Movement.Static)
+        self.filter_list_widget.setLayoutMode(QtWidgets.QListView.LayoutMode.Batched)
+        self.filter_list_widget.setViewMode(QtWidgets.QListView.ViewMode.ListMode)
         self.filter_list_widget.setBatchSize(5)
         self.filter_list_widget.setObjectName("filter_list_widget")
         self.verticalLayout.addWidget(self.filter_list_widget)

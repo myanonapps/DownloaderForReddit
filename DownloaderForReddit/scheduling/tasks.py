@@ -1,8 +1,8 @@
 from enum import Enum
+from uuid import uuid4
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy import Enum as EnumColumn
-from uuid import uuid4
 
 from ..database.database_handler import DatabaseHandler
 from ..database.models import RedditObjectList

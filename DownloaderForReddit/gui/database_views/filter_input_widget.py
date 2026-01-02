@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QWidget, QLineEdit, QSpinBox, QComboBox, QDateTimeEdit, QSizePolicy
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QLineEdit, QSpinBox, QComboBox, QDateTimeEdit, QSizePolicy
+from PyQt6.QtCore import Qt, pyqtSignal
 from sqlalchemy import Integer, String, DateTime, Enum, Boolean
 
 from DownloaderForReddit.guiresources.database_views.filter_input_widget_auto import Ui_FilterInputWidget
@@ -57,15 +57,15 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
 
     @property
     def current_model(self):
-        return self.model_combo.currentData(Qt.UserRole)
+        return self.model_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def current_field(self):
-        return self.field_combo.currentData(Qt.UserRole)
+        return self.field_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def current_operator(self):
-        return self.operator_combo.currentData(Qt.UserRole)
+        return self.operator_combo.currentData(Qt.ItemDataRole.UserRole)
 
     def set_model_combo(self, model):
         try:
@@ -100,11 +100,12 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
     def get_value(self):
         t = type(self.value_field)
         if t == QComboBox:
-            return self.value_field.currentData(Qt.UserRole)
+            return self.value_field.currentData(Qt.ItemDataRole.UserRole)
         elif t == QLineEdit:
             return self.value_field.text()
         elif t == QSpinBox:
             return self.value_field.value()
+        return None
 
     def handle_quick_filter(self):
         if self.launch_quick_filter and self.quick_filter_combo.currentIndex() != 0:
@@ -117,7 +118,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
             self.launch_quick_filter = True
 
     def add_filter(self, filters=None):
-        if type(filters) != list:
+        if isinstance(filters, list):
             filters = [self.create_filter()]
         self.export_filter.emit(filters)
 
@@ -137,7 +138,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
 
     def get_string_field(self):
         x = QLineEdit()
-        x.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        x.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         return x
 
     def get_choice_field(self, choices):
@@ -149,6 +150,6 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
     def get_datetime_field(self):
         return QDateTimeEdit()
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+    def keyPressEvent(self, event): # pylint: disable=invalid-name
+        if event.key() == Qt.Key.Key_Enter or event.key() == Qt.Key.Key_Return:
             self.add_filter()

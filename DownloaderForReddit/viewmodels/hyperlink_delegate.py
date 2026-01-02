@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
-from PyQt5.QtGui import QTextDocument, QTextCursor, QTextCharFormat
-from PyQt5.QtCore import QEvent, Qt, QModelIndex
 import webbrowser
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
+from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat
+from PyQt6.QtCore import QEvent, Qt, QModelIndex, QPointF
+
 
 
 class HyperlinkDelegate(QStyledItemDelegate):
@@ -29,7 +30,7 @@ class HyperlinkDelegate(QStyledItemDelegate):
         doc.drawContents(painter)
         painter.restore()
 
-    def sizeHint(self, option, index):
+    def sizeHint(self, option, index): # pylint: disable=invalid-name
         """
         Overrides the sizeHint method to return the size of the document element after
         the formatting is applied to render the HTML correctly.
@@ -54,13 +55,13 @@ class HyperlinkDelegate(QStyledItemDelegate):
                  foreground color (if applicable).
         """
         doc = QTextDocument()
-        html = index.data(Qt.DisplayRole)
+        html = index.data(Qt.ItemDataRole.DisplayRole)
         doc.setHtml(html)
-        color = index.data(Qt.ForegroundRole)
+        color = index.data(Qt.ItemDataRole.ForegroundRole)
 
         if color:
             cursor = QTextCursor(doc)
-            cursor.select(QTextCursor.Document)
+            cursor.select(QTextCursor.SelectionType.Document)
             fmt = QTextCharFormat()
             fmt.setForeground(color)
             cursor.mergeCharFormat(fmt)
@@ -68,16 +69,16 @@ class HyperlinkDelegate(QStyledItemDelegate):
         doc.setTextWidth(option.rect.width())
         return doc
 
-    def editorEvent(self, event, model, option, index):
+    def editorEvent(self, event, model, option, index):  # pylint: disable=invalid-name,unused-argument
         """
         Overrides the editorEvent method to handle mouse events for hyperlink navigation.
         """
-        if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
+        if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
             doc = QTextDocument()
-            html = index.data(Qt.DisplayRole)
+            html = index.data(Qt.ItemDataRole.DisplayRole)
             doc.setHtml(html)
             pos = event.pos() - option.rect.topLeft()
-            anchor = doc.documentLayout().anchorAt(pos)
+            anchor = doc.documentLayout().anchorAt(QPointF(pos))
             if anchor:
                 webbrowser.open(anchor)
                 return True

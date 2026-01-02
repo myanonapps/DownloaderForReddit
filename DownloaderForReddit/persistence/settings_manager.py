@@ -1,11 +1,11 @@
 import os
-import toml
 import logging
+import toml
 
 from ..extractors.base_extractor import BaseExtractor
 from ..utils import system_util
 from ..core import const
-from ..database.model_enums import *
+from ..database.model_enums import LimitOperator,DuplicateControlMethod,NsfwFilter,CommentDownload,CommentSortMethod,PostSortMethod
 from ..database import model_enums
 from ..messaging.message import MessagePriority
 
@@ -424,7 +424,7 @@ class SettingsManager:
         except FileNotFoundError:
             self.logger.info('No config file found.  Generating new file')
             self.generate_default_config()
-        except:
+        except: # pylint: disable=bare-except
             self.logger.warning('Failed to load config file', exc_info=True)
             self.generate_default_config()
 
@@ -489,7 +489,7 @@ class SettingsManager:
     def convert_download_dict(self, download_dict):
         converts = {}
         for key, value in download_dict.items():
-            if type(value) == str and value.startswith('<') and value.endswith('>'):
+            if isinstance(value, str) and value.startswith('<') and value.endswith('>'):
                 class_name = value.split('.')[0][1:]
                 n = int(value.split(':')[1].strip('>'))
                 e = getattr(model_enums, class_name)(n)
@@ -525,5 +525,5 @@ class SettingsManager:
         for key, value in default_dict.items():
             if key not in loaded_dict:
                 loaded_dict[key] = value
-            elif type(value) == dict:
+            elif isinstance(value, dict):
                 self.ensure_dict_defaults(loaded_dict[key], value)

@@ -7,7 +7,7 @@ from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
 from ..database.models import Post
 from ..utils import injector, reddit_utils
-
+from ..messaging.message import Message
 
 class ContentRunner(Runner):
 
@@ -76,7 +76,11 @@ class ContentRunner(Runner):
         :param significant_id: The id of the reddit object for which the submissions was extracted from reddit.
         """
         with self.db.get_scoped_session() as session:
-            post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
+            try:
+                post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
+            except Exception:
+                Message.send_extraction_error(f"Post not creatable: {submission.url}")
+                self.logger.exception("Post not creatable: %s", submission)
             if post is not None:
                 submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
                                                        self.download_queue, self.stop_run)

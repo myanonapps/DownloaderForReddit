@@ -4,14 +4,14 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 
 from DownloaderForReddit.core.runner import Runner, verify_run
-from .multipart_downloader import MultipartDownloader
-from . import HEADERS
 from DownloaderForReddit.core.errors import Error
 from DownloaderForReddit.utils import injector, system_util, general_utils
 from DownloaderForReddit.database import Content
 from DownloaderForReddit.messaging.message import Message
-from ..duplicate_handler import DuplicateHandler
 
+from .multipart_downloader import MultipartDownloader
+from . import HEADERS
+from ..duplicate_handler import DuplicateHandler
 
 class Downloader(Runner):
 
@@ -93,8 +93,22 @@ class Downloader(Runner):
                 content.download_title = general_utils.ensure_content_download_path(content)
                 response = requests.get(content.url, stream=True, timeout=10, headers=self.check_headers(content))
                 if response.status_code == 200:
-                    file_size = int(response.headers['Content-Length'])
+                    file_size = 0
+                    if 'Content-Length' not in response.headers:
+                        self.logger.debug("'Content-Length' not in response.headers")
+                        if 'reddit-io-info' not in response.headers:
+                            self.handle_deleted_content_error(content)
+                            return
+                        io_info = response.headers['reddit-io-info']
+                        var_list = io_info.split(" ")
+                        for var_val in var_list:
+                            val_list = var_val.split("=")
+                            if val_list[0].strip() == "ofsz":
+                                file_size = int(val_list[1].strip())
+                    else:
+                        file_size = int(response.headers['Content-Length'])
                     if file_size <= system_util.KB:
+                        self.logger.debug("file_size <= system_util.KB")
                         # If the file size is less than one KB, it is a strong indicator that the content has been
                         # deleted and what we are about to download is only a placeholder image.  So we abort download
                         self.handle_deleted_content_error(content)
@@ -111,7 +125,11 @@ class Downloader(Runner):
                     self.handle_unsuccessful_response(content, response.status_code)
         except ConnectionError:
             self.handle_connection_error(content)
-        except:
+        except Exception:
+            self.logger.exception("Unknown download error")
+            self.handle_unknown_error(content)
+        except BaseException:
+            self.logger.exception("Somebody is throwing a BaseException")
             self.handle_unknown_error(content)
 
     def check_headers(self, content):
@@ -278,10 +296,19 @@ class Downloader(Runner):
         content.md5_hash = md5.hexdigest()
 
     def handle_unsuccessful_response(self, content: Content, status_code):
-        message = 'Failed Download: Unsuccessful response from server'
+        if status_code == 404 or status_code == 410:
+            self.logger.debug("status_code is 404/410")
+            self.handle_deleted_content_error(content)
+            return
+        if status_code == 429:
+            error_code = Error.RATE_LIMIT_ERROR
+            message = 'Failed Download: Rate limited'
+        else:
+            error_code = Error.UNSUCCESSFUL_RESPONSE
+            message = 'Failed Download: Unsuccessful response from server'
         self.log_errors(content, message, status_code=status_code)
         self.output_error(content, message)
-        content.set_download_error(Error.UNSUCCESSFUL_RESPONSE, f'{message}: status_code: {status_code}')
+        content.set_download_error(error_code, f'{message}: status_code: {status_code}')
 
     def handle_connection_error(self, content: Content):
         message = 'Failed Download: Failed to establish download connection'

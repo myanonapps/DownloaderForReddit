@@ -23,7 +23,7 @@ class DatabaseHandler:
             self.engine = sqlalchemy.create_engine('sqlite:///:memory:')
         self.base.metadata.create_all(self.engine)
 
-        self.Session = sessionmaker(bind=self.engine)
+        self.Session = sessionmaker(bind=self.engine)  # pylint: disable=invalid-name
 
     def get_session(self):
         """Returns a new instance of a database session."""
@@ -34,7 +34,10 @@ class DatabaseHandler:
         session = self.Session()
         try:
             yield session
-        except:
+        except Exception:
+            raise
+        except BaseException:
+            print("Somebody is throwing something of BaseException")
             raise
         finally:
             session.close()
@@ -70,7 +73,7 @@ class DatabaseHandler:
         session.close()
 
     def get_object_session(self, obj):
-        return self.Session.object_session(obj)
+        return self.Session().object_session(obj)
 
     def commit_object(self, obj):
         self.get_object_session(obj).commit()

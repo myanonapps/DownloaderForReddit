@@ -3,9 +3,9 @@ import logging
 from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
-import prawcore
-from PyQt5.QtCore import QObject, pyqtSignal
 from collections import namedtuple
+import prawcore
+from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor
 from sqlalchemy import or_
 
@@ -19,6 +19,7 @@ from ..database.models import DownloadSession, RedditObject, User, Subreddit, Po
 from ..utils import injector, reddit_utils, video_merger
 from ..messaging.message import Message
 from ..version import __version__
+from ..database.model_enums import PostSortMethod
 
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
@@ -98,7 +99,7 @@ class DownloadRunner(QObject):
 
     def validate_object(self, praw_object, reddit_object):
         try:
-            praw_object.fullname
+            praw_object.fullname # pylint: disable=pointless-statement
             return True
         except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
             self.handle_invalid_reddit_object(reddit_object)
@@ -110,7 +111,10 @@ class DownloadRunner(QObject):
             self.handle_failed_connection()
         except prawcore.exceptions.TooManyRequests:
             self.handle_too_many_requests_error(reddit_object)
-        except:
+        except Exception:
+            self.handle_unknown_error(reddit_object)
+        except BaseException:
+            self.logger.exception("Somebody is throwing a BaseException")
             self.handle_unknown_error(reddit_object)
         return False
 
@@ -159,11 +163,12 @@ class DownloadRunner(QObject):
         post_id_list = self.unextracted_id_list
         if post_id_list is None:
             with self.db.get_scoped_session() as session:
+                # pylint: disable=singleton-comparison
                 post_id_list = session.query(Post.id)\
                     .filter(Post.extracted == False) \
                     .filter(Post.retry_attempts <= 3) \
                     .filter(or_(Post.extraction_error == None, Post.extraction_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug(f'{post_id_list.count()} unfinished posts to download')
+        self.logger.debug('%d unfinished posts to download', post_id_list.count())
         for post_id, in post_id_list.all():  # comma used to unpack result tuple
             extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None)
             self.submission_queue.put(extraction_set)
@@ -174,11 +179,12 @@ class DownloadRunner(QObject):
         content_id_list = self.undownloaded_id_list
         if content_id_list is None:
             with self.db.get_scoped_session() as session:
+                # pylint: disable=singleton-comparison
                 content_id_list = session.query(Content)\
                     .filter(Content.downloaded == False) \
                     .filter(Content.retry_attempts <= 3) \
                     .filter(or_(Content.download_error == None, Content.download_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug(f'{content_id_list.count()} unfinished content items to download')
+        self.logger.debug('%d unfinished content items to download', content_id_list.count())
         for content in content_id_list.all():
             self.download_queue.put(content.id)
         self.logger.debug('Finished undownloaded content')
@@ -310,12 +316,19 @@ class DownloadRunner(QObject):
     def handle_submissions(self, reddit_object, praw_object):
         submissions = self.get_submissions(praw_object, reddit_object)
         date_limit = 0
+        b_queued = False
+
         for submission in submissions:
             if submission.created > date_limit:
                 date_limit = submission.created
             extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
                                            significant_id=reddit_object.id)
+            b_queued = True
             self.submission_queue.put(extraction_set)
+
+        if b_queued:
+            if isinstance(praw_object, Redditor):
+                Message.send_info(f'Submissions being queued for: {reddit_object.name}')
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
         if self.perpetual_download:
@@ -343,7 +356,7 @@ class DownloadRunner(QObject):
                         if (not self.filter_subreddits or submission.subreddit.display_name
                             in self.validated_subreddits) \
                             and self.submission_filter.filter_submission(submission, reddit_object):
-                                submissions.append(submission)
+                            submissions.append(submission)
                 else:
                     break
             return submissions
@@ -368,14 +381,10 @@ class DownloadRunner(QObject):
                               and limit the submission generator.
         :return: A submission generator for the supplied praw object.
         """
-        from ..database.model_enums import PostSortMethod
         sort_method = reddit_object.post_sort_method
         # Handle None case by falling back to default
         if sort_method is None:
-            self.logger.warning(
-                f'post_sort_method is None for {reddit_object.object_type} {reddit_object.name}, '
-                f'using default PostSortMethod.NEW'
-            )
+            self.logger.warning('post_sort_method is None for %s %s, using default PostSortMethod.NEW', reddit_object.object_type, reddit_object.name)
             sort_method = PostSortMethod.NEW
             reddit_object.post_sort_method = PostSortMethod.NEW
         if sort_method.value <= 4:
@@ -394,7 +403,7 @@ class DownloadRunner(QObject):
         :return: A method that can be called to retrieve submissions from the supplied praw object which will be sorted
                  by the supplied sort method.
         """
-        if type(praw_object) == Redditor:
+        if isinstance(praw_object, Redditor):
             return getattr(praw_object.submissions, sort_type)
         else:
             return getattr(praw_object, sort_type)

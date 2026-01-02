@@ -23,9 +23,12 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
+
+import prawcore
 import requests
 
 from .base_extractor import BaseExtractor
+from ..core import const
 from ..core.errors import Error
 from ..utils import reddit_utils, video_merger
 
@@ -37,28 +40,9 @@ class RedditVideoExtractor(BaseExtractor):
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
         self.post = post
-        self.host_vid = self.get_host_vid()
         self.url = None
         self.audio_url = None
         self.get_vid_url()
-
-    def get_host_vid(self):
-        """
-        Finds the actual submission that holds the video file to be extracted.  If the post is the original post that
-        the video was uploaded to, then None is returned.  If the post is a crosspost from another location,
-        the parent crosspost is returned as it is the post which holds the full video information.
-        :return: The top level post which holds the video information to be downloaded if the supplied post is a
-                 crosspost, otherwise None.
-        """
-        if hasattr(self.submission, 'crosspost_parent'):
-            try:
-                r = reddit_utils.get_reddit_instance()
-                parent_submission = r.submission(self.submission.crosspost_parrent.split('_')[1])
-                parent_submission.title  # fetch info from server to load submission
-                return parent_submission
-            except AttributeError:
-                pass
-        return self.submission
 
     def get_vid_url(self):
         """
@@ -66,20 +50,23 @@ class RedditVideoExtractor(BaseExtractor):
         file.
         """
         try:
-            self.url = self.host_vid.media['reddit_video']['fallback_url']
+            self.url = self.submission.media['reddit_video']['fallback_url']
         except (AttributeError, TypeError):
-            self.url = self.host_vid.url
+            self.url = self.submission.url
         if self.url is not None:
             self.get_audio_url()
 
     def is_gif(self):
-        return self.host_vid.media['reddit_video']['is_gif']
+        return self.submission.media['reddit_video']['is_gif']
 
     def extract_content(self):
         if self.settings_manager.download_reddit_hosted_videos:
-            if self.url is not None:
-                video_content = self.get_video_content()
-                try:
+            try:
+                self.submission = self.get_host_submission()
+                self.get_vid_url()
+                if self.url is not None:
+                    video_content = self.get_video_content()
+
                     if self.audio_url is not None:
                         audio_content = self.get_audio_content()
                         if audio_content is not None and video_content is not None:
@@ -89,14 +76,37 @@ class RedditVideoExtractor(BaseExtractor):
                                 date_modified=self.post.date_posted
                             )
                             video_merger.videos_to_merge.append(merge_set)
-                except:
-                    message = 'Failed to located content'
+
+                else:
+                    message = 'Failed to find acceptable url for download'
                     self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, log_exception=True,
                                                extractor_error_message=message)
-            else:
-                message = 'Failed to find acceptable url for download'
-                self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, log_exception=True,
-                                           extractor_error_message=message)
+            except prawcore.exceptions.TooManyRequests:
+                message = (
+                    f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
+                    f'For more information, please visit the link below\n'
+                    f'{const.RATE_LIMIT_DOC_URL}'
+                )
+                self.handle_failed_extract(error=Error.RATE_LIMIT_ERROR, message=message, extractor_error_message=message,
+                                           exc_info=True)
+
+            except prawcore.RequestException:
+                message = 'Failed to extract content'
+                self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                           exc_info=True)
+            except prawcore.ResponseException:
+                message = 'Failed to extract content'
+                self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                           exc_info=True)
+            except Exception:
+                message = 'Failed to extract content'
+                self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                           exc_info=True)
+            except BaseException:
+                message = 'Somebody throwing a BaseException. Failed to locate content'
+                self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                           exc_info=True)
+
 
     def get_video_content(self):
         ext = 'mp4'

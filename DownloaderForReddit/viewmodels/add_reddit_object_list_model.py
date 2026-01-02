@@ -21,11 +21,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
-
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QPixmap
 import os
 from queue import Queue
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QPixmap
 
 from ..utils.reddit_utils import NameChecker
 
@@ -45,20 +44,20 @@ class AddRedditObjectListModel(QAbstractListModel):
         self.name_list = []
         self.validation_dict = {}
         self.complete_reddit_object_list = []
-
+        self.thread = None
         self.name_checker = None
         self.start_name_check_thread()
         self.checker_running = True
 
-        valid_path = os.path.abspath('Resources/Images/valid_checkmark.png')
-        non_valid_path = os.path.abspath('Resources/Images/non_valid_x.png')
+        valid_path = os.path.abspath('Resources/images/valid_checkmark.png')
+        non_valid_path = os.path.abspath('Resources/images/non_valid_x.png')
         self.valid_img = QPixmap(valid_path)
         self.non_valid_img = QPixmap(non_valid_path)
 
-    def rowCount(self, parent=None, *args, **kwargs):
+    def rowCount(self, parent=None, *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         return len(self.name_list)
 
-    def insertRow(self, name, parent=QModelIndex(), *args, **kwargs):
+    def insertRow(self, name, parent=QModelIndex(), *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         self.beginInsertRows(parent, self.rowCount() - 1, self.rowCount())
         self.name_list.append(name)
         self.validation_dict[name] = None
@@ -67,9 +66,9 @@ class AddRedditObjectListModel(QAbstractListModel):
         self.endInsertRows()
         return True
 
-    def removeRows(self, pos, rows, parent=QModelIndex(), *args, **kwargs):
+    def removeRows(self, pos, rows, parent=QModelIndex(), *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         self.beginRemoveRows(parent, pos, pos + rows - 1)
-        for x in range(rows):
+        for x in range(rows): # pylint: disable=unused-variable
             name = self.name_list[pos]
             self.name_list.remove(name)
             del self.validation_dict[name]
@@ -90,10 +89,10 @@ class AddRedditObjectListModel(QAbstractListModel):
         for name in name_list:
             self.removeRows(self.name_list.index(name), 1)
 
-    def data(self, index, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole:
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.name_list[index.row()]
-        elif role == Qt.DecorationRole:
+        elif role == Qt.ItemDataRole.DecorationRole:
             name = self.name_list[index.row()]
             if self.validation_dict[name] is None:
                 return None
@@ -101,6 +100,7 @@ class AddRedditObjectListModel(QAbstractListModel):
                 return self.valid_img
             else:
                 return self.non_valid_img
+        return None
 
     def add_complete_object(self, reddit_object):
         """

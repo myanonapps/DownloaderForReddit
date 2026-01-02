@@ -7,7 +7,7 @@ from ..utils import system_util
 
 class CommentExtractor(SelfPostExtractor):
 
-    def __init__(self, post, **kwargs):
+    def __init__(self, post, **kwargs): # pylint: disable=useless-parent-delegation
         super().__init__(post, **kwargs)
 
     def extract_content(self):
@@ -28,17 +28,21 @@ class CommentExtractor(SelfPostExtractor):
 
     def download_text(self, dir_path, title, extension):
         try:
-            self.check_file_path(dir_path, title, extension)
+            self.__check_file_path(dir_path, title, extension)
             path = os.path.join(dir_path, title) + f'.{extension}'
             with open(path, 'w', encoding='utf-8') as file:
                 text = self.get_text(extension)
                 file.write(text)
-        except:
+        except Exception:
             self.logger.error('Failed to download comment text',
                               extra={'post': self.post.title, 'post_id': self.post.id, 'comment_id': self.comment.id,
                                      'directory_path': dir_path, 'title': title}, exc_info=True)
+        except BaseException:
+            self.logger.error('Someone is raising BaseException. Failed to download comment text',
+                              extra={'post': self.post.title, 'post_id': self.post.id, 'comment_id': self.comment.id,
+                                     'directory_path': dir_path, 'title': title}, exc_info=True)
 
-    def check_file_path(self, dir_path, name, ext):
+    def __check_file_path(self, dir_path, name, ext):
         self.create_dir_path(dir_path)
         unique_count = 1
         base_title = system_util.clean_path(name)
