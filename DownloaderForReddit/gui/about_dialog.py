@@ -49,11 +49,11 @@ class AboutDialog(QtWidgets.QDialog, Ui_About):
         self.logo_label.setPixmap(pixmap)
         self.logo_label.setScaledContents(True)
 
-        self.info_label.setText(f'Version: {__version__}\nAuthor: Kyle H')
+        self.info_label.setText(f'Version: {__version__}\nAuthor: Kyle H\nExtended by: MyAnonApps')
         self.info_label.setScaledContents(True)
 
-        self.link_label.setText('Homepage: <a href="https://github.com/MalloyDelacroix/DownloaderForReddit">Downloader for Reddit</a>')
-        self.link_label.setToolTip('https://github.com/MalloyDelacroix/DownloaderForReddit')
+        self.link_label.setText('Homepage: <a href="https://github.com/MyAnonApps/DownloaderForReddit">Downloader for Reddit</a>')
+        self.link_label.setToolTip('https://github.com/MyAnonApps/DownloaderForReddit')
 
         self.license_box.setOpenExternalLinks(True)
 

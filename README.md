@@ -1,4 +1,6 @@
 # Downloader For Reddit
+**WARNING: This is not the "official" version of 'Downloader for Reddit'. This has been upgraded to Python 3.12 and PyQt6. It is also been modified for personal preference. It is not fully working at this time**
+
 Downloader for Reddit is a GUI application for downloading content, self text, and comments submitted to reddit.  
 It has many advanced features and customizable settings to extract only content that you want and avoid duplicate 
 downloads.  Everything that is extracted is stored in an sqlite database.  A built-in database view window allows for

@@ -42,7 +42,6 @@ class RedditVideoExtractor(BaseExtractor):
         self.post = post
         self.url = None
         self.audio_url = None
-        self.get_vid_url()
 
     def get_vid_url(self):
         """

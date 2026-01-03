@@ -117,6 +117,8 @@ class ImgurExtractor(BaseExtractor):
             self.over_capacity_error()
         elif status_code == 404:
             self.does_not_exist_error()
+        elif status_code == 410:
+            self.does_not_exist_error()
         else:
             self.unknown_connection_error(status_code)
 
