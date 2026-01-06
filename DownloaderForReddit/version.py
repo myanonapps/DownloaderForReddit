@@ -1,5 +1,4 @@
-__version__ = 'v30.17.0'
-
+__version__ = 'v30.17.1'
 
 def get_major_version():
     m = get_version_parts(__version__)[0]
