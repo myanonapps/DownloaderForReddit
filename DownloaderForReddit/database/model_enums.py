@@ -22,6 +22,10 @@ class NsfwFilter(DisplayableEnum):
     ONLY = 1
 
 
+class PostDownloadSource(DisplayableEnum):
+    REDDIT = 0
+    ARCTIC_SHIFT = 1
+    #PULL_PUSH = 2
 class LimitOperator(DisplayableEnum):
 
     LESS_THAN = -1

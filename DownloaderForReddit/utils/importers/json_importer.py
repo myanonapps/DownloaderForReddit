@@ -28,7 +28,7 @@ from datetime import datetime
 
 from . import legacy_import
 from DownloaderForReddit.database.models import User, Subreddit
-from DownloaderForReddit.database.model_enums import (LimitOperator, PostSortMethod, NsfwFilter, CommentDownload,
+from DownloaderForReddit.database.model_enums import (LimitOperator, PostDownloadSource, PostSortMethod, NsfwFilter, CommentDownload,
                                                       CommentSortMethod)
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
@@ -37,6 +37,7 @@ logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 EXPELLED_KEYS = ['lists', 'posts', 'content', 'comments']
 TYPE_MAP = {
     'date_created': lambda x: datetime.strptime(x, '%m/%d/%Y %I:%M %p'),
+    'post_download_source':lambda x: PostDownloadSource(x),
     'post_score_limit_operator': lambda x: LimitOperator(x),
     'post_sort_method': lambda x: PostSortMethod(x),
     'download_nsfw': lambda x: NsfwFilter(x),

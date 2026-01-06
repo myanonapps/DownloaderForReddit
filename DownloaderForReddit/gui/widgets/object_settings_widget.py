@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QWidget, QMenu, QButtonGroup, QFileDialog
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 
-from DownloaderForReddit.database.model_enums import CommentDownload, CommentSortMethod, DuplicateControlMethod, LimitOperator, NsfwFilter, PostSortMethod
+from DownloaderForReddit.database.model_enums import CommentDownload, CommentSortMethod, DuplicateControlMethod, LimitOperator, NsfwFilter, PostDownloadSource, PostSortMethod
 
 from ...guiresources.widgets.object_settings_widget_auto import Ui_ObjectSettingsWidget
 from ...database.models import User, Subreddit, Post
@@ -73,6 +73,9 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
                 self.post_sort_combo.removeItem(pos)
 
     def setup_widgets(self):
+        for value in PostDownloadSource:
+            self.download_source_combo.addItem(value.display_name, value)
+
         for value in LimitOperator:
             self.score_limit_operator_combo.addItem(value.display_name, value)
             self.comment_score_operator_combo.addItem(value.display_name, value)
@@ -157,6 +160,9 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.score_limit_operator_combo.currentIndexChanged.connect(
             lambda x: self.set_object_value('post_score_limit_operator', self.score_limit_operator_combo.itemData(x))
         )
+        self.download_source_combo.currentIndexChanged.connect(
+            lambda x: self.set_object_value('post_download_source', self.download_source_combo.itemData(x))
+        )        
         self.limit_date_checkbox.stateChanged.connect(self.limit_date_checkbox_toggled)
         self.custom_date_limit_radio.toggled.connect(self.custom_date_limit_toggled)
         self.custom_date_limit_edit.dateTimeChanged.connect(self.set_date_limit_from_edit)
@@ -344,6 +350,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.sync_spin_box(self.post_limit_spinbox, 'post_limit')
         self.sync_spin_box(self.score_limit_spinbox, 'post_score_limit')
         self.sync_combo(self.score_limit_operator_combo, 'post_score_limit_operator')
+        self.sync_combo(self.download_source_combo, 'post_download_source')
         self.sync_date_limits()
         self.sync_checkbox(self.avoid_duplicates_checkbox, 'avoid_duplicates')
         self.sync_checkbox(self.hash_content_checkbox, 'hash_duplicates')

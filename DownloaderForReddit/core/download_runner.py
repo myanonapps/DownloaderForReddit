@@ -1,15 +1,19 @@
+import asyncio
+import json
+import os
 import platform
 import logging
 from queue import Queue, Empty
 from threading import Thread, Event
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import namedtuple
 import prawcore
 from PyQt6.QtCore import QObject, pyqtSignal
-from praw.models import Redditor
+from praw.models import Redditor, Submission
 from sqlalchemy import or_
-
+from BAScraper.BAScraper_async import ArcticShiftAsync
 from DownloaderForReddit.core.download.downloader import Downloader
+from DownloaderForReddit.utils import system_util
 from . import const
 from .content_runner import ContentRunner
 from .submission_filter import SubmissionFilter
@@ -19,7 +23,7 @@ from ..database.models import DownloadSession, RedditObject, User, Subreddit, Po
 from ..utils import injector, reddit_utils, video_merger
 from ..messaging.message import Message
 from ..version import __version__
-from ..database.model_enums import PostSortMethod
+from ..database.model_enums import PostDownloadSource, PostSortMethod
 
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
@@ -80,6 +84,8 @@ class DownloadRunner(QObject):
         self.download_session_id = None
 
         self.reddit_object_queue = Queue(maxsize=-1)
+
+        self.asa = None
 
     def validate_user(self, user_obj):
         redditor = self.reddit_instance.redditor(user_obj.name)
@@ -289,12 +295,153 @@ class DownloadRunner(QObject):
             else:
                 self.get_subreddit_submissions(reddit_object_id, session=session)
 
+    def get_user_archive_path(self, user) -> str:
+        return os.path.join(system_util.get_data_directory(), user.name)
+
+    def load_user_archive_submissions(self, user):
+        try:
+            archive_submissions = []
+
+            s_dir = self.get_user_archive_path(user)
+            for dir_name in os.listdir(s_dir):
+                root, extension = os.path.splitext(dir_name)  # pylint: disable=unused-variable
+                if extension == ".json":
+                    s_file_name = os.path.join(s_dir, dir_name)
+                    with open(s_file_name, 'r', encoding='utf-8') as file:
+                        dict_in = json.load(file)
+                        for key_post, value_post in dict_in.items(): # pylint: disable=unused-variable
+                            submission = Submission(self.reddit_instance, _data=value_post)
+                            submission._fetched = True
+                            archive_submissions.append(submission)
+                    os.remove(s_file_name)
+
+            if archive_submissions:
+                date_limit = 0
+                for submission in archive_submissions:
+                    if submission.created > date_limit:
+                        date_limit = submission.created
+                    extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
+                                                   significant_id=user.id)
+                    self.submission_queue.put(extraction_set)
+                Message.send_info(f'Submissions queued for: {user.name}')
+                if date_limit > 0:
+                    user.set_date_limit(date_limit)  # date limit modified after submissions are extracted
+        except Exception:
+            self.logger.exception("Unable to load user archive")
+            Message.send_error(f'Unable to load user archive: {user.name}')
+
+
+    async def fetch_user_archive_submissions_runner(self, user):
+        print("Here 2")
+        await self.fetch_user_archive_submissions(user)
+
+    async def fetch_user_archive_submissions(self, user):
+        print("Here 1")
+        list_included_subs = []
+        list_excluded_subs = []
+        i_old_last_stamp = i_new_last_stamp = user.date_limit.timestamp()
+        b_loop = True
+        post_needs = ["selftext_html"]
+        skip_post = ["crosspost_parent"]
+
+        try:
+
+            if not os.path.isdir(os.path.join(system_util.get_data_directory(), "temp")):
+                try:
+                    os.makedirs(os.path.join(system_util.get_data_directory(), "temp"))
+                except FileExistsError:
+                    pass
+            if not self.asa:
+                self.asa = ArcticShiftAsync(log_level="DEBUG",
+                                 log_stream_level="DEBUG",
+                                 task_num=1,
+                                 save_dir=os.path.join(system_util.get_data_directory(), "temp"))
+
+            while b_loop:
+                await asyncio.sleep(0)
+                s_last_stamp = datetime.fromtimestamp(i_new_last_stamp, tz=timezone.utc).isoformat()
+                if s_last_stamp:
+                    dict_fetched = await self.asa.fetch(mode='submissions_search', author=user.name, after=s_last_stamp, limit=user.post_limit, sort="asc")
+                else:
+                    dict_fetched = await self.asa.fetch(mode='submissions_search', author=user.nam, limit=user.post_limit, sort="asc")
+
+                dict_result = {}
+                for key_post, value_post in dict_fetched.items():
+                    if "created_utc" not in value_post:
+                        self.logger.error("Post is missing created_utc '%s', skipped", key_post)
+                        continue
+                    if i_old_last_stamp > value_post["created_utc"]:
+                        self.logger.warning("Post '%s' is older than last stamp '%s', skipped", key_post, s_last_stamp)
+                        continue
+                    elif value_post["created_utc"] > i_new_last_stamp:
+                        i_new_last_stamp = value_post["created_utc"]
+                    if list_included_subs or list_excluded_subs:
+                        if "subreddit" not in value_post or not value_post["subreddit"]:
+                            self.logger.info("Post '%s' has no subreddit, skipped", key_post)
+                            continue
+
+                        s_subreddit = value_post["subreddit"]
+                        list_temp = list_included_subs
+                        if len(list_temp) > 0:
+                            if s_subreddit not in list_temp:
+                                self.logger.info("Post '%s' in not included subreddit '%s', skipped", key_post, s_subreddit)
+                                continue
+                        list_temp = list_excluded_subs
+                        if s_subreddit in list_temp:
+                            self.logger.info("Post '%s' in excluded subreddit '%s', skipped", key_post, s_subreddit)
+                            continue
+                    for needs in post_needs:
+                        if needs not in value_post:
+                            value_post[needs] = ""
+                    b_skip = False
+                    for skip in skip_post:
+                        if skip in value_post:
+                            b_skip = True
+                            break
+                    if b_skip:
+                        Message.send_warning(f"Ignoring post from '{user.name}': {key_post}")
+                        continue
+                    dict_result[key_post] = value_post
+
+                if dict_result:
+                    s_file_name_tmp = os.path.join(self.get_user_archive_path(user), str(datetime.now().timestamp()).replace(".", "_") + ".tmp")
+                    s_file_name_json = os.path.join(self.get_user_archive_path(user), str(datetime.now().timestamp()).replace(".", "_") + ".json")
+                    with open(s_file_name_tmp, "w", encoding='utf-8') as json_file:
+                        json.dump(dict_result, json_file, indent=4)
+                    # atomic on POSIX
+                    os.rename(s_file_name_tmp, s_file_name_json)
+
+                if len(dict_fetched) != user.post_limit:
+                    b_loop = False
+        except Exception:
+            Message.send_error(f"Failed fetching '{user.name}' archive")
+            self.logger.exception("Failed fetching '%s' archive", user.name)
+
+    def in_event_loop(self) -> bool:
+        try:
+            asyncio.get_running_loop()
+            return True
+        except RuntimeError:
+            return False
+
     @verify_run
     def get_user_submissions(self, user_id, session=None):
         if session is None:
             with self.db.get_scoped_session() as session:
                 return self.get_user_submissions(user_id, session=session)
         user = session.query(User).get(user_id)
+        if user.post_download_source == PostDownloadSource.ARCTIC_SHIFT:
+            try:
+                if self.in_event_loop():
+                    print("blah")
+                loop = asyncio.get_running_loop()
+                loop.run_until_complete(self.fetch_user_archive_submissions_runner(user))
+                loop.close()
+                self.load_user_archive_submissions(user)
+            except Exception:
+                Message.send_error(f"Failed fetching and loading '{user.name}' archive")
+                self.logger.exception("Failed fetching and loading '%s' archive", user.name)
+            return
         user.set_existing()
         redditor = self.validate_user(user)
 

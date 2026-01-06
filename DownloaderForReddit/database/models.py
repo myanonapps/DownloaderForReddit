@@ -5,7 +5,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import func
 
 from .database_handler import DatabaseHandler
-from .model_enums import (CommentDownload, NsfwFilter, LimitOperator, PostSortMethod, CommentSortMethod,
+from .model_enums import (CommentDownload, NsfwFilter, LimitOperator, PostDownloadSource, PostSortMethod, CommentSortMethod,
                           DuplicateControlMethod)
 from ..core.errors import Error
 from ..core import const
@@ -86,6 +86,7 @@ class RedditObjectList(BaseModel):
     lock_settings = Column(Boolean, default=False)
     post_limit = Column(SmallInteger, default=25)
     post_score_limit = Column(Integer, default=1000)
+    post_download_source = Column(Enum(PostDownloadSource), default=PostDownloadSource.REDDIT)
     post_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
     post_sort_method = Column(Enum(PostSortMethod), default=PostSortMethod.NEW)
     avoid_duplicates = Column(Boolean, default=True)  # Url duplicates
@@ -190,6 +191,7 @@ class RedditObjectList(BaseModel):
             'lock_settings': self.lock_settings,
             'post_limit': self.post_limit,
             'post_score_limit': self.post_score_limit,
+            'post_download_source': self.post_download_source,
             'post_score_limit_operator': self.post_score_limit_operator,
             'post_sort_method': self.post_sort_method,
             'avoid_duplicates': self.avoid_duplicates,
@@ -238,6 +240,7 @@ class RedditObject(BaseModel):
     date_created = Column(DateTime, nullable=True)
     post_limit = Column(SmallInteger, default=25)
     post_score_limit = Column(Integer, default=1000)
+    post_download_source = Column(Enum(PostDownloadSource), default=PostDownloadSource.REDDIT)
     post_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
     post_sort_method = Column(Enum(PostSortMethod), default=PostSortMethod.NEW)
     avoid_duplicates = Column(Boolean, default=True)  # Url duplicates
