@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
-from PyQt5.QtCore import QByteArray, QUrl
-from PyQt5.QtNetwork import QNetworkRequest
+from PyQt6.QtCore import QByteArray, QUrl
+from PyQt6.QtNetwork import QNetworkRequest
 from DownloaderForReddit.core.user_auth import UaNetworkAccessManager, UserAuth
 
 class TestUaNetworkAccessManager(TestCase):
