@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import platform
@@ -6,13 +5,12 @@ import logging
 from pathlib import Path
 from queue import Queue, Empty
 from threading import Thread, Event
-from datetime import datetime, timezone
+from datetime import datetime
 from collections import namedtuple
 import prawcore
 from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor, Submission
 from sqlalchemy import or_
-from BAScraper.BAScraper_async import ArcticShiftAsync
 from DownloaderForReddit.core.download.downloader import Downloader
 from DownloaderForReddit.utils import system_util
 from . import const
