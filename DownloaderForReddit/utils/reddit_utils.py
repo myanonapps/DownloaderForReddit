@@ -185,6 +185,16 @@ class NameChecker:
             return ValidationSet(name=actual_name, date_created=created, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
             return ValidationSet(name=name, date_created=None, valid=False)
+        except prawcore.exceptions.TooManyRequests:
+            # This error's except clause must be tried first because it is a subclass of prawcore.ResponseException
+            logger.error('Too many requests', exc_info=True)
+            message = (
+                f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
+                f'For more information, please visit the link below\n'
+                f'{const.RATE_LIMIT_DOC_URL}'
+            )
+            Message.send_error(message)
+            return ValidationSet(name=name, date_created=None, valid=False)
         except Exception:
             self.logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)
@@ -201,6 +211,16 @@ class NameChecker:
             return ValidationSet(name=actual_name, date_created=created, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
             return ValidationSet(name=name, date_created=None, valid=False)
+        except prawcore.exceptions.TooManyRequests:
+            # This error's except clause must be tried first because it is a subclass of prawcore.ResponseException
+            logger.error('Too many requests', exc_info=True)
+            message = (
+                f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
+                f'For more information, please visit the link below\n'
+                f'{const.RATE_LIMIT_DOC_URL}'
+            )
+            Message.send_error(message)
+            return ValidationSet(name=name, date_created=None, valid=False)        
         except Exception:
             self.logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)
