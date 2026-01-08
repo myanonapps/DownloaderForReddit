@@ -1493,8 +1493,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                 self.comment_tree_view.setCurrentIndex(current_index)
 
     def set_current_item(self, item_id):
-        index = self.current_focus_model.get_item_index_by_id(item_id)
-        self.current_focus_view.setCurrentIndex(index)
+        if self.current_focus_model:
+            index = self.current_focus_model.get_item_index_by_id(item_id)
+            self.current_focus_view.setCurrentIndex(index)
 
     def monitor_scrollbar(self, bar_scroll, model, load_method, load_percentage=90):
         """
