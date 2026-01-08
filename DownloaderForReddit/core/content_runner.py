@@ -1,6 +1,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty
+from sqlalchemy.orm.exc import MultipleResultsFound
 
 from .runner import Runner, verify_run
 from .submission_handler import SubmissionHandler
@@ -78,6 +79,8 @@ class ContentRunner(Runner):
         with self.db.get_scoped_session() as session:
             try:
                 post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
+            except MultipleResultsFound:
+                Message.send_extraction_error(f"Post already exists: {submission.url}")
             except Exception:
                 Message.send_extraction_error(f"Post not creatable: {submission.url}")
                 self.logger.exception("Post not creatable: %s", submission)
