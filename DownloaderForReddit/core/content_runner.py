@@ -67,7 +67,11 @@ class ContentRunner(Runner):
         self.logger.debug('Content extractor exiting')
 
     def remove_future(self, future):
-        self.futures.remove(future)
+        try:
+            self.futures.remove(future)
+        except ValueError:
+            Message.send_extraction_error("Missing future, runner may be out of sync with UI")
+            return
 
     @verify_run
     def handle_submission(self, submission, significant_id):
