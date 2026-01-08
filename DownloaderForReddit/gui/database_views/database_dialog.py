@@ -522,7 +522,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                 return first
             else:
                 return 'MIXED'
-        except IndexError:
+        except (IndexError, TypeError):
             return None
 
     @property
