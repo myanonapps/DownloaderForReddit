@@ -98,7 +98,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.spinner = WaitingSpinner(self.user_list_view, spin_pars)
 
         self.tray_icon_image = \
-            QIcon(QPixmap('Resources/Images/RedditDownloaderIcon.png').scaled(48, 48))
+            QIcon(QPixmap('Resources/images/RedditDownloaderIcon.png').scaled(48, 48))
         self.system_tray_icon = QSystemTrayIcon(icon=self.tray_icon_image)
         self.oauth = None
 
