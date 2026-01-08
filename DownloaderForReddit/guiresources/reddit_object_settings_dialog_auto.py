@@ -15,7 +15,7 @@ class Ui_RedditObjectSettingsDialog(object):
         RedditObjectSettingsDialog.setObjectName("RedditObjectSettingsDialog")
         RedditObjectSettingsDialog.resize(773, 940)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/settings_three_gears.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap("Resources/images/settings_three_gears.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         RedditObjectSettingsDialog.setWindowIcon(icon)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(RedditObjectSettingsDialog)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
