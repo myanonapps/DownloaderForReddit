@@ -67,9 +67,10 @@ class Converter:
         os.chdir(os.path.dirname(original))  # change directories so that all file paths in created file are correct
         in_path = self.get_in_path(name, *sub_paths)
         out_path = self.get_out_path(name, *sub_paths)
-        command = f'pyuic5 {in_path} -o {out_path}'
+        command = f'pyuic6 {in_path} -o {out_path}'
         # print(command)
         subprocess.run(command)
+        # TODO: Post process the out_path so files work on non-windows platform
         os.chdir(original)
 
     def get_in_path(self, name, *sub_paths):
