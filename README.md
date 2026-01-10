@@ -1,5 +1,5 @@
 # WARNING
-WARNING: This is not the "official" version of 'Downloader for Reddit'. This fork has been:
+WARNING: This is not the "official" version of 'Downloader for Reddit'. This fork/branch has been:
 - upgraded to Python 3.12
 - upgraded to PyQt6  
 - updated to work on linux
