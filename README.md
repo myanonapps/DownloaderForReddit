@@ -4,6 +4,7 @@ WARNING: This is not the "official" version of 'Downloader for Reddit'. This for
 - upgraded to PyQt6  
 - updated to work on linux
 - updated to load Reddit archive json
+- updated database schema to include source (reddit or archive)
 - partially linted
 - troubleshooted for various problems
 - modified for personal preferences
