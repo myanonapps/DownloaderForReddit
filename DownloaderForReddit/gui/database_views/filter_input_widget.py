@@ -90,8 +90,9 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
                 field = self.field_type_map[filed_type]()
             if not isinstance(field, type(self.value_field)):
                 try:
-                    self.value_layout.removeWidget(self.value_field)
-                    self.value_field.deleteLater()
+                    if self.value_field is not None:
+                        self.value_layout.removeWidget(self.value_field)
+                        self.value_field.deleteLater()
                 except AttributeError:
                     pass
                 self.value_field = field

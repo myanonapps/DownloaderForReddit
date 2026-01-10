@@ -1493,7 +1493,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                 self.comment_tree_view.setCurrentIndex(current_index)
 
     def set_current_item(self, item_id):
-        if self.current_focus_model:
+        if self.current_focus_model is not None:
             index = self.current_focus_model.get_item_index_by_id(item_id)
             self.current_focus_view.setCurrentIndex(index)
 
