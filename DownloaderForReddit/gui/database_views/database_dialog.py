@@ -2,7 +2,7 @@ import logging
 from PyQt6.QtWidgets import (QMenu, QWidget, QInputDialog, QAbstractItemView, QWidgetAction, QCheckBox,
                              QApplication)
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QCursor, QActionGroup
+from PyQt6.QtGui import QCursor, QActionGroup, QClipboard
 from sqlalchemy import or_
 
 from DownloaderForReddit.guiresources.database_views.database_dialog_auto import Ui_DatabaseDialog
@@ -652,7 +652,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def copy_to_clipboard(self, text):
         cb = QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
+        cb.clear(mode=QClipboard.Mode.Clipboard)
         cb.setText(text)
 
     def update_post_scores(self):
