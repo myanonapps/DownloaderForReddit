@@ -88,6 +88,8 @@ class SubmissionHandler(Runner):
                 self.extract_link(url, **kwargs, text_link_extraction=True)
 
     def parse_html_links(self, html):
+        if html is None:
+            return []
         return BeautifulSoup(html, parse_only=SoupStrainer('a'), features='html.parser')
 
     @verify_run
