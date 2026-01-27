@@ -88,6 +88,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.download_runner = None
         self.update_runner = None
         self.update_check_thread = None
+        self.user_auth = None
         self.progress_limit = 0
         self.progress = 0
         self.running = False
