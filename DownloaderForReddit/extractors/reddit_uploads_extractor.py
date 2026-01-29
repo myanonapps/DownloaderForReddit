@@ -93,6 +93,13 @@ class RedditUploadsExtractor(BaseExtractor):
                                         log_exception=False,
                                         )
                 return
+            if self.submission.media_metadata is None:
+                self.handle_failed_extract(
+                                        error=Error.FAILED_TO_EXTRACT,
+                                        message='No media meta data to extract album from',
+                                        log_exception=False,
+                                        )
+                return
             count = 1
             for value in self.submission.media_metadata.values():
                 try:
@@ -104,12 +111,16 @@ class RedditUploadsExtractor(BaseExtractor):
                     container = value['s']
 
                     if  "u" not in container:
-                        self.logger.error("Album image missing 'u': {%s}", media_id)
-                        Message.send_extraction_error(f"Album image missing 'u': {media_id}\nTitle: {self.post.title}\nUrl: {self.url}")
-                        continue
-
-                    url = container['u']
-                    ext = url[url.rfind('.') + 1: url.rfind('?width')]
+                        if "gif" not in container:
+                            self.logger.error("Album image missing 'u': {%s}", media_id)
+                            Message.send_extraction_error(f"Album image missing 'u': {media_id}\nTitle: {self.post.title}\nUrl: {self.url}")
+                            continue
+                        else:
+                            url = container['gif']
+                            ext = "gif"
+                    else:
+                        url = container['u']
+                        ext = url[url.rfind('.') + 1: url.rfind('?width')]
 
                     self.make_content(url, ext, count, media_id=media_id)
                     count += 1
