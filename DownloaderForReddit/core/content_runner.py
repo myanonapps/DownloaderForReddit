@@ -118,6 +118,6 @@ class ContentRunner(Runner):
             else:
                 submission_handler.extract_self_post()
             if post.significant_reddit_object.run_comment_operations:
-                submission = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).submission(post.reddit_id)
+                submission = RedditAdapterManager().get_adapter_for_object(post.significant_reddit_object).submission(post.reddit_id)
                 submission_handler.submission = submission
                 submission_handler.extract_comments()

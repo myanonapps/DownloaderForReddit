@@ -6,6 +6,7 @@ implementation based on the PostDownloadSource configuration.
 """
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
+from DownloaderForReddit.database.models import RedditObject
 from DownloaderForReddit.utils.general_utils import dig
 
 from .reddit_data_interface import RedditDataInterface
@@ -94,7 +95,7 @@ class RedditAdapterManager:
         adapter:RedditDataInterface = class_adapter(token)
         return adapter
 
-    def get_data_interface_for_object(self, reddit_object) -> RedditDataInterface:
+    def get_adapter_for_object(self, reddit_object:RedditObject) -> RedditDataInterface:
         """
         Get the appropriate RedditDataInterface implementation for a given Reddit object.
         
@@ -104,4 +105,6 @@ class RedditAdapterManager:
         Returns:
             An instance of a RedditDataInterface implementation
         """
-        return self.get_adapter(reddit_object.post_download_source)
+        adapter:RedditDataInterface = self.get_adapter(reddit_object.post_download_source)
+        adapter.set_reddit_object(reddit_object)
+        return adapter

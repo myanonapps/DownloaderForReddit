@@ -27,7 +27,6 @@ class UpdateRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
-        self.reddit_instance = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
         self.run_method = run_method
         self.reddit_object_id_list = kwargs.get('reddit_object_id_list', None)
         self.post_id_list = kwargs.get('post_id_list', None)
@@ -88,7 +87,7 @@ class UpdateRunner(QObject):
         with self.db.get_scoped_update_session() as session:
             try:
                 post = session.query(Post).get(post_id)
-                submission = self.reddit_instance.submission(id=post.reddit_id)
+                submission = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).submission(id=post.reddit_id)
                 old_score = post.score
                 post.score = submission.score
                 Message.send_info(f'{post.title} score updated\n'
@@ -129,7 +128,7 @@ class UpdateRunner(QObject):
     def extract_comments(self, post_id):
         with self.db.get_scoped_session() as session:
             post = session.query(Post).get(post_id)
-            submission = self.reddit_instance.submission(id=post.reddit_id)
+            submission = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).submission(id=post.reddit_id)
             submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
                                                    self.download_queue, stop_run=None)
             submission_handler.extract_comments()

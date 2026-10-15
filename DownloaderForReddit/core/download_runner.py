@@ -86,7 +86,7 @@ class DownloadRunner(QObject):
 
 
     def validate_user(self, user_obj):
-        redditor = self.reddit_instance.redditor(user_obj.name)
+        redditor = RedditAdapterManager().get_adapter_for_object(user_obj).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):
             Message.send_debug(f'{user_obj.name} is valid')
             return redditor
@@ -94,7 +94,7 @@ class DownloadRunner(QObject):
             return None
 
     def validate_subreddit(self, subreddit_obj):
-        subreddit = self.reddit_instance.subreddit(subreddit_obj.name)
+        subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj).subreddit(subreddit_obj.name)
         if self.validate_object(subreddit, subreddit_obj):
             Message.send_debug(f'{subreddit_obj.name} is valid')
             return subreddit

@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 import requests
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
+from DownloaderForReddit.database.models import RedditObject
 from DownloaderForReddit.utils import system_util
 from ..version import __version__
 
@@ -36,6 +37,7 @@ class RedditDataInterface(ABC):
         self._user_agent:str = USER_AGENT
         self._session = None
         self._token = token
+        self._reddit_object = None
 
     @abstractmethod
     def check_user_name(self, name):
@@ -133,3 +135,9 @@ class RedditDataInterface(ABC):
             return response.json()
         except requests.exceptions.RequestException as e:
             raise Exception("Reddit Data Interface HTTP request failed") from e
+
+    def set_reddit_object(self, reddit_object:RedditObject):
+        self._reddit_object = reddit_object
+
+    def get_reddit_object(self) -> RedditObject:
+        return self._reddit_object

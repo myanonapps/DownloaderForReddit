@@ -272,7 +272,7 @@ class BaseExtractor:
         submission = self.submission
         if not submission:
             try:
-                r = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
+                r = RedditAdapterManager().get_adapter_for_object(self.significant_reddit_object)
                 submission = r.submission(self.post.reddit_id)
             except Exception as e:
                 raise e
@@ -282,7 +282,7 @@ class BaseExtractor:
 
         if hasattr(submission, 'crosspost_parent'):
             try:
-                r = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
+                r = RedditAdapterManager().get_adapter_for_object(self.significant_reddit_object)
                 parent_submission = r.submission(submission.crosspost_parent.split('_')[1])
                 return parent_submission
             except AttributeError:

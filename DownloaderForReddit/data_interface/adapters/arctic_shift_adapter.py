@@ -84,3 +84,9 @@ class ArcticShiftAdapter(RedditDataInterface):
 
     def get_authenticated_user(self) -> str:
         return ""
+
+    def check_user_name(self, name):
+        pass
+
+    def check_subreddit_name(self, name):
+        pass
