@@ -12,7 +12,6 @@ from urllib.parse import urljoin
 import requests
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
-from DownloaderForReddit.data_interface.filter_settings import FilterSettings
 from DownloaderForReddit.utils import system_util
 from ..version import __version__
 
@@ -37,7 +36,6 @@ class RedditDataInterface(ABC):
         self._user_agent:str = USER_AGENT
         self._session = None
         self._token = token
-        self._filter_settings = FilterSettings()
 
     @abstractmethod
     def check_user_name(self, name):
@@ -93,33 +91,6 @@ class RedditDataInterface(ABC):
             Subreddit object from the Reddit Data Interface
         """
         pass
-
-    def get_authenticated_user(self) -> str:
-        """
-        Get the authenticated user name.
-
-        Returns:
-            Username string
-        """
-        return self._token.get_username() if self._token else None
-
-    def get_filter_settings(self) -> FilterSettings:
-        """
-        Get the filter settings for this data interface.
-
-        Returns:
-            FilterSettings object containing all filter configurations
-        """
-        return self._filter_settings
-
-    def set_filter_settings(self, filter_settings: FilterSettings):
-        """
-        Set the filter settings for this data interface.
-
-        Args:
-            filter_settings: FilterSettings object with configuration to apply
-        """
-        self._filter_settings = filter_settings
 
     def get_user_agent(self) -> str:
         """
