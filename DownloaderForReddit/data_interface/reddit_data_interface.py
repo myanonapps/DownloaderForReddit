@@ -126,10 +126,11 @@ class RedditDataInterface(ABC):
         try:
             if self._session is None:
                 self._session = requests.Session()
-            self._session.headers.update({
-                'Authorization': f'Bearer {self._token.get_decrypted()}',
-                'User-Agent': self.get_user_agent()
-            })
+            if self._token.get_decrypted():
+                self._session.headers.update({
+                    'Authorization': f'Bearer {self._token.get_decrypted()}',
+                    'User-Agent': self.get_user_agent()
+                })
             response = self._session.get(urljoin(self._base_url, endpoint), params=params)
             response.raise_for_status()
             return response.json()

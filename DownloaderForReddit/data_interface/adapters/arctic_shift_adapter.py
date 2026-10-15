@@ -16,12 +16,11 @@ Keyword parameters — title, selftext, body, and query — only work alongside 
 
 """
 from typing import Any
-
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
 
 
-BASE_URL = "https://api.arcticshift.com/"
+BASE_URL = "https://arctic-shift.photon-reddit.com/"
 
 class ArcticShiftAdapter(RedditDataInterface):
     """
@@ -63,7 +62,7 @@ class ArcticShiftAdapter(RedditDataInterface):
             Redditor object from the Arctic Shift API
         """
         # Arctic Shift API endpoint for users
-        endpoint = f"/user/{name}"
+        endpoint = f"/api/users/search?author={name}&limit=1&sort=asc"
         data = self.make_http_request(endpoint)
         return data
 
