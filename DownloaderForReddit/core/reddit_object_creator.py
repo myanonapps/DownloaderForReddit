@@ -1,8 +1,12 @@
 import logging
 from sqlalchemy import func
 
+from DownloaderForReddit.data_interface.name_checker import NameChecker
+from DownloaderForReddit.data_interface.reddit_data_interface import ValidationSet
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+
 from ..database.models import User, Subreddit, RedditObjectList
-from ..utils import injector, reddit_utils
+from ..utils import injector
 
 
 class RedditObjectCreator:
@@ -20,7 +24,7 @@ class RedditObjectCreator:
         the name checker does not always have to be initialized if it is not needed to create the reddit object.
         """
         if self.name_checker is None:
-            self.name_checker = reddit_utils.NameChecker(self.list_type)
+            self.name_checker = NameChecker(PostDownloadSource.REDDIT, self.list_type)
         return self.name_checker
 
     def create_reddit_object(self, name, list_defaults):
@@ -49,7 +53,7 @@ class RedditObjectCreator:
                 if self.settings_manager.validate_names_before_add:
                     validation_set = self.get_name_checker().check_user_name(user_name)
                 else:
-                    validation_set = reddit_utils.ValidationSet(name=user_name, date_created=None, valid=True)
+                    validation_set = ValidationSet(name=user_name, date_created=None, valid=True)
                 if validation_set.valid:
                     list_defaults['significant'] = True
                     user = User(name=validation_set.name, date_created=validation_set.date_created, **list_defaults)

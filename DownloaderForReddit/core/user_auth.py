@@ -26,7 +26,7 @@ class UaNetworkAccessManager(QNetworkAccessManager):
 
 class UserAuth(QObject):
     """
-    Handles user authentication using OAuth2 for Reddit API.
+    Handles user authentication using OAuth2 for Reddit Data Interface.
 
     This class provides functionality to initialize and manage the OAuth2 authentication process,
     including requesting user authorization, obtaining access tokens, and emitting signals upon
@@ -34,7 +34,7 @@ class UserAuth(QObject):
 
     :ivar connected: Signal emitted indicating authentication success or failure.
     :type connected: pyqtSignal
-    :ivar reddit_utils: Utility object that provides required Reddit API details such as client ID,
+    :ivar reddit_utils: Utility object that provides required Reddit Data Interface details such as client ID,
         user agent, redirect URL, and token scopes.
     :type reddit_utils: RedditUtils
     :ivar client_id: The client ID required for Reddit OAuth2.
@@ -135,6 +135,7 @@ class UserAuth(QObject):
             return
 
         self.reddit_utils.save_token(token)
+        
         if self.oauth:
             self.oauth.replyHandler().close()
         self.connected.emit(True)

@@ -51,6 +51,10 @@ class SettingsManager:
         self.reddit_access_token = self.get('core', 'reddit_access_token', None)
         self.reddit_access = self.get('core', 'reddit_access', None)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
+        
+        # API Keys
+        self.arctic_shift_api_key = self.get('api_keys', 'arctic_shift_api_key', None)
+        self.pull_push_api_key = self.get('api_keys', 'pull_push_api_key', None)
 
         default_extractor_dict = {
             extractor.__name__: True for extractor in BaseExtractor.__subclasses__()

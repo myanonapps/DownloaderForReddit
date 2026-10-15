@@ -30,7 +30,7 @@ import requests
 from .base_extractor import BaseExtractor
 from ..core import const
 from ..core.errors import Error
-from ..utils import reddit_utils, video_merger
+from ..utils import video_merger
 
 
 class RedditVideoExtractor(BaseExtractor):

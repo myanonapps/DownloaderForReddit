@@ -25,10 +25,13 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 import requests
 
+from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+
 from ..database import Content
 from ..core.content_filter import ContentFilter
 from ..core.errors import Error
-from ..utils import injector, reddit_utils
+from ..utils import injector
 from ..messaging.message import Message
 from ..utils.filename_generator import FilenameGenerator
 
@@ -269,7 +272,7 @@ class BaseExtractor:
         submission = self.submission
         if not submission:
             try:
-                r = reddit_utils.get_reddit_instance()
+                r = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
                 submission = r.submission(self.post.reddit_id)
             except Exception as e:
                 raise e
@@ -279,7 +282,7 @@ class BaseExtractor:
 
         if hasattr(submission, 'crosspost_parent'):
             try:
-                r = reddit_utils.get_reddit_instance()
+                r = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
                 parent_submission = r.submission(submission.crosspost_parent.split('_')[1])
                 return parent_submission
             except AttributeError:

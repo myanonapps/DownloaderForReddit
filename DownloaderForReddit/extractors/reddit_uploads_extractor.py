@@ -30,7 +30,6 @@ import prawcore
 from .base_extractor import BaseExtractor
 from ..core.errors import Error
 from ..core import const
-from ..utils import reddit_utils
 from ..messaging.message import Message
 
 

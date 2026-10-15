@@ -3,7 +3,6 @@ WARNING: This is not the "official" version of 'Downloader for Reddit'. This for
 - upgraded to Python 3.12
 - upgraded to PyQt6  
 - updated to work on linux
-- updated to load Reddit archive json
 - updated database schema to include source (reddit or archive)
 - partially linted
 - troubleshooted for various problems

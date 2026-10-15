@@ -1,28 +1,26 @@
-import json
-import os
 import platform
 import logging
-from pathlib import Path
 from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
 from collections import namedtuple
 import prawcore
 from PyQt6.QtCore import QObject, pyqtSignal
-from praw.models import Redditor, Submission
+from praw.models import Redditor
 from sqlalchemy import or_
 from DownloaderForReddit.core.download.downloader import Downloader
-from DownloaderForReddit.utils import system_util
+from ..utils import video_merger
 from . import const
 from .content_runner import ContentRunner
 from .submission_filter import SubmissionFilter
 from .runner import verify_run
 from .errors import NON_DOWNLOADABLE
 from ..database.models import DownloadSession, RedditObject, User, Subreddit, Post, Content
-from ..utils import injector, reddit_utils, video_merger
+from ..data_interface.adapter_manager import RedditAdapterManager
 from ..messaging.message import Message
 from ..version import __version__
 from ..database.model_enums import PostDownloadSource, PostSortMethod
+from ..utils import injector
 
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
@@ -52,7 +50,9 @@ class DownloadRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
-        self.reddit_instance = reddit_utils.get_reddit_instance()
+        # Use adapter manager instead of direct PRAW access
+        self.adapter_manager = RedditAdapterManager()
+        self.reddit_instance = None  # Will be set per reddit object
         self.submission_filter = SubmissionFilter()
 
         self.user_id_list = user_id_list
@@ -84,7 +84,6 @@ class DownloadRunner(QObject):
 
         self.reddit_object_queue = Queue(maxsize=-1)
 
-        self.asa = None
 
     def validate_user(self, user_obj):
         redditor = self.reddit_instance.redditor(user_obj.name)
@@ -213,7 +212,7 @@ class DownloadRunner(QObject):
         self.logger.info('Download runner started.', extra={
             'dfr_version': __version__,
             'platform': platform.platform,
-            'account_connected': reddit_utils.connection_is_authorized,
+            'account_connected': RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).get_authenticated_user(),
             'run_unextracted': self.run_unextracted,
             'run_undownloaded': self.run_undownloaded,
             'run_new': self.run_new,
@@ -294,64 +293,12 @@ class DownloadRunner(QObject):
             else:
                 self.get_subreddit_submissions(reddit_object_id, session=session)
 
-    def get_archive_path(self) -> str:
-        return os.path.join(system_util.get_data_directory(), "archive")
-
-    def load_user_archive_submissions(self, user):
-        try:
-            archive_submissions = []
-            dict_attributes = {"needs": ["selftext_html"], "skip": ["crosspost_parent"]}
-            list_files = list(Path(self.get_archive_path()).glob(user.name + '_*.json'))
-            for path_tmp in list_files:
-                s_file_name = str(path_tmp)
-                with open(s_file_name, 'r', encoding='utf-8') as file:
-                    dict_in = json.load(file)
-                    for key_post, value_post in dict_in.items():
-                        b_skip = False
-                        for skip in dict_attributes["skip"]:
-                            if skip in value_post:
-                                b_skip = True
-                        if b_skip:
-                            Message.send_warning(f"Ignoring post from '{user.name}': {key_post}")
-                            continue
-                        for needs in dict_attributes["needs"]:
-                            if needs not in value_post:
-                                value_post[needs] = ""
-                        submission = Submission(self.reddit_instance, _data=value_post)
-                        submission._fetched = True  # not ideal
-                        archive_submissions.append(submission)
-                os.remove(s_file_name)
-
-            if archive_submissions:
-                date_limit = 0
-                for submission in archive_submissions:
-                    date_limit = max(date_limit, submission.created)
-                    extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
-                                                   significant_id=user.id)
-                    self.submission_queue.put(extraction_set)
-                Message.send_info(f'Submissions queued for: {user.name}')
-                if date_limit > 0:
-                    user.set_date_limit(date_limit)  # date limit modified after submissions are extracted
-        except Exception:
-            self.logger.exception("Unable to load user archive")
-            Message.send_error(f'Unable to load user archive: {user.name}')
-
-
-
-
     @verify_run
     def get_user_submissions(self, user_id, session=None):
         if session is None:
             with self.db.get_scoped_session() as session:
                 return self.get_user_submissions(user_id, session=session)
         user = session.query(User).get(user_id)
-        if user.post_download_source == PostDownloadSource.ARCTIC_SHIFT:
-            try:
-                self.load_user_archive_submissions(user)
-            except Exception:
-                Message.send_error(f"Failed loading '{user.name}' archive")
-                self.logger.exception("Failed loading '%s' archive", user.name)
-            return None
         user.set_existing()
         redditor = self.validate_user(user)
 

@@ -5,10 +5,12 @@ from threading import Thread, Event
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from DownloaderForReddit.core.download.downloader import Downloader
+from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
+from DownloaderForReddit.database.model_enums import PostDownloadSource
 from .submission_handler import SubmissionHandler
 from .runner import verify_run
 from ..database.models import DownloadSession, Post
-from ..utils import injector, reddit_utils
+from ..utils import injector
 from ..messaging.message import Message
 
 
@@ -25,7 +27,7 @@ class UpdateRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
-        self.reddit_instance = reddit_utils.get_reddit_instance()
+        self.reddit_instance = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
         self.run_method = run_method
         self.reddit_object_id_list = kwargs.get('reddit_object_id_list', None)
         self.post_id_list = kwargs.get('post_id_list', None)

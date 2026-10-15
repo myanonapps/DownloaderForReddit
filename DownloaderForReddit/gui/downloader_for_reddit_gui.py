@@ -35,6 +35,9 @@ from PyQt6.QtGui import QColor
 
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
+from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+
 from ..core.user_auth import UserAuth
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
 from ..gui.about_dialog import AboutDialog
@@ -130,8 +133,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.link_cursor_handler = LinkCursorHandler(self.output_list_view)
         self.output_view_model.added.connect(self.scroll_output)
 
-        reddit_utils.load_token()
-        user = reddit_utils.check_authorized_connection()
+        user = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).get_authenticated_user()
 
         if user is not None:
             Message.send_info(f'You are logged in as /u/{user}.')
@@ -306,7 +308,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.logger.info('Application started', extra={
             'dfr_version': __version__,
             'platform': platform.platform(),
-            'account_connected': reddit_utils.connection_is_authorized,
+            'account_connected':  RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).get_authenticated_user(),
         })
 
     def setup_list_sort_menu(self):
@@ -1224,7 +1226,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         settings.exec()
 
     def sign_out(self):
-        reddit_utils.delete_token()
+        RedditAdapterManager().delete_adapter_token(PostDownloadSource.REDDIT)
         Message.send_info('Signed out of Downloader for Reddit.')
         self.connect_reddit_account_menu_item.setText("Connect Reddit Account")
         self.connect_reddit_account_menu_item.triggered.disconnect(self.sign_out)
@@ -1254,7 +1256,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         :return: None
         """
         if connected:
-            user = reddit_utils.check_authorized_connection()
+            user = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).get_authenticated_user()
             Message.send_info(f'Downloader for Reddit is now linked to {user}\'s reddit account.')
             self.connect_reddit_account_menu_item.setText(f"Sign out: {user}")
             self.connect_reddit_account_menu_item.disconnect()

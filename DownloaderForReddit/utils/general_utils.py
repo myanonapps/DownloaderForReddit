@@ -142,3 +142,21 @@ def format_date_path(formatted_date):
 
 def format_raw_datetime(date_time, format_str):
     return date_time.strftime(format_str)
+
+def dig(d: dict, *keys, default=None):
+    """
+    Safely navigate nested dict and return value at the key path.
+    Returns default if any key is missing or any node is not a dict.
+
+    Usage:
+        dig(manifest, "deal", "name", "actual", default="")
+        dig(config, "Business", "deal_formation", default={})
+    """
+    node = d
+    for key in keys:
+        if not isinstance(node, dict):
+            return default
+        if key is None:
+            return default
+        node = node[key]
+    return node
