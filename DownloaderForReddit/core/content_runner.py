@@ -1,7 +1,6 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty
-import pydevd
 from sqlalchemy.orm.exc import MultipleResultsFound
 
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
@@ -17,7 +16,6 @@ class ContentRunner(Runner):
 
     def __init__(self, submission_queue, download_queue, download_session_id, stop_run):
         super().__init__(stop_run)
-        pydevd.settrace(suspend=False)
         self.logger = logging.getLogger(__name__)
         self.submission_queue = submission_queue
         self.download_queue = download_queue

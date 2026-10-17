@@ -16,16 +16,13 @@ class RedditObjectCreator:
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
         self.list_type = list_type
-        self.name_checker = None
 
-    def get_name_checker(self):
+    def get_name_checker(self, source:PostDownloadSource):
         """
         Initializes the name checker, sets it to a class variable, and returns it to the caller.  This is done so that
         the name checker does not always have to be initialized if it is not needed to create the reddit object.
         """
-        if self.name_checker is None:
-            self.name_checker = NameChecker(PostDownloadSource.REDDIT, self.list_type)
-        return self.name_checker
+        return NameChecker(source, self.list_type)
 
     def create_reddit_object(self, name, list_defaults):
         if self.list_type == 'USER':
@@ -47,11 +44,12 @@ class RedditObjectCreator:
         :type list_defaults: dict
         :rtype: tuple
         """
+        source:PostDownloadSource = list_defaults['post_download_source']
         with self.db.get_scoped_session() as session:
             user = session.query(User).filter(func.lower(User.name) == user_name.lower()).first()
             if user is None:
                 if self.settings_manager.validate_names_before_add:
-                    validation_set = self.get_name_checker().check_user_name(user_name)
+                    validation_set = self.get_name_checker(source).check_user_name(user_name)
                 else:
                     validation_set = ValidationSet(name=user_name, date_created=None, valid=True)
                 if validation_set.valid:
@@ -66,10 +64,11 @@ class RedditObjectCreator:
 
     def create_subreddit(self, sub_name, list_defaults):
         """See create_user above."""
+        source:PostDownloadSource = list_defaults['post_download_source']
         with self.db.get_scoped_session() as session:
             subreddit = session.query(Subreddit).filter(func.lower(Subreddit.name) == sub_name.lower()).first()
             if subreddit is None:
-                validation_set = self.get_name_checker().check_subreddit_name(sub_name)
+                validation_set = self.get_name_checker(source).check_subreddit_name(sub_name)
                 if validation_set.valid:
                     list_defaults['significant'] = True
                     subreddit = \

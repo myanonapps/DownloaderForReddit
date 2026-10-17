@@ -183,3 +183,4 @@ class PRAWAdapter(RedditDataInterface):
         except BaseException:
             logger.error('Somebody is throwing a BaseException. Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)
+

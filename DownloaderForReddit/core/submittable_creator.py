@@ -91,8 +91,6 @@ class SubmittableCreator:
         except AttributeError:
             cls.logger.error('Failed to get author', exc_info=True)
             author = cls.get_db().get_or_create(User, name='deleted', session=session)[0]
-        except Exception as e:
-            raise e
         return author
 
     @classmethod
@@ -103,7 +101,5 @@ class SubmittableCreator:
                                                    defaults=defaults, session=session)[0]
         except AttributeError:
             cls.logger.error('Failed to get subreddit', exc_info=True)
-            subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]
-        except Exception as e:
-            raise e            
+            subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]       
         return subreddit

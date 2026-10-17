@@ -7,16 +7,17 @@ It allows for different backends (PRAW, HTTP APIs, etc.) to be used interchangea
 
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from json import JSONDecodeError
+from datetime import datetime, timezone
+import logging
 import time
 from typing import Any, Optional
 from urllib.parse import urljoin
+from email.utils import parsedate_to_datetime
 import requests
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.database.models import RedditObject
 from DownloaderForReddit.utils import system_util
-from DownloaderForReddit.utils.general_utils import dig
 from ..version import __version__
 
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
@@ -26,6 +27,7 @@ USER_AGENT = (
     f'{system_util.get_platform_str()}:DownloaderForReddit:{__version__} '
     f'(by /u/MalloyDelacroix; contact: downloaderforreddit@gmail.com)'
 )
+DEFAULT_WAIT_S=10
 
 class RedditDataInterface(ABC):
     """
@@ -41,6 +43,7 @@ class RedditDataInterface(ABC):
         self._session = None
         self._token = token
         self._reddit_object = None
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
     @abstractmethod
     def posts_by_author(self):
@@ -119,6 +122,110 @@ class RedditDataInterface(ABC):
         """
         return self._redirect_url
 
+    def get_retry_after_seconds(self, response: requests.Response) -> int:
+        header = response.headers.get("Retry-After")
+        if not header:
+            return 0
+
+        # 1. Delta-seconds format (e.g., "120")
+        if header.isdigit():
+            return int(header)
+
+        # 2. HTTP-date format (e.g., "Wed, 21 Apr 2026 07:28:00 GMT")
+        try:
+            retry_date = parsedate_to_datetime(header)
+            now_utc = datetime.now(timezone.utc)
+            delta = (retry_date - now_utc).total_seconds()
+            return max(0, delta)
+        except (TypeError, ValueError):
+            return 0
+
+    def get_x_ratelimit_reset_seconds(self, response: requests.Response) -> int:
+        """
+            Calculates seconds to sleep from an x-ratelimit-reset header value.
+            Handles Unix timestamps (epoch) or relative delta seconds.
+        """
+        header = response.headers.get("x-ratelimit-reset")
+        if not header:
+            return 0
+
+        if header.isdigit():
+            return int(header)
+
+        try:
+            val = float(header)
+        except ValueError:
+            return 0
+
+        # If the value is huge (e.g., > Jan 1, 2030 or 10 digits+), it is a Unix epoch timestamp
+        if val > 1_000_000_000:
+            # Check if it's in milliseconds (13 digits+)
+            if val > 10_000_000_000_00:
+                val /= 1000.0
+            wait_time = int(val - time.time())
+        else:
+            # Otherwise, it's a relative delta (seconds remaining)
+            wait_time = int(val)
+
+        return wait_time
+
+    def get_rate_limit_seconds(self, response: requests.Response) -> int:
+        wait_time = 0
+
+        # 1. Try to honor the server's explicit Retry-After header
+        wait_time = self.get_retry_after_seconds(response)
+        if wait_time:
+            return wait_time
+        wait_time = self.get_x_ratelimit_reset_seconds(response)
+        if wait_time:
+            return wait_time
+        wait_time = self.get_x_ratelimit_reset_at_seconds(response)
+        if wait_time:
+            return wait_time
+
+        if response.status_code == 429:
+            return DEFAULT_WAIT_S
+
+    def get_x_ratelimit_reset_at_seconds(self, response: requests.Response) -> int:
+        """
+        Checks for x-ratelimit-reset-at, calculates sleep time, and pauses execution.
+        """
+        # 1. Check if the header exists (case-insensitive lookups are handled by requests)
+        reset_at = response.headers.get("x-ratelimit-reset-at")
+        if not reset_at:
+            return
+
+        # Get the current time in UTC (with timezone awareness)
+        now = datetime.now(timezone.utc)
+        reset_datetime = None
+
+        # 2. Try parsing as a Unix timestamp (integer/float)
+        try:
+            # Works for both seconds (e.g., 1792233600) and milliseconds
+            timestamp = float(reset_at)
+            # If the timestamp is way in the future, it might be in milliseconds
+            if timestamp > 1e11: 
+                timestamp /= 1000
+            reset_datetime = datetime.fromtimestamp(timestamp, timezone.utc)
+        except ValueError:
+            pass
+
+        # 3. Try parsing as an ISO 8601 string if Unix parsing failed
+        if not reset_datetime:
+            try:
+                # fromisoformat handles standard formats like '2026-10-17T21:20:00Z'
+                # Note: Replace 'Z' with '+00:00' for compatibility in older Python versions
+                clean_reset_at = reset_at.replace("Z", "+00:00")
+                reset_datetime = datetime.fromisoformat(clean_reset_at)
+            except ValueError:
+                self.logger.error("Unknown rate limit reset format: %s", reset_at)
+                return 0
+
+        # 4. Calculate sleep duration
+        # total_seconds() can be negative if the reset time already passed
+        return (reset_datetime - now).total_seconds()
+
+
     def make_http_request(self, endpoint: str, params: Optional[dict] = None) -> dict:
         """
         Make a request to the Reddit Data Interface.
@@ -131,7 +238,7 @@ class RedditDataInterface(ABC):
             JSON response from the API
         """
         try:
-            respons = None
+            response = None
             if self._session is None:
                 self._session = requests.Session()
             if self._token.get_decrypted():
@@ -139,53 +246,24 @@ class RedditDataInterface(ABC):
                     'Authorization': f'Bearer {self._token.get_decrypted()}',
                     'User-Agent': self.get_user_agent()
                 })
-            data = {}
             tries = 2
             loop = 0
-            default_wait_time = 10
-            backoff_delay = 2  # Default starting fallback delay in seconds
+
             while True:
-                hidden_429 = False
                 loop += 1
                 response = self._session.get(urljoin(self._base_url, endpoint), params=params)
-                try:
-                    data = response.json()
+                if response.ok:
                     break
-                except JSONDecodeError:
-                    data = {}
-                # {"data":null,"error":"Timeout. Maybe slow down a bit"}
-                if not response.ok:
-                    error = ""
-                    if isinstance(data, dict):
-                        error = dig(data, "error", default = "")
-                    wait_time = 0
-                    if error and "Maybe slow down a bit" in error:
-                        hidden_429 = True
-                        wait_time = default_wait_time
-                    elif response.status_code == 429:
-                        # 1. Try to honor the server's explicit Retry-After header
-                        retry_after = response.headers.get("Retry-After")
-                        if retry_after:
-                            try:
-                                # Retry-After is usually an integer representing seconds
-                                wait_time = int(retry_after)
-                            except ValueError:
-                                # Sometimes it's a full HTTP date timestamp
-                                wait_time = backoff_delay
-                        else:
-                            # 2. Fall back to exponential backoff if header isn't provided
-                            wait_time = backoff_delay
-                            backoff_delay *= 2  # Double the wait time for the next round
-                    if loop >= tries:
-                        wait_time = 0
-                    if wait_time:
-                        time.sleep(wait_time)
-                    else:
-                        if hidden_429:
-                            raise requests.exceptions.HTTPError("429 Client Error: Too Many Requests", response=response)
-                        response.raise_for_status()
-                        break
-            return data
+                wait_time = 0
+                if loop < tries:
+                    wait_time = self.get_rate_limit_seconds(response)
+                if wait_time:
+                    self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
+                    time.sleep(wait_time)
+                else:
+                    response.raise_for_status()
+                    break
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise Exception("Reddit Data Interface HTTP request failed") from e
 

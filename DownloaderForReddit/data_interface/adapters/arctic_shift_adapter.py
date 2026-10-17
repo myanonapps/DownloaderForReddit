@@ -15,13 +15,13 @@ The base URL is https://arctic-shift.photon-reddit.com, the search UI sits at /s
 Keyword parameters — title, selftext, body, and query — only work alongside an author or subreddit, and are unsupported for very active users or subreddits. Every endpoint accepts fields to trim the response payload; the search endpoints also take format as json, rss, or jsonfeed.
 
 """
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
-from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
+from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
 
@@ -94,6 +94,8 @@ class ArcticShiftAdapter(RedditDataInterface):
             data = dig(data, 'data', default = [])
             if data:
                 data = data[0]
+            else:
+                data = {}
         else:
             data = {}
         return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
@@ -116,8 +118,11 @@ class ArcticShiftAdapter(RedditDataInterface):
     def get_authenticated_user(self) -> str:
         return ""
 
-    def check_user_name(self, name):
-        pass
+    def check_user_name(self, name) -> ValidationSet:
+        account = self.redditor(name)
+        if account and account.fullname:
+            return ValidationSet(name=account.fullname, date_created=datetime.fromtimestamp(account.created), valid=True)
+        return ValidationSet(name=name, date_created=None, valid=False)
 
-    def check_subreddit_name(self, name):
+    def check_subreddit_name(self, name) -> ValidationSet:
         pass

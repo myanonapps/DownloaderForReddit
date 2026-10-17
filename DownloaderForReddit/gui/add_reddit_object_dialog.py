@@ -4,6 +4,7 @@ from threading import Thread
 from PyQt6.QtWidgets import QDialog, QFileDialog, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
+import pydevd
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
 from DownloaderForReddit.data_interface.name_checker import NameChecker
@@ -22,6 +23,7 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
 
     def __init__(self, list_model, parent=None):
         QDialog.__init__(self, parent=parent)
+        pydevd.settrace(suspend=False)
         self.setupUi(self)
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.settings_manager = injector.get_settings_manager()
@@ -41,9 +43,6 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.validate_names_checkbox.stateChanged.connect(
             lambda checked: setattr(self.settings_manager, 'validate_names_before_add', checked)
         )
-
-        for value in PostDownloadSource:
-            self.download_source_combo.addItem(value.display_name, value)
 
         self.add_button.clicked.connect(self.add_object_to_list)
         self.remove_button.clicked.connect(self.remove_object_from_list)
@@ -108,16 +107,16 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         return None
 
     def validate_imported_objects(self, imported_objects):
+        source:PostDownloadSource = self.list_model.list.get_default_dict()['post_download_source']
         spin_pars = SpinnerParameters(disable_parent_when_spinning=True, roundness=80.0, minimum_trail_opacity=10.0, trail_fade_percentage=72.0, inner_radius=10,
                                       number_of_lines=12, line_length=12, line_width=4, revolutions_per_second=1.4, color=QColor(0, 0, 0))
         self.spinner = WaitingSpinner(self.multi_object_list_widget, spin_pars)
         self.validation_finished.connect(self.spinner.stop)  # signal used to stop timer in correct thread
         self.spinner.start()
-        self.thread = Thread(target=self.validate_objects, args=imported_objects)
+        self.thread = Thread(target=self.validate_objects, args=(imported_objects, source))
         self.thread.start()
 
-    def validate_objects(self, *imported_objects):
-        source:PostDownloadSource = self.download_source_combo.currentData()
+    def validate_objects(self, *imported_objects, source:PostDownloadSource):
         name_checker = NameChecker(source, self.list_model.list_type)
         for ro in imported_objects:
             v_set = name_checker.check_reddit_object_name(ro.name)
