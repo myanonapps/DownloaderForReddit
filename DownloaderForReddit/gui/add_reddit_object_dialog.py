@@ -4,7 +4,6 @@ from threading import Thread
 from PyQt6.QtWidgets import QDialog, QFileDialog, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
-import pydevd
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
 from DownloaderForReddit.data_interface.name_checker import NameChecker
@@ -23,7 +22,6 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
 
     def __init__(self, list_model, parent=None):
         QDialog.__init__(self, parent=parent)
-        pydevd.settrace(suspend=False)
         self.setupUi(self)
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.settings_manager = injector.get_settings_manager()
