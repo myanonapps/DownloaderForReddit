@@ -23,29 +23,32 @@ class SubmittableCreator:
     def create_post(cls, submission: Submission, significant_id: int, session: Session, download_session_id: int) \
             -> Optional[Post]:
         post = None
-        if cls.check_duplicate_post_url(submission.url, session):
-            author = cls.get_author(submission, session)
-            subreddit = cls.get_subreddit(submission, session)
+        try:
+            if cls.check_duplicate_post_url(submission.url, session):
+                author = cls.get_author(submission, session)
+                subreddit = cls.get_subreddit(submission, session)
 
-            post = Post(
-                title=submission.title,
-                date_posted=datetime.fromtimestamp(submission.created),
-                domain=submission.domain,
-                score=submission.score,
-                nsfw=submission.over_18,
-                reddit_id=submission.id,
-                url=submission.url,
-                is_self=submission.is_self,
-                text=submission.selftext if submission.selftext != '' else None,
-                text_html=submission.selftext_html,
-                extraction_date=datetime.now(),
-                author=author,
-                subreddit=subreddit,
-                download_session_id=download_session_id,
-                significant_reddit_object_id=significant_id
-            )
-            session.add(post)
-            session.commit()
+                post = Post(
+                    title=submission.title,
+                    date_posted=datetime.fromtimestamp(submission.created),
+                    domain=submission.domain,
+                    score=submission.score,
+                    nsfw=submission.over_18,
+                    reddit_id=submission.id,
+                    url=submission.url,
+                    is_self=submission.is_self,
+                    text=submission.selftext if submission.selftext != '' else None,
+                    text_html=submission.selftext_html,
+                    extraction_date=datetime.now(),
+                    author=author,
+                    subreddit=subreddit,
+                    download_session_id=download_session_id,
+                    significant_reddit_object_id=significant_id
+                )
+                session.add(post)
+                session.commit()
+        except Exception as e:
+            raise e
         return post
 
     @classmethod
@@ -88,6 +91,8 @@ class SubmittableCreator:
         except AttributeError:
             cls.logger.error('Failed to get author', exc_info=True)
             author = cls.get_db().get_or_create(User, name='deleted', session=session)[0]
+        except Exception as e:
+            raise e
         return author
 
     @classmethod
@@ -99,4 +104,6 @@ class SubmittableCreator:
         except AttributeError:
             cls.logger.error('Failed to get subreddit', exc_info=True)
             subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]
+        except Exception as e:
+            raise e            
         return subreddit

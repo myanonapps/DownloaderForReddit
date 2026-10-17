@@ -162,7 +162,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         )
         self.download_source_combo.currentIndexChanged.connect(
             lambda x: self.set_object_value('post_download_source', self.download_source_combo.itemData(x))
-        )        
+        )
         self.limit_date_checkbox.stateChanged.connect(self.limit_date_checkbox_toggled)
         self.custom_date_limit_radio.toggled.connect(self.custom_date_limit_toggled)
         self.custom_date_limit_edit.dateTimeChanged.connect(self.set_date_limit_from_edit)

@@ -5,9 +5,7 @@ This module wraps PRAW Subreddit functionality to match the abstract AdapterData
 """
 
 
-
-from DownloaderForReddit.data_interface.adapter_data import CREATED_KEY
-from DownloaderForReddit.data_interface.adapter_data import CREATED_UTC_KEY, DISPLAY_NAME_KEY, FULLNAME_KEY, AdapterData
+from DownloaderForReddit.data_interface.adapter_data import AdapterData
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 
 
@@ -19,7 +17,7 @@ class AdapterSubreddit(AdapterData):
     while providing a consistent interface for different data adapter implementations.
     """
 
-    def __init__(self, adapter_type:PostDownloadSource, data:dict):
+    def __init__(self, adapter_type:PostDownloadSource):
         """
         Initialize the Subreddit adapter.
         
@@ -27,4 +25,3 @@ class AdapterSubreddit(AdapterData):
             subreddit: The PRAW Subreddit object to wrap
         """
         super().__init__(adapter_type)
-        self._supported_keys = [CREATED_KEY, CREATED_UTC_KEY, DISPLAY_NAME_KEY, FULLNAME_KEY]

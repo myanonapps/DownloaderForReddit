@@ -156,7 +156,7 @@ def dig(d: dict, *keys, default=None):
     for key in keys:
         if not isinstance(node, dict):
             return default
-        if key is None:
+        if key not in node:
             return default
         node = node[key]
     if node is None and default is not None:

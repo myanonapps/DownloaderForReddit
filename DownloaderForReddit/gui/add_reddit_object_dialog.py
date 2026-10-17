@@ -6,8 +6,11 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
+from DownloaderForReddit.data_interface.name_checker import NameChecker
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+
 from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
-from ..utils import injector, system_util, reddit_utils
+from ..utils import injector, system_util
 from ..utils.importers import json_importer, text_importer
 from ..database.models import ListAssociation, RedditObject
 from .existing_names_dialog import ExistingNamesDialog
@@ -38,6 +41,9 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.validate_names_checkbox.stateChanged.connect(
             lambda checked: setattr(self.settings_manager, 'validate_names_before_add', checked)
         )
+
+        for value in PostDownloadSource:
+            self.download_source_combo.addItem(value.display_name, value)
 
         self.add_button.clicked.connect(self.add_object_to_list)
         self.remove_button.clicked.connect(self.remove_object_from_list)
@@ -111,7 +117,8 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.thread.start()
 
     def validate_objects(self, *imported_objects):
-        name_checker = reddit_utils.NameChecker(self.list_model.list_type)
+        source:PostDownloadSource = self.download_source_combo.currentData()
+        name_checker = NameChecker(source, self.list_model.list_type)
         for ro in imported_objects:
             v_set = name_checker.check_reddit_object_name(ro.name)
             if v_set.valid:

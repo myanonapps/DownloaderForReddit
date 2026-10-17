@@ -71,9 +71,10 @@ class ArcticShiftAdapter(RedditDataInterface):
         iso_string = dt_utc.isoformat().replace("+00:00", "Z")
         endpoint = f"api/posts/search?author={reddit_object.name}&after={iso_string}&limit={limit}&sort=asc"
         data = self.make_http_request(endpoint)
-        for dict_submission in data:
-            submission = AdapterSubmission(PostDownloadSource.ARCTIC_SHIFT, dict_submission)
-            submissions.append(submission)
+        if 'data' in data:
+            for dict_submission in data['data']:
+                submission = AdapterSubmission(PostDownloadSource.ARCTIC_SHIFT, dict_submission)
+                submissions.append(submission)
         return submissions
 
     def redditor(self, name: str) -> AdapterRedditor:

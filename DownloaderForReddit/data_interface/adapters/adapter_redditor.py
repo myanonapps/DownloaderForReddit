@@ -7,8 +7,14 @@ from datetime import datetime, timezone
 
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
-from DownloaderForReddit.data_interface.adapter_data import CREATED_KEY, ID_KEY
-from DownloaderForReddit.data_interface.adapter_data import CREATED_UTC_KEY, FULLNAME_KEY, NAME_KEY, AdapterData
+from DownloaderForReddit.data_interface.adapter_data import AdapterData
+
+# Constants for data keys
+ID_KEY = "id"
+FULLNAME_KEY = "fullname"
+NAME_KEY = "name"
+CREATED_UTC_KEY = "created_utc"
+CREATED_KEY = "created"
 
 
 class AdapterRedditor(AdapterData):
@@ -19,7 +25,7 @@ class AdapterRedditor(AdapterData):
     while providing a consistent interface for different data adapter implementations.
     """
 
-    def __init__(self, adapter_type:PostDownloadSource, data:dict):
+    def __init__(self, adapter_type:PostDownloadSource, dict_data:dict):
         """
         Initialize the Redditor adapter.
         
@@ -30,9 +36,9 @@ class AdapterRedditor(AdapterData):
         self._supported_keys = [ID_KEY, NAME_KEY, CREATED_UTC_KEY, CREATED_KEY, FULLNAME_KEY]
         match adapter_type:
             case PostDownloadSource.ARCTIC_SHIFT:
-                self.from_arctic_shift(dict)
+                self.from_arctic_shift(dict_data)
             case PostDownloadSource.PULL_PUSH:
-                self.from_pull_push(dict)
+                self.from_pull_push(dict_data)
             case PostDownloadSource.REDDIT:
                 pass
 
@@ -42,10 +48,10 @@ class AdapterRedditor(AdapterData):
         self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
         return None
 
-    def from_pull_push(self, data:dict):
+    def from_pull_push(self, dict_data:dict):
         pass
 
-    def from_arctic_shift(self, data:dict):
+    def from_arctic_shift(self, dict_data:dict):
         '''
         {
             "_meta": {
@@ -65,11 +71,11 @@ class AdapterRedditor(AdapterData):
             "id": "1ppe7c12h2"
             }
         '''
-        setattr(self, NAME_KEY, dig(data, "author", default=""))
-        setattr(self, FULLNAME_KEY, dig(data, "author", default=""))
-        setattr(self, ID_KEY, dig(data, "id", default=""))
+        setattr(self, NAME_KEY, dig(dict_data, "author", default=""))
+        setattr(self, FULLNAME_KEY, dig(dict_data, "author", default=""))
+        setattr(self, ID_KEY, dig(dict_data, "id", default=""))
         maximum = datetime.max.replace(tzinfo=timezone.utc).timestamp()
-        earliest = min(dig(data, "_meta", "earliest_comment_at", default=maximum), dig(data, "_meta", "earliest_post_at", default=maximum))
+        earliest = min(dig(dict_data, "_meta", "earliest_comment_at", default=maximum), dig(dict_data, "_meta", "earliest_post_at", default=maximum))
         if earliest == maximum:
             earliest = 0
         setattr(self, CREATED_KEY, earliest)

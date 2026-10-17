@@ -3,11 +3,35 @@ PRAW Submission adapter for the Reddit Data Interface.
 
 This module wraps PRAW Submission functionality to match the abstract AdapterData interface.
 """
-from DownloaderForReddit.data_interface.adapter_data import CREATED_KEY
-from DownloaderForReddit.data_interface.adapter_data import AUTHOR_NAME_KEY, CREATED_UTC_KEY, DOMAIN_KEY, FULLNAME_KEY, ID_KEY, IS_SELF_KEY, OVER_18_KEY,\
-    SCORE_KEY, SELFTEXT_HTML_KEY, SELFTEXT_KEY, SUBREDDIT_NAME_KEY, TITLE_KEY, URL_KEY, AdapterData
+from types import SimpleNamespace
+
+from DownloaderForReddit.data_interface.adapter_data import AdapterData
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
+
+# Constants for data keys
+ID_KEY = "id"
+FULLNAME_KEY = "fullname"
+NAME_KEY = "name"
+CREATED_UTC_KEY = "created_utc"
+CREATED_KEY = "created"
+DISPLAY_NAME_KEY = "display_name"
+SCORE_KEY = "score"
+TITLE_KEY = "title"
+URL_KEY = "url"
+DOMAIN_KEY = "domain"
+OVER_18_KEY = "over_18"
+IS_SELF_KEY = "is_self"
+SELFTEXT_KEY = "selftext"
+SELFTEXT_HTML_KEY = "selftext_html"
+BODY_KEY = "body"
+BODY_HTML_KEY = "body_html"
+AUTHOR_KEY = "author"
+SUBREDDIT_KEY = "subreddit"
+PINNED_KEY = "pinned"
+STICKIED_KEY = "stickied"
+CROSSPOST_PARENT_KEY = "crosspost_parent"
+MEDIA_METADATA_KEY = "media_metadata"
 
 
 class AdapterSubmission(AdapterData):
@@ -18,7 +42,7 @@ class AdapterSubmission(AdapterData):
     while providing a consistent interface for different data adapter implementations.
     """
 
-    def __init__(self, adapter_type:PostDownloadSource, data:dict):
+    def __init__(self, adapter_type:PostDownloadSource, dict_data:dict):
         """
         Initialize the Submission adapter.
         
@@ -26,28 +50,43 @@ class AdapterSubmission(AdapterData):
             submission: The PRAW Submission object to wrap
         """
         super().__init__(adapter_type)
-        self._supported_keys = [TITLE_KEY, URL_KEY, ID_KEY, DOMAIN_KEY, SCORE_KEY, OVER_18_KEY, IS_SELF_KEY, SELFTEXT_KEY, SELFTEXT_HTML_KEY, CREATED_UTC_KEY, CREATED_KEY, AUTHOR_NAME_KEY, SUBREDDIT_NAME_KEY, FULLNAME_KEY]
         match adapter_type:
             case PostDownloadSource.ARCTIC_SHIFT:
-                self.from_arctic_shift(dict)
+                self.from_arctic_shift(dict_data)
             case PostDownloadSource.PULL_PUSH:
-                self.from_pull_push(dict)
+                self.from_pull_push(dict_data)
             case PostDownloadSource.REDDIT:
                 pass
 
 
-    def from_arctic_shift(self, data:dict):
-        setattr(self, TITLE_KEY, dig(data, TITLE_KEY, default=""))
-        setattr(self, URL_KEY, dig(data, URL_KEY, default=""))
-        setattr(self, ID_KEY, dig(data, ID_KEY, default=""))
-        setattr(self, DOMAIN_KEY, dig(data, DOMAIN_KEY, default=""))
-        setattr(self, SCORE_KEY, dig(data, SCORE_KEY, default=0))
-        setattr(self, OVER_18_KEY, bool(dig(self._data, OVER_18_KEY, default=False)))
-        setattr(self, IS_SELF_KEY, bool(dig(self._data, IS_SELF_KEY, default=False)))
-        setattr(self, SELFTEXT_KEY, dig(data, SELFTEXT_KEY, default=""))
-        setattr(self, SELFTEXT_HTML_KEY, dig(data, SELFTEXT_HTML_KEY, default=""))
-        setattr(self, AUTHOR_NAME_KEY, dig(data, "author", default=""))
-        setattr(self, FULLNAME_KEY, dig(data, "author_fullname", default=""))
-        setattr(self, SUBREDDIT_NAME_KEY, dig(data, "subreddit", default=""))
-        setattr(self, CREATED_KEY, dig(data, CREATED_KEY, default=0))
-        setattr(self, CREATED_UTC_KEY, dig(data, CREATED_UTC_KEY, default=0))
+    def __getattr__(self, attr):
+        if attr == "__iter__":
+            return None
+        self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
+        return None
+
+    def from_arctic_shift(self, dict_data:dict):
+        setattr(self, TITLE_KEY, dig(dict_data, TITLE_KEY, default=""))
+        setattr(self, URL_KEY, dig(dict_data, URL_KEY, default=""))
+        setattr(self, ID_KEY, dig(dict_data, ID_KEY, default=""))
+        setattr(self, DOMAIN_KEY, dig(dict_data, DOMAIN_KEY, default=""))
+        setattr(self, SCORE_KEY, dig(dict_data, SCORE_KEY, default=0))
+        setattr(self, PINNED_KEY, bool(dig(PINNED_KEY, PINNED_KEY, default=False)))
+        setattr(self, STICKIED_KEY, bool(dig(STICKIED_KEY, STICKIED_KEY, default=False)))
+        setattr(self, OVER_18_KEY, bool(dig(dict_data, OVER_18_KEY, default=False)))
+        setattr(self, IS_SELF_KEY, bool(dig(dict_data, IS_SELF_KEY, default=False)))
+        setattr(self, SELFTEXT_KEY, dig(dict_data, SELFTEXT_KEY, default=""))
+        setattr(self, SELFTEXT_HTML_KEY, dig(dict_data, SELFTEXT_HTML_KEY, default=""))
+        author = SimpleNamespace()
+        setattr(author, NAME_KEY, dig(dict_data, "author", default=""))
+        setattr(self, AUTHOR_KEY, author)
+        setattr(self, FULLNAME_KEY, dig(dict_data, "author_fullname", default=""))
+        setattr(self, CREATED_KEY, dig(dict_data, CREATED_KEY, default=0))
+        setattr(self, CREATED_UTC_KEY, dig(dict_data, CREATED_UTC_KEY, default=0))
+        subreddit = SimpleNamespace()
+        setattr(subreddit, DISPLAY_NAME_KEY, dig(dict_data, "subreddit", default=""))
+        setattr(self, SUBREDDIT_KEY, subreddit)
+
+        setattr(self, CROSSPOST_PARENT_KEY, dig(dict_data, CROSSPOST_PARENT_KEY, default=""))
+        media_meta = dig(dict_data, MEDIA_METADATA_KEY, default={})
+        setattr(self, MEDIA_METADATA_KEY, media_meta)

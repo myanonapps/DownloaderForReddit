@@ -280,7 +280,7 @@ class BaseExtractor:
         if not submission:
             return submission
 
-        if hasattr(submission, 'crosspost_parent'):
+        if hasattr(submission, 'crosspost_parent') and submission.crosspost_parent:
             try:
                 r = RedditAdapterManager().get_adapter_for_object(self.significant_reddit_object)
                 parent_submission = r.submission(submission.crosspost_parent.split('_')[1])

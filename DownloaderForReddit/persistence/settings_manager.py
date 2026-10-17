@@ -50,11 +50,11 @@ class SettingsManager:
         self.cascade_list_changes = self.get('core', 'cascade_list_changes', False)
         self.reddit_access_token = self.get('core', 'reddit_access_token', None)
         self.reddit_access = self.get('core', 'reddit_access', None)
+        self.arctic_shift_access_token = self.get('core', 'arctic_shift_access_token', None)
+        self.arctic_shift_access = self.get('core', 'arctic_shift_access', None)
+        self.pull_push_access_token = self.get('core', 'pull_push_access_token', None)
+        self.pull_push_access = self.get('core', 'pull_push_access', None)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
-        
-        # API Keys
-        self.arctic_shift_api_key = self.get('api_keys', 'arctic_shift_api_key', None)
-        self.pull_push_api_key = self.get('api_keys', 'pull_push_api_key', None)
 
         default_extractor_dict = {
             extractor.__name__: True for extractor in BaseExtractor.__subclasses__()

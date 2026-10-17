@@ -140,15 +140,17 @@ class RedditDataInterface(ABC):
                     'User-Agent': self.get_user_agent()
                 })
             data = {}
-            max_retries = 1
-            retries = 0
+            tries = 2
+            loop = 0
             default_wait_time = 10
             backoff_delay = 2  # Default starting fallback delay in seconds
-            while retries < max_retries:
+            while True:
+                hidden_429 = False
+                loop += 1
                 response = self._session.get(urljoin(self._base_url, endpoint), params=params)
                 try:
-                    retries += 1
                     data = response.json()
+                    break
                 except JSONDecodeError:
                     data = {}
                 # {"data":null,"error":"Timeout. Maybe slow down a bit"}
@@ -158,6 +160,7 @@ class RedditDataInterface(ABC):
                         error = dig(data, "error", default = "")
                     wait_time = 0
                     if error and "Maybe slow down a bit" in error:
+                        hidden_429 = True
                         wait_time = default_wait_time
                     elif response.status_code == 429:
                         # 1. Try to honor the server's explicit Retry-After header
@@ -173,10 +176,15 @@ class RedditDataInterface(ABC):
                             # 2. Fall back to exponential backoff if header isn't provided
                             wait_time = backoff_delay
                             backoff_delay *= 2  # Double the wait time for the next round
+                    if loop >= tries:
+                        wait_time = 0
                     if wait_time:
                         time.sleep(wait_time)
-
-            response.raise_for_status()
+                    else:
+                        if hidden_429:
+                            raise requests.exceptions.HTTPError("429 Client Error: Too Many Requests", response=response)
+                        response.raise_for_status()
+                        break
             return data
         except requests.exceptions.RequestException as e:
             raise Exception("Reddit Data Interface HTTP request failed") from e
