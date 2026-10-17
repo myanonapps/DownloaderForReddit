@@ -9,6 +9,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor
 from sqlalchemy import or_
 from DownloaderForReddit.core.download.downloader import Downloader
+from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
+from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
+from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
 from ..utils import video_merger
 from . import const
 from .content_runner import ContentRunner
@@ -331,7 +334,7 @@ class DownloadRunner(QObject):
             self.submission_queue.put(extraction_set)
 
         if b_queued:
-            if isinstance(praw_object, Redditor):
+            if isinstance(praw_object, Redditor) or isinstance(praw_object, AdapterRedditor):
                 Message.send_info(f'Submissions being queued for: {reddit_object.name}')
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
@@ -391,7 +394,15 @@ class DownloadRunner(QObject):
             self.logger.warning('post_sort_method is None for %s %s, using default PostSortMethod.NEW', reddit_object.object_type, reddit_object.name)
             sort_method = PostSortMethod.NEW
             reddit_object.post_sort_method = PostSortMethod.NEW
-        if sort_method.value <= 4:
+
+        if isinstance(praw_object, AdapterRedditor):
+            return RedditAdapterManager().get_adapter_for_object(reddit_object).posts_by_author()
+        elif isinstance(praw_object, AdapterSubreddit):
+            raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
+        elif isinstance(praw_object, AdapterSubmission):
+            raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
+
+        elif sort_method.value <= 4:
             submission_method = self.get_raw_submission_method(praw_object, sort_method.name.lower())
             return submission_method(limit=reddit_object.post_limit)
         else:
@@ -409,8 +420,15 @@ class DownloadRunner(QObject):
         """
         if isinstance(praw_object, Redditor):
             return getattr(praw_object.submissions, sort_type)
-        else:
+        elif isinstance(praw_object, Subreddit):
             return getattr(praw_object, sort_type)
+        elif isinstance(praw_object, AdapterRedditor):
+            raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
+        elif isinstance(praw_object, AdapterSubreddit):
+            raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
+        elif isinstance(praw_object, AdapterSubmission):
+            raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
+        raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
 
     def perpetuate_run(self):
         """

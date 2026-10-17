@@ -15,14 +15,21 @@ The base URL is https://arctic-shift.photon-reddit.com, the search UI sits at /s
 Keyword parameters — title, selftext, body, and query — only work alongside an author or subreddit, and are unsupported for very active users or subreddits. Every endpoint accepts fields to trim the response payload; the search endpoints also take format as json, rss, or jsonfeed.
 
 """
+from datetime import timezone
 from typing import Any
+from DownloaderForReddit.core.submission_filter import SubmissionFilter
+from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
+from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+from DownloaderForReddit.utils.general_utils import dig
 
 
 BASE_URL = "https://arctic-shift.photon-reddit.com/"
 
 class ArcticShiftAdapter(RedditDataInterface):
+    MAX_LIMIT = 100
     """
     Adapter that wraps Arctic Shift HTTP API to provide the RedditAPI interface.
     
@@ -51,7 +58,25 @@ class ArcticShiftAdapter(RedditDataInterface):
         data = self.make_http_request(endpoint)
         return data
 
-    def redditor(self, name: str) -> Any:
+    def posts_by_author(self):
+        submissions = []
+        reddit_object = self.get_reddit_object()
+        if reddit_object is None:
+            return submissions
+        limit = min(ArcticShiftAdapter.MAX_LIMIT, reddit_object.post_limit)
+        # after like: 2026-10-14T15:50:26Z
+        # Format to ISO string and replace the offset with 'Z'
+        dt_limit = SubmissionFilter.get_date_limit(reddit_object)
+        dt_utc = dt_limit.astimezone(timezone.utc)
+        iso_string = dt_utc.isoformat().replace("+00:00", "Z")
+        endpoint = f"api/posts/search?author={reddit_object.name}&after={iso_string}&limit={limit}&sort=asc"
+        data = self.make_http_request(endpoint)
+        for dict_submission in data:
+            submission = AdapterSubmission(PostDownloadSource.ARCTIC_SHIFT, dict_submission)
+            submissions.append(submission)
+        return submissions
+
+    def redditor(self, name: str) -> AdapterRedditor:
         """
         Get a redditor (user) by name.
         
@@ -64,7 +89,13 @@ class ArcticShiftAdapter(RedditDataInterface):
         # Arctic Shift API endpoint for users
         endpoint = f"/api/users/search?author={name}&limit=1&sort=asc"
         data = self.make_http_request(endpoint)
-        return data
+        if data:
+            data = dig(data, 'data', default = [])
+            if data:
+                data = data[0]
+        else:
+            data = {}
+        return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
 
     def subreddit(self, name: str) -> Any:
         """

@@ -5,8 +5,10 @@ This module defines the interface that all PRAW data adapter implementations mus
 It allows for different PRAW model objects to be used interchangeably.
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
+import logging
 from typing import Any, Optional
+from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
 
 
@@ -23,8 +25,8 @@ URL_KEY = "url"
 DOMAIN_KEY = "domain"
 OVER_18_KEY = "over_18"
 IS_SELF_KEY = "is_self"
-SELFTTEXT_KEY = "selftext"
-SELFTTEXT_HTML_KEY = "selftext_html"
+SELFTEXT_KEY = "selftext"
+SELFTEXT_HTML_KEY = "selftext_html"
 BODY_KEY = "body"
 BODY_HTML_KEY = "body_html"
 AUTHOR_NAME_KEY = "author_name"
@@ -39,205 +41,320 @@ class AdapterData(ABC):
     all abstract methods to provide a consistent interface for PRAW model operations.
     """
 
-    def __init__(self, data: Optional[dict] = None):
+    def __init__(self, adapter_type:PostDownloadSource):
         """Initialize the adapter with data."""
-        self._data = data or {}
+        self._adapter_type:PostDownloadSource = adapter_type
         self._supported_keys = []
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
-    def get_id(self) -> str:
+    def __getattr__(self, attr):
+        if attr == "__iter__":
+            return None
+        self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
+        return None
+
+    def _get(self, key:str, default=None) -> Optional[Any]:
+        self._asserted_expected_attribute(key)
+        return getattr(self, key, default)
+
+    def _set(self, key:str, value:Any):
+        self._asserted_expected_attribute(key)
+        setattr(self, key, value)
+
+    def _asserted_expected_attribute(self, key:str):
+        if key not in self._supported_keys:
+            raise AttributeError(f"Unexepected key for child class ({self.__class__.__name__}): {key}")
+
+    def id(self) -> str:
         """
         Get the unique identifier of the PRAW object.
         
         Returns:
             The unique ID of the PRAW object
         """
-        if ID_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, ID_KEY, default="")
+        return self._get(ID_KEY, default="")
 
-    def get_fullname(self) -> str:
+    def fullname(self) -> str:
         """
         Get the fullname of the PRAW object.
         
         Returns:
             The fullname of the PRAW object
         """
-        if FULLNAME_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, FULLNAME_KEY, default="")
+        return self._get(FULLNAME_KEY, default="")
 
-    def get_name(self) -> Optional[str]:
+    def name(self) -> Optional[str]:
         """
         Get the name of the PRAW object.
         
         Returns:
             The name of the PRAW object or None if not applicable
         """
-        if NAME_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, NAME_KEY)
+        return self._get(NAME_KEY)
 
-    def get_created_utc(self) -> Optional[float]:
+    def created_utc(self) -> Optional[float]:
         """
         Get the creation timestamp of the PRAW object.
         
         Returns:
             The creation timestamp or None if not applicable
         """
-        if CREATED_UTC_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, CREATED_UTC_KEY)
+        return self._get(CREATED_UTC_KEY)
 
-    def get_created(self) -> Optional[float]:
+    def created(self) -> Optional[float]:
         """
         Get the creation timestamp of the PRAW object.
         
         Returns:
             The creation timestamp or None if not applicable
         """
-        if CREATED_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, CREATED_KEY)
-    
-    def get_display_name(self) -> Optional[str]:
+        return self._get(CREATED_KEY)
+
+    def display_name(self) -> Optional[str]:
         """
         Get the display name of the PRAW object.
         
         Returns:
             The display name of the PRAW object or None if not applicable
         """
-        if DISPLAY_NAME_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, DISPLAY_NAME_KEY)
+        return self._get(DISPLAY_NAME_KEY)
 
-    def get_score(self) -> Optional[int]:
+    def score(self) -> Optional[int]:
         """
         Get the score of the PRAW object.
         
         Returns:
             The score of the PRAW object or None if not applicable
         """
-        if SCORE_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, SCORE_KEY)
+        return self._get(SCORE_KEY)
 
-    def get_title(self) -> Optional[str]:
+    def title(self) -> Optional[str]:
         """
         Get the title of the PRAW object.
         
         Returns:
             The title of the PRAW object or None if not applicable
         """
-        if TITLE_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, TITLE_KEY)
+        return self._get(TITLE_KEY)
 
-    def get_url(self) -> Optional[str]:
+    def url(self) -> Optional[str]:
         """
         Get the URL of the PRAW object.
         
         Returns:
             The URL of the PRAW object or None if not applicable
         """
-        if URL_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, URL_KEY)
+        return self._get(URL_KEY)
 
-    def get_domain(self) -> Optional[str]:
+    def domain(self) -> Optional[str]:
         """
         Get the domain of the PRAW object.
         
         Returns:
             The domain of the PRAW object or None if not applicable
         """
-        if DOMAIN_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, DOMAIN_KEY)
+        return self._get(DOMAIN_KEY)
 
-    def get_over_18(self) -> bool:
+    def over_18(self) -> bool:
         """
         Check if the PRAW object is NSFW.
         
         Returns:
             True if the object is NSFW, False otherwise
         """
-        if OVER_18_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
         return bool(dig(self._data, OVER_18_KEY, default=False))
 
-    def get_is_self(self) -> bool:
+    def is_self(self) -> bool:
         """
         Check if the PRAW object is a self-post.
         
         Returns:
             True if the object is a self-post, False otherwise
         """
-        if IS_SELF_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
         return bool(dig(self._data, IS_SELF_KEY, default=False))
 
-    def get_selftext(self) -> Optional[str]:
+    def selftext(self) -> Optional[str]:
         """
         Get the self-text content of the PRAW object.
         
         Returns:
             The self-text content or None if not applicable
         """
-        if SELFTTEXT_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, SELFTTEXT_KEY)
+        return self._get(SELFTEXT_KEY)
 
-    def get_selftext_html(self) -> Optional[str]:
+    def selftext_html(self) -> Optional[str]:
         """
         Get the HTML version of self-text content.
         
         Returns:
             The HTML self-text content or None if not applicable
         """
-        if SELFTTEXT_HTML_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, SELFTTEXT_HTML_KEY)
+        return self._get(SELFTEXT_HTML_KEY)
 
-    def get_body(self) -> Optional[str]:
+    def body(self) -> Optional[str]:
         """
         Get the body content of the PRAW object.
         
         Returns:
             The body content or None if not applicable
         """
-        if BODY_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, BODY_KEY)
+        return self._get(BODY_KEY)
 
-    def get_body_html(self) -> Optional[str]:
+    def body_html(self) -> Optional[str]:
         """
         Get the HTML version of body content.
         
         Returns:
             The HTML body content or None if not applicable
         """
-        if BODY_HTML_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, BODY_HTML_KEY)
+        return self._get(BODY_HTML_KEY)
 
-    def get_author_name(self) -> Optional[str]:
+    def author_name(self) -> Optional[str]:
         """
         Get the author name of the PRAW object.
         
         Returns:
             The author name or None if not applicable
         """
-        if AUTHOR_NAME_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, AUTHOR_NAME_KEY)
+        return self._get(AUTHOR_NAME_KEY)
 
-    def get_subreddit_name(self) -> Optional[str]:
+    def subreddit_name(self) -> Optional[str]:
         """
         Get the subreddit name of the PRAW object.
         
         Returns:
             The subreddit name or None if not applicable
         """
-        if SUBREDDIT_NAME_KEY not in self._supported_keys:
-            raise AttributeError("Unexepected dig for child class")
-        return dig(self._data, SUBREDDIT_NAME_KEY)
+        return self._get(SUBREDDIT_NAME_KEY)
+
+    def set_id(self, value:str):
+        """
+        Set the unique identifier of the PRAW object.
+        
+        """
+        return self._set(ID_KEY, value=value)
+
+    def set_fullname(self, value:str):
+        """
+        Set the fullname of the PRAW object.
+        
+        """
+        self._set(FULLNAME_KEY, value=value)
+
+    def set_name(self, value:str):
+        """
+        Set the name of the PRAW object.
+        
+        """
+        self._set(NAME_KEY, value=value)
+
+    def set_created_utc(self, value:float):
+        """
+        Set the creation timestamp of the PRAW object.
+        
+        """
+        self._set(CREATED_UTC_KEY, value=value)
+
+    def set_created(self, value:float):
+        """
+        Set the creation timestamp of the PRAW object.
+        
+        """
+        self._set(CREATED_KEY, value=value)
+
+    def set_display_name(self, value:str):
+        """
+        Set the display name of the PRAW object.
+        
+        """
+        self._set(DISPLAY_NAME_KEY, value=value)
+
+    def set_score(self, value) -> Optional[int]:
+        """
+        Set the score of the PRAW object.
+        
+        """
+        self._set(SCORE_KEY, value=value)
+
+    def set_title(self, value:str):
+        """
+        Set the title of the PRAW object.
+        
+        """
+        self._set(TITLE_KEY, value=value)
+
+    def set_url(self, value:str):
+        """
+        Set the URL of the PRAW object.
+        
+        """
+        self._set(URL_KEY, value=value)
+
+    def set_domain(self, value:str):
+        """
+        Set the domain of the PRAW object.
+        
+        """
+        self._set(DOMAIN_KEY, value=value)
+
+    def set_over_18(self, value:Any):
+        """
+        Check if the PRAW object is NSFW.
+        
+        """
+        if value:
+            self._set(OVER_18_KEY, value=True)
+        else:
+            self._set(OVER_18_KEY, value=False)
+
+    def set_is_self(self, value:Any):
+        """
+        Check if the PRAW object is a self-post.
+        
+        """
+        if value:
+            self._set(IS_SELF_KEY, value=True)
+        else:
+            self._set(IS_SELF_KEY, value=False)
+
+    def set_selftext(self, value:str):
+        """
+        Set the self-text content of the PRAW object.
+        
+        """
+        self._set(SELFTEXT_KEY, value=value)
+
+    def set_selftext_html(self, value:str):
+        """
+        Set the HTML version of self-text content.
+        
+        """
+        self._set(SELFTEXT_HTML_KEY, value=value)
+
+    def set_body(self, value:str):
+        """
+        Set the body content of the PRAW object.
+        
+        """
+        self._set(BODY_KEY, value=value)
+
+    def set_body_html(self, value:str):
+        """
+        Set the HTML version of body content.
+        
+        """
+        self._set(BODY_HTML_KEY, value=value)
+
+    def set_author_name(self, value:str):
+        """
+        Set the author name of the PRAW object.
+        
+        """
+        self._set(AUTHOR_NAME_KEY, value=value)
+
+    def set_subreddit_name(self, value:str):
+        """
+        Set the subreddit name of the PRAW object.
+        
+        """
+        self._set(SUBREDDIT_NAME_KEY, value=value)

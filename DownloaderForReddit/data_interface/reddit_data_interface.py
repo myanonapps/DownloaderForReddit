@@ -7,6 +7,8 @@ It allows for different backends (PRAW, HTTP APIs, etc.) to be used interchangea
 
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from json import JSONDecodeError
+import time
 from typing import Any, Optional
 from urllib.parse import urljoin
 import requests
@@ -14,6 +16,7 @@ import requests
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.database.models import RedditObject
 from DownloaderForReddit.utils import system_util
+from DownloaderForReddit.utils.general_utils import dig
 from ..version import __version__
 
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
@@ -38,6 +41,10 @@ class RedditDataInterface(ABC):
         self._session = None
         self._token = token
         self._reddit_object = None
+
+    @abstractmethod
+    def posts_by_author(self):
+        pass
 
     @abstractmethod
     def check_user_name(self, name):
@@ -124,6 +131,7 @@ class RedditDataInterface(ABC):
             JSON response from the API
         """
         try:
+            respons = None
             if self._session is None:
                 self._session = requests.Session()
             if self._token.get_decrypted():
@@ -131,9 +139,45 @@ class RedditDataInterface(ABC):
                     'Authorization': f'Bearer {self._token.get_decrypted()}',
                     'User-Agent': self.get_user_agent()
                 })
-            response = self._session.get(urljoin(self._base_url, endpoint), params=params)
+            data = {}
+            max_retries = 1
+            retries = 0
+            default_wait_time = 10
+            backoff_delay = 2  # Default starting fallback delay in seconds
+            while retries < max_retries:
+                response = self._session.get(urljoin(self._base_url, endpoint), params=params)
+                try:
+                    retries += 1
+                    data = response.json()
+                except JSONDecodeError:
+                    data = {}
+                # {"data":null,"error":"Timeout. Maybe slow down a bit"}
+                if not response.ok:
+                    error = ""
+                    if isinstance(data, dict):
+                        error = dig(data, "error", default = "")
+                    wait_time = 0
+                    if error and "Maybe slow down a bit" in error:
+                        wait_time = default_wait_time
+                    elif response.status_code == 429:
+                        # 1. Try to honor the server's explicit Retry-After header
+                        retry_after = response.headers.get("Retry-After")
+                        if retry_after:
+                            try:
+                                # Retry-After is usually an integer representing seconds
+                                wait_time = int(retry_after)
+                            except ValueError:
+                                # Sometimes it's a full HTTP date timestamp
+                                wait_time = backoff_delay
+                        else:
+                            # 2. Fall back to exponential backoff if header isn't provided
+                            wait_time = backoff_delay
+                            backoff_delay *= 2  # Double the wait time for the next round
+                    if wait_time:
+                        time.sleep(wait_time)
+
             response.raise_for_status()
-            return response.json()
+            return data
         except requests.exceptions.RequestException as e:
             raise Exception("Reddit Data Interface HTTP request failed") from e
 

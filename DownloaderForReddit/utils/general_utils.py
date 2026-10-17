@@ -159,4 +159,6 @@ def dig(d: dict, *keys, default=None):
         if key is None:
             return default
         node = node[key]
+    if node is None and default is not None:
+        return default
     return node

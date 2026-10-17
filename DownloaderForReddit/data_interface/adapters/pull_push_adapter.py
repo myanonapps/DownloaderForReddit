@@ -29,6 +29,9 @@ class PullPushAdapter(RedditDataInterface):
         """
         super().__init__(BASE_URL, token)
 
+    def posts_by_author(self):
+        pass
+
     def submission(self, id: str) -> Any:
         """
         Get a submission by its ID.

@@ -64,6 +64,9 @@ class PRAWAdapter(RedditDataInterface):
 
         return self._praw
 
+    def posts_by_author(self):
+        pass   
+
     def submission(self, id: str) -> Any:
         """
         Get a submission by its ID.
