@@ -238,35 +238,32 @@ class RedditDataInterface(ABC):
         Returns:
             JSON response from the API
         """
-        try:
-            response = None
-            if self._session is None:
-                self._session = requests.Session()
-            if self._token.get_decrypted():
-                self._session.headers.update({
-                    'Authorization': f'Bearer {self._token.get_decrypted()}',
-                    'User-Agent': self.get_user_agent()
-                })
-            tries = DEFAULT_RETRIES
-            loop = 0
+        response = None
+        if self._session is None:
+            self._session = requests.Session()
+        if self._token.get_decrypted():
+            self._session.headers.update({
+                'Authorization': f'Bearer {self._token.get_decrypted()}',
+                'User-Agent': self.get_user_agent()
+            })
+        tries = DEFAULT_RETRIES
+        loop = 0
 
-            while True:
-                loop += 1
-                response = self._session.get(urljoin(self._base_url, endpoint), params=params)
-                if response.ok:
-                    break
-                wait_time = 0
-                if loop < tries:
-                    wait_time = self.get_rate_limit_seconds(response)
-                if wait_time:
-                    self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
-                    time.sleep(wait_time)
-                else:
-                    response.raise_for_status()
-                    break
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise Exception("Reddit Data Interface HTTP request failed") from e
+        while True:
+            loop += 1
+            response = self._session.get(urljoin(self._base_url, endpoint), params=params)
+            if response.ok:
+                break
+            wait_time = 0
+            if loop < tries:
+                wait_time = self.get_rate_limit_seconds(response)
+            if wait_time:
+                self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
+                time.sleep(wait_time)
+            else:
+                response.raise_for_status()
+                break
+        return response.json()
 
     def set_reddit_object(self, reddit_object:RedditObject):
         self._reddit_object = reddit_object
