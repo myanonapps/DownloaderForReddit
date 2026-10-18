@@ -26,6 +26,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import re
 
 import prawcore
+import requests
 
 from .base_extractor import BaseExtractor
 from ..core.errors import Error
@@ -50,6 +51,15 @@ class RedditUploadsExtractor(BaseExtractor):
                 self.extract_direct_link()
             else:
                 self.extract_single()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                message = "Submission does not exist"
+                self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
+                                        exc_info=True)
+            else:
+                message = f'Failed to extract content ({e.response.status_code == 404})'
+                self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
+                                        exc_info=True)
         except prawcore.exceptions.TooManyRequests:
             message = (
                 f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
