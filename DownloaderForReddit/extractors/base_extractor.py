@@ -241,8 +241,9 @@ class BaseExtractor:
         self.failed_extraction = True
         self.extraction_error = error
         self.failed_extraction_message = message
-        extra = {'extractor_data': self.get_log_data()}
-        extra.update(kwargs)
+        extra = None
+        # extra = {'extractor_data': self.get_log_data()}
+        # extra.update(kwargs)
         if log:
             self.logger.error('Failed to extract content: %s', message, extra=extra, exc_info=log_exception)
         message += f'\nTitle: {self.post.title}\nUrl: {self.url}'

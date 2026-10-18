@@ -54,7 +54,7 @@ class ArcticShiftAdapter(RedditDataInterface):
             Submission object from the Arctic Shift API
         """
         # Arctic Shift API endpoint for submissions
-        endpoint = f"/submission/{id}"
+        endpoint = f"api/posts/ids?ids={id}"
         data = self.make_http_request(endpoint)
         return data
 
