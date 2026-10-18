@@ -28,6 +28,7 @@ USER_AGENT = (
     f'(by /u/MalloyDelacroix; contact: downloaderforreddit@gmail.com)'
 )
 DEFAULT_WAIT_S=10
+DEFAULT_RETRIES=20
 
 class RedditDataInterface(ABC):
     """
@@ -246,7 +247,7 @@ class RedditDataInterface(ABC):
                     'Authorization': f'Bearer {self._token.get_decrypted()}',
                     'User-Agent': self.get_user_agent()
                 })
-            tries = 2
+            tries = DEFAULT_RETRIES
             loop = 0
 
             while True:
