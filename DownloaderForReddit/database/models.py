@@ -490,23 +490,11 @@ class DownloadSession(BaseModel):
         except AttributeError:
             return 'Never finished'
 
-    def get_rate_limit_count(self, significant=True, session=None) -> int:
-        if session is None:
-            session = self.get_session()
-        if significant:
-            pass
-        else:
-            pass            
-        return 0
+    def get_rate_limit_count(self) -> int:
+        return self.rate_limit_count
 
-    def get_rate_limit_duration(self, significant=True, session=None) -> int:
-        if session is None:
-            session = self.get_session()
-        if significant:
-            pass
-        else:
-            pass
-        return 0
+    def get_rate_limit_duration(self) -> int:
+        return self.rate_limit_duration
     
     def get_downloaded_reddit_object_count(self, session=None):
         if session is None:

@@ -17,7 +17,8 @@ from email.utils import parsedate_to_datetime
 import requests
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
-from DownloaderForReddit.database.models import RedditObject
+from DownloaderForReddit.database.models import DownloadSession, RedditObject
+from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import system_util
 from ..version import __version__
 
@@ -38,14 +39,35 @@ class RedditDataInterface(ABC):
     All concrete implementations must inherit from this class and implement
     all abstract methods to provide a consistent interface for Reddit operations.
     """
-    def __init__(self, base_url:str, token: RedditAdapterToken):
+    def __init__(self, base_url:str, token: RedditAdapterToken, download_session=None):
         self._base_url:str = base_url
         self._redirect_url:str = REDIRECT_URL
         self._user_agent:str = USER_AGENT
-        self._session = None
+        self._http_session = None
         self._token = token
         self._reddit_object = None
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self._download_session:DownloadSession = download_session
+
+    def increment_rate_limit_count(self):
+        """Increment the rate limit count in the download session."""
+        if self._download_session is not None:
+            try:
+                # Increment rate limit counter (assuming it's a SQLAlchemy model with rate_limit_count attribute)
+                self._download_session.rate_limit_count = self._download_session.rate_limit_count + 1
+                self._download_session.save()
+            except Exception as e:
+                self.logger.error("Failed to increment rate limit count: %s", str(e))
+
+    def add_rate_limit_duration(self, duration):
+        """Add duration of rate limiting to the download session."""
+        if self._download_session is not None:
+            try:
+                # Add to rate limit duration (assuming it's a SQLAlchemy model with rate_limit_duration attribute)
+                self._download_session.rate_limit_duration = self._download_session.rate_limit_duration + duration
+                self._download_session.save()
+            except Exception as e:
+                self.logger.error("Failed to add rate limit duration: %s", str(e))
 
     @abstractmethod
     def posts_by_author(self):
@@ -248,10 +270,10 @@ class RedditDataInterface(ABC):
             JSON response from the API
         """
         response = None
-        if self._session is None:
-            self._session = requests.Session()
+        if self._http_session is None:
+            self._http_session = requests.Session()
         if self._token.get_decrypted():
-            self._session.headers.update({
+            self._http_session.headers.update({
                 'Authorization': f'Bearer {self._token.get_decrypted()}',
                 'User-Agent': self.get_user_agent()
             })
@@ -260,7 +282,7 @@ class RedditDataInterface(ABC):
 
         while True:
             loop += 1
-            response = self._session.get(urljoin(self._base_url, endpoint), params=params)
+            response = self._http_session.get(urljoin(self._base_url, endpoint), params=params)
             if response.ok:
                 break
             b_429, b_specialized = self.check_too_many_requests(response)
@@ -281,7 +303,10 @@ class RedditDataInterface(ABC):
                         )
                     break
 
+                self.increment_rate_limit_count()
                 wait_time = self.get_rate_limit_seconds(response)
+                self.add_rate_limit_duration(wait_time)
+                Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit")
                 self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
                 time.sleep(wait_time)
             else:

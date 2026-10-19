@@ -19,7 +19,7 @@ class PullPushAdapter(RedditDataInterface):
     which provides access to Reddit data through an HTTP endpoint.
     """
 
-    def __init__(self, token:RedditAdapterToken):
+    def __init__(self, token:RedditAdapterToken, download_session=None):
         """
         Initialize the Pull Push adapter.
         
@@ -27,7 +27,7 @@ class PullPushAdapter(RedditDataInterface):
             api_key: The API key for authenticating with Pull Push
             base_url: The base URL of the Pull Push API (default: https://api.pullpush.io/)
         """
-        super().__init__(BASE_URL, token)
+        super().__init__(BASE_URL, token, download_session)
 
     def posts_by_author(self):
         pass

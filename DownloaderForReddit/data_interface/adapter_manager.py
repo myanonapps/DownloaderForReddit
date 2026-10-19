@@ -71,7 +71,7 @@ class RedditAdapterManager:
     def get_adapter_class(self, source:PostDownloadSource):
         return dig(self._dict_adapters, source.name, 'class', default=None)
 
-    def get_adapter(self, source:PostDownloadSource) -> RedditDataInterface:
+    def get_adapter(self, source:PostDownloadSource, download_session=None) -> RedditDataInterface:
         """
         Get the appropriate RedditDataInterface implementation based on the download source.
         
@@ -92,10 +92,10 @@ class RedditAdapterManager:
         if token.get_key() != token_key or token.get_encrypted() != token_value:
             token.load(token_key, token_value)
 
-        adapter:RedditDataInterface = class_adapter(token)
+        adapter:RedditDataInterface = class_adapter(token, download_session)
         return adapter
 
-    def get_adapter_for_object(self, reddit_object:RedditObject) -> RedditDataInterface:
+    def get_adapter_for_object(self, reddit_object:RedditObject, download_session=None) -> RedditDataInterface:
         """
         Get the appropriate RedditDataInterface implementation for a given Reddit object.
         
@@ -105,6 +105,6 @@ class RedditAdapterManager:
         Returns:
             An instance of a RedditDataInterface implementation
         """
-        adapter:RedditDataInterface = self.get_adapter(reddit_object.post_download_source)
+        adapter:RedditDataInterface = self.get_adapter(reddit_object.post_download_source, download_session)
         adapter.set_reddit_object(reddit_object)
         return adapter

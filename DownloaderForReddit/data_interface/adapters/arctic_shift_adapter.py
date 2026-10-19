@@ -37,12 +37,12 @@ class ArcticShiftAdapter(RedditDataInterface):
     This class implements the RedditDataInterface using Arctic Shift's HTTP API
     which provides access to Reddit data through an HTTP endpoint.
     """
-    def __init__(self, token:RedditAdapterToken):
+    def __init__(self, token:RedditAdapterToken, download_session=None):
         """
         Initialize the Arctic Shift adapter.
         
         """
-        super().__init__(BASE_URL, token)
+        super().__init__(BASE_URL, token, download_session)
 
     @override
     def check_specialiazed_429(self, response) -> bool:

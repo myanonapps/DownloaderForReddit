@@ -167,7 +167,8 @@ class RedditUploadsExtractor(BaseExtractor):
         Separates the first part of the link after the domain to be used as the post id.  If this fails, the entire url
         after the domain is returned.
         """
-        reg = re.search('(?<=com\/)(.*?)(?=\?)', self.url)
+        reg = re.search(r'(?<=com/)(.*?)(?=\?)', self.url)
+
         try:
             return reg.group()
         except AttributeError:

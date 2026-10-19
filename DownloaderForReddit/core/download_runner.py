@@ -56,7 +56,6 @@ class DownloadRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
-        self.adapter_manager = RedditAdapterManager()
         self.submission_filter = SubmissionFilter()
 
         self.user_id_list = user_id_list
@@ -90,15 +89,16 @@ class DownloadRunner(QObject):
 
 
     def validate_user(self, user_obj):
-        redditor = RedditAdapterManager().get_adapter_for_object(user_obj).redditor(user_obj.name)
+        with self.db.get_scoped_session() as session:
+            redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):
             Message.send_debug(f'{user_obj.name} is valid')
             return redditor
-        else:
-            return None
+        return None
 
     def validate_subreddit(self, subreddit_obj):
-        subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj).subreddit(subreddit_obj.name)
+        with self.db.get_scoped_session() as session:
+            subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit(subreddit_obj.name)
         if self.validate_object(subreddit, subreddit_obj):
             Message.send_debug(f'{subreddit_obj.name} is valid')
             return subreddit
@@ -412,7 +412,8 @@ class DownloadRunner(QObject):
             reddit_object.post_sort_method = PostSortMethod.NEW
 
         if isinstance(praw_object, AdapterRedditor):
-            return RedditAdapterManager().get_adapter_for_object(reddit_object).posts_by_author()
+            with self.db.get_scoped_session() as session:
+                return RedditAdapterManager().get_adapter_for_object(reddit_object, session.query(DownloadSession).get(self.download_session_id)).posts_by_author()
         elif isinstance(praw_object, AdapterSubreddit):
             raise AttributeError(f"Unexepected submission method for class ({praw_object.__class__.__name__})")
         elif isinstance(praw_object, AdapterSubmission):

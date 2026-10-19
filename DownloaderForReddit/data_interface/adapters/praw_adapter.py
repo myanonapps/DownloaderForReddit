@@ -31,14 +31,14 @@ class PRAWAdapter(RedditDataInterface):
     while providing a consistent interface for different Reddit Data Interface implementations.
     """
 
-    def __init__(self, token:RedditAdapterToken):
+    def __init__(self, token:RedditAdapterToken, download_session=None):
         """
         Initialize the PRAW adapter.
         
         Args:
             token: Optional refresh token for authenticated access
         """
-        super().__init__("", token)
+        super().__init__("", token, download_session)
         self._praw = None
 
 
