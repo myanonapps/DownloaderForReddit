@@ -1,9 +1,11 @@
+from http import HTTPStatus
 import logging
 from typing import Optional
 from queue import Queue
 
 import prawcore.exceptions
 from praw.models import Submission
+import requests
 from sqlalchemy.orm.session import Session
 from bs4 import BeautifulSoup, SoupStrainer
 
@@ -141,7 +143,9 @@ class SubmissionHandler(Runner):
         elif isinstance(exception, ConnectionError):
             self.handle_connection_error()
         elif isinstance(exception, prawcore.exceptions.TooManyRequests):
-            self.handle_too_many_requests_error()
+            self.handle_too_many_praw_requests_error()
+        elif isinstance(exception, requests.exceptions.HTTPError) and exception.response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+            self.handle_too_many_http_requests_error()
         else:
             self.handle_unknown_error()
 
@@ -157,7 +161,14 @@ class SubmissionHandler(Runner):
         self.post.set_extraction_failed(Error.CONNECTION_ERROR, message)
         self.output_error(message, **kwargs)
 
-    def handle_too_many_requests_error(self, **kwargs):
+    def handle_too_many_http_requests_error(self, **kwargs):
+        message = 'HTTP rate limit reached'
+        self.log_error(message, **kwargs)
+        self.post.set_extraction_failed(Error.RATE_LIMIT_ERROR, message)
+        output_message = f'{message}'
+        self.output_error(output_message, **kwargs)
+
+    def handle_too_many_praw_requests_error(self, **kwargs):
         message = 'Reddit rate limit reached'
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.RATE_LIMIT_ERROR, message)

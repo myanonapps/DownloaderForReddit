@@ -8,6 +8,7 @@ It allows for different backends (PRAW, HTTP APIs, etc.) to be used interchangea
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from datetime import datetime, timezone
+from http import HTTPStatus
 import logging
 import time
 from typing import Any, Optional
@@ -184,7 +185,7 @@ class RedditDataInterface(ABC):
         if wait_time:
             return wait_time
 
-        if response.status_code == 429:
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             return DEFAULT_WAIT_S
 
     def get_x_ratelimit_reset_at_seconds(self, response: requests.Response) -> int:
@@ -226,6 +227,14 @@ class RedditDataInterface(ABC):
         # total_seconds() can be negative if the reset time already passed
         return (reset_datetime - now).total_seconds()
 
+    def check_specialiazed_429(self, response) -> bool:
+        return False
+
+    def check_too_many_requests(self, response) -> tuple[bool, bool]:
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+            return True, False
+
+        return False, self.check_specialiazed_429(response)
 
     def make_http_request(self, endpoint: str, params: Optional[dict] = None) -> dict:
         """
@@ -254,10 +263,25 @@ class RedditDataInterface(ABC):
             response = self._session.get(urljoin(self._base_url, endpoint), params=params)
             if response.ok:
                 break
-            wait_time = 0
-            if loop < tries:
+            b_429, b_specialized = self.check_too_many_requests(response)
+            if b_429 or b_specialized:
+                wait_time = 0
+                if loop >= tries:
+                    if not b_specialized:
+                        response.raise_for_status()
+                    else:
+                         # Change the status code and reason of the response object
+                        response.status_code = 429
+                        response.reason = "Too Many Requests"
+
+                        # Option A: Re-raise the modified HTTPError
+                        raise requests.exceptions.HTTPError(
+                            f"Specialized ({response.status_code}) converted to 429",
+                            response=response
+                        )
+                    break
+
                 wait_time = self.get_rate_limit_seconds(response)
-            if wait_time:
                 self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
                 time.sleep(wait_time)
             else:

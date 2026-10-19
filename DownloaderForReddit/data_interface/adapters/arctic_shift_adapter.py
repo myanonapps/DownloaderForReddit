@@ -16,7 +16,8 @@ Keyword parameters — title, selftext, body, and query — only work alongside 
 
 """
 from datetime import datetime, timezone
-from typing import Any
+from http import HTTPStatus
+from typing import Any, override
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
@@ -42,6 +43,12 @@ class ArcticShiftAdapter(RedditDataInterface):
         
         """
         super().__init__(BASE_URL, token)
+
+    @override
+    def check_specialiazed_429(self, response) -> bool:
+        if response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
+            return "Maybe slow down a bit" in response.text
+        return False
 
     def submission(self, id: str) -> Any:
         """

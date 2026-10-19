@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import platform
 import logging
 from queue import Queue, Empty
@@ -7,11 +8,13 @@ from collections import namedtuple
 import prawcore
 from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor
+import requests
 from sqlalchemy import or_
 from DownloaderForReddit.core.download.downloader import Downloader
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
+from DownloaderForReddit.utils import system_util
 from ..utils import video_merger
 from . import const
 from .content_runner import ContentRunner
@@ -53,9 +56,7 @@ class DownloadRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
-        # Use adapter manager instead of direct PRAW access
         self.adapter_manager = RedditAdapterManager()
-        self.reddit_instance = None  # Will be set per reddit object
         self.submission_filter = SubmissionFilter()
 
         self.user_id_list = user_id_list
@@ -106,8 +107,10 @@ class DownloadRunner(QObject):
 
     def validate_object(self, praw_object, reddit_object):
         try:
-            praw_object.fullname # pylint: disable=pointless-statement
-            return True
+            if praw_object.fullname:
+                return True
+            reddit_object.set_inactive()
+            return False
         except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
             self.handle_invalid_reddit_object(reddit_object)
             reddit_object.set_inactive()
@@ -117,7 +120,12 @@ class DownloadRunner(QObject):
         except prawcore.RequestException:
             self.handle_failed_connection()
         except prawcore.exceptions.TooManyRequests:
-            self.handle_too_many_requests_error(reddit_object)
+            self.handle_too_many_praw_requests_error(reddit_object)
+        except requests.exceptions.HTTPError as exception:
+            if exception.response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                self.handle_too_many_http_requests_error(reddit_object)
+            else:
+                self.handle_unknown_error(reddit_object)
         except Exception:
             self.handle_unknown_error(reddit_object)
         except BaseException:
@@ -150,7 +158,15 @@ class DownloadRunner(QObject):
                                f'{3 - self.failed_connection_attempts}')
             self.failed_connection_attempts += 1
 
-    def handle_too_many_requests_error(self, reddit_object):
+    def handle_too_many_http_requests_error(self, reddit_object):
+        self.logger.error('Too many requests error', exc_info=True)
+        message = (
+            f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
+            f'not be validated.  Please try again later.\n'
+        )
+        Message.send_error(message)
+
+    def handle_too_many_praw_requests_error(self, reddit_object):
         self.logger.error('Too many requests error', exc_info=True)
         message = (
             f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
@@ -517,7 +533,7 @@ class DownloadRunner(QObject):
         session.commit()
         return download_session
 
-    def finish_messages(self, dl_session):
+    def finish_messages(self, dl_session:DownloadSession):
         """
         Constructs and displays a finish message to the user and a log message.
         :param dl_session: The active download session for this run.
@@ -529,6 +545,8 @@ class DownloadRunner(QObject):
         extracted_post_count = dl_session.get_extracted_post_count()
         extracted_comment_count = dl_session.get_comment_count()
         downloaded_content_count = dl_session.get_downloaded_content_count()
+        rate_limit_count = dl_session.get_rate_limit_count()
+        rate_limit_duration_display = system_util.format_duration_full(dl_session.get_rate_limit_duration())
         extra = {
             'download_time': dl_session.duration_display,
             'significant_user_count': significant_user_count,
@@ -538,8 +556,11 @@ class DownloadRunner(QObject):
             'post_extraction_count': extracted_post_count,
             'comment_extraction_count': extracted_comment_count,
             'download_count': downloaded_content_count,
+            'rate_limit_count': rate_limit_count,
+            'rate_limit_duration': rate_limit_duration_display
         }
         message = f'Finished\nRun Time: {dl_session.duration_display}\n' \
+                  f'Rate Limit: {rate_limit_count} for {rate_limit_duration_display}\n'\
                   f'Download Count: {downloaded_content_count}\n' \
                   f'Downloaded Users: {significant_user_count}\n' \
                   f'Downloaded Subreddits: {significant_subreddit_count}\n' \

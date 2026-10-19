@@ -1,4 +1,5 @@
 import hashlib
+from http import HTTPStatus
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import requests
@@ -296,11 +297,11 @@ class Downloader(Runner):
         content.md5_hash = md5.hexdigest()
 
     def handle_unsuccessful_response(self, content: Content, status_code):
-        if status_code == 404 or status_code == 410:
+        if status_code == HTTPStatus.NOT_FOUND or status_code == HTTPStatus.GONE:
             self.logger.debug("status_code is 404/410")
             self.handle_deleted_content_error(content)
             return
-        if status_code == 429:
+        if status_code == HTTPStatus.TOO_MANY_REQUESTS:
             error_code = Error.RATE_LIMIT_ERROR
             message = 'Failed Download: Rate limited'
         else:

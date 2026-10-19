@@ -219,9 +219,9 @@ class TestSubmissionHandler(TestCase):
         self.post.set_extraction_failed.assert_not_called()
         self.mock_queue.put.assert_not_called()
 
-    @patch(f'{PATH}.handle_too_many_requests_error')
+    @patch(f'{PATH}.handle_too_many_praw_requests_error')
     @patch(f'{PATH}.assign_extractor')
-    def test_too_many_requests_error_handled_gracefully(self, assign, handle):
+    def test_too_many_praw_requests_error_handled_gracefully(self, assign, handle):
         mock_reddit_extractor = MagicMock()
         mock_extractor_class = MagicMock()
         mock_extractor_class.return_value = mock_reddit_extractor

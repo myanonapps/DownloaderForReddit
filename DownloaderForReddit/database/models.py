@@ -461,6 +461,8 @@ class DownloadSession(BaseModel):
     duration = Column(Integer, nullable=True)
     extraction_thread_count = Column(Integer, nullable=True)
     download_thread_count = Column(Integer, nullable=True)
+    rate_limit_count = Column(Integer, default=0)
+    rate_limit_duration = Column(Integer, default=0)
 
     def __str__(self):
         return f'DownloadSession: {self.id}'
@@ -488,6 +490,24 @@ class DownloadSession(BaseModel):
         except AttributeError:
             return 'Never finished'
 
+    def get_rate_limit_count(self, significant=True, session=None) -> int:
+        if session is None:
+            session = self.get_session()
+        if significant:
+            pass
+        else:
+            pass            
+        return 0
+
+    def get_rate_limit_duration(self, significant=True, session=None) -> int:
+        if session is None:
+            session = self.get_session()
+        if significant:
+            pass
+        else:
+            pass
+        return 0
+    
     def get_downloaded_reddit_object_count(self, session=None):
         if session is None:
             session = self.get_session()

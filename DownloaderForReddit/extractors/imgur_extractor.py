@@ -22,6 +22,8 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from http import HTTPStatus
+
 from .base_extractor import BaseExtractor
 from ..utils import imgur_utils, ImgurError
 from ..core.errors import Error
@@ -109,15 +111,15 @@ class ImgurExtractor(BaseExtractor):
         :param status_code: The error status code as reported by imgur.
         :type status_code: int
         """
-        if status_code == 403:
+        if status_code == HTTPStatus.FORBIDDEN:
             self.forbidden_error()
-        elif status_code == 429:
+        elif status_code == HTTPStatus.TOO_MANY_REQUESTS:
             self.rate_limit_exceeded_error()
-        elif status_code == 500:
+        elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
             self.over_capacity_error()
-        elif status_code == 404:
+        elif status_code == HTTPStatus.NOT_FOUND:
             self.does_not_exist_error()
-        elif status_code == 410:
+        elif status_code == HTTPStatus.GONE:
             self.does_not_exist_error()
         else:
             self.unknown_connection_error(status_code)

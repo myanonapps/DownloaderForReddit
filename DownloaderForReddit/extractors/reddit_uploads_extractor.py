@@ -23,6 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+from http import HTTPStatus
 import re
 
 import prawcore
@@ -52,12 +53,12 @@ class RedditUploadsExtractor(BaseExtractor):
             else:
                 self.extract_single()
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
                 message = "Submission does not exist"
                 self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
                                         exc_info=True)
             else:
-                message = f'Failed to extract content ({e.response.status_code == 404})'
+                message = f'Failed to extract content ({e.response.status_code == HTTPStatus.NOT_FOUND})'
                 self.handle_failed_extract(error=Error.FAILED_TO_EXTRACT, message=message, extractor_error_message=message,
                                         exc_info=True)
         except prawcore.exceptions.TooManyRequests:

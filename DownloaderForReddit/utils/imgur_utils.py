@@ -22,6 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from http import HTTPStatus
 import logging
 from time import time
 import requests
@@ -60,11 +61,11 @@ def _send_request(url_extension, retries=1):
         url = _RAPID_API_ENDPOINT + url_extension
         headers['X-Mashape-Key'] = injector.settings_manager.imgur_mashape_key
     else:
-        raise ImgurError(429)
+        raise ImgurError(HTTPStatus.TOO_MANY_REQUESTS)
     response = requests.get(url, headers=headers, timeout=10)
     if response.status_code == 200:
         return response.json()
-    if response.status_code == 429:
+    if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         # Rate limiting.
         check_credits()
         _send_request(url_extension, retries - 1)
