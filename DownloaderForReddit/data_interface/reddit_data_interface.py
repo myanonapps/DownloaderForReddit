@@ -301,17 +301,17 @@ class RedditDataInterface(ABC):
                             f"Specialized ({response.status_code}) converted to 429",
                             response=response
                         )
-                    break
+                    break # should never get here
 
                 self.increment_rate_limit_count()
                 wait_time = self.get_rate_limit_seconds(response)
                 self.add_rate_limit_duration(wait_time)
                 Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit")
-                self.logger.warning("Sleeping %d seconds due to rate limit", wait_time)
+                self.logger.warning("Sleeping %d seconds due to rate limit on: %s", wait_time, endpoint)
                 time.sleep(wait_time)
             else:
                 response.raise_for_status()
-                break
+                break # should never get here
         return response.json()
 
     def set_reddit_object(self, reddit_object:RedditObject):
