@@ -145,16 +145,50 @@ class ArcticShiftAdapter(RedditDataInterface):
         # Arctic Shift API endpoint for subreddits
         endpoint = f"api/subreddits/search?subreddit={name}"
         data = self.make_http_request(endpoint)
+        if data:
+            data = dig(data, 'data', default = [])
+            if data:
+                data = data[0]
+            else:
+                data = {}
+        else:
+            data = {}        
+        return AdapterSubreddit(self._source, data)
+
+    def subreddit_by_id(self, sub_id: str) -> Any:
+        """
+        Get a subreddit by Reddit Id.
+        
+        Args:
+            name: The subreddit id
+            
+        Returns:
+            Subreddit object from the Arctic Shift API
+        """
+        # Arctic Shift API endpoint for subreddits
+        endpoint = f"api/subreddits/ids?ids={sub_id}"
+        data = self.make_http_request(endpoint)
+        if data:
+            data = dig(data, 'data', default = [])
+            if data:
+                data = data[0]
+            else:
+                data = {}
+        else:
+            data = {}        
         return AdapterSubreddit(self._source, data)
 
     def get_authenticated_user(self) -> str:
         return ""
 
-    def check_user_name(self, name) -> ValidationSet:
+    def check_user_name(self, name:str) -> ValidationSet:
         account = self.redditor(name)
         if account and account.fullname:
             return ValidationSet(name=account.fullname, date_created=datetime.fromtimestamp(account.created), reddit_id=account.id, valid=True)
         return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 
-    def check_subreddit_name(self, name) -> ValidationSet:
-        pass
+    def check_subreddit_name(self, name:str) -> ValidationSet:
+        sub = self.subreddit(name)
+        if sub and sub.name:
+            return ValidationSet(name=sub.name, date_created=datetime.fromtimestamp(sub.created), reddit_id=sub.id, valid=True)
+        return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)

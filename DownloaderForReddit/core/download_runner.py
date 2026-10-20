@@ -101,7 +101,10 @@ class DownloadRunner(QObject):
 
     def validate_subreddit(self, subreddit_obj):
         with self.db.get_scoped_session() as session:
-            subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit(subreddit_obj.name)
+            if subreddit_obj.reddit_id and (subreddit_obj.post_download_source == PostDownloadSource.ARCTIC_SHIFT or subreddit_obj.post_download_source == PostDownloadSource.PULL_PUSH):
+                subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit_by_id(subreddit_obj.reddit_id)
+            else:
+                subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit(subreddit_obj.name)
         if self.validate_object(subreddit, subreddit_obj):
             Message.send_debug(f'{subreddit_obj.name} is valid')
             return subreddit

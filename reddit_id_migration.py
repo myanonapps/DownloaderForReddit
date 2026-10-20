@@ -41,6 +41,8 @@ def migrate_reddit_ids():
                     
                     if processed_users % 100 == 0:  # Log every 100 records
                         logger.info(f"Processed {processed_users} users")
+                else:
+                    logger.warning(f"User '{user.name}' not found: Old/Banned entities may be missing from data repository")    
                         
             except Exception as e:
                 logger.warning(f"Failed to process user '{user.name}': {str(e)}")
@@ -75,6 +77,8 @@ def migrate_reddit_ids():
                     
                     if processed_subreddits % 100 == 0:  # Log every 100 records
                         logger.info(f"Processed {processed_subreddits} subreddits")
+                else:
+                    logger.warning(f"Subreddit '{subreddit.name}' not found: Old/Banned entities may be missing from data repository")    
                         
             except Exception as e:
                 logger.warning(f"Failed to process subreddit '{subreddit.name}': {str(e)}")
