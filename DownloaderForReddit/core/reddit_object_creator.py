@@ -51,7 +51,7 @@ class RedditObjectCreator:
                 if self.settings_manager.validate_names_before_add:
                     validation_set = self.get_name_checker(source).check_user_name(user_name)
                 else:
-                    validation_set = ValidationSet(name=user_name, date_created=None, valid=True)
+                    validation_set = ValidationSet(name=user_name, date_created=None, reddit_id="", valid=True)
                 if validation_set.valid:
                     list_defaults['significant'] = True
                     user = User(name=validation_set.name, date_created=validation_set.date_created, reddit_id=validation_set.reddit_id, **list_defaults)
