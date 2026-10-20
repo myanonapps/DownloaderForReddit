@@ -107,6 +107,29 @@ class ArcticShiftAdapter(RedditDataInterface):
             data = {}
         return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
 
+    def redditor_by_id(self, user_id: str) -> AdapterRedditor:
+        """
+        Get a redditor (user) by id.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from the Arctic Shift API
+        """
+        # Arctic Shift API endpoint for users
+        endpoint = f"api/users/ids?ids={user_id}"
+        data = self.make_http_request(endpoint)
+        if data:
+            data = dig(data, 'data', default = [])
+            if data:
+                data = data[0]
+            else:
+                data = {}
+        else:
+            data = {}
+        return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
+
     def subreddit(self, name: str) -> Any:
         """
         Get a subreddit by name.

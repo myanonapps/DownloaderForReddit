@@ -88,9 +88,12 @@ class DownloadRunner(QObject):
         self.reddit_object_queue = Queue(maxsize=-1)
 
 
-    def validate_user(self, user_obj):
+    def validate_user(self, user_obj:RedditObject):
         with self.db.get_scoped_session() as session:
-            redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
+            if user_obj.post_download_source == PostDownloadSource.ARCTIC_SHIFT or user_obj.post_download_source == PostDownloadSource.PULL_PUSH:
+                redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
+            else:
+                redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):
             Message.send_debug(f'{user_obj.name} is valid')
             return redditor

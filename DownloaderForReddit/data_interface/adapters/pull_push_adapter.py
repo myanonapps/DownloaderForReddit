@@ -6,6 +6,7 @@ that uses Pull Push's HTTP API instead of PRAW.
 """
 from typing import Any
 
+from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
 
@@ -52,7 +53,7 @@ class PullPushAdapter(RedditDataInterface):
         # Return the first result if available
         return data.get('hits', [{}])[0] if data.get('hits') else {}
 
-    def redditor(self, name: str) -> Any:
+    def redditor(self, name: str) -> AdapterRedditor:
         """
         Get a redditor (user) by name.
         
@@ -62,15 +63,19 @@ class PullPushAdapter(RedditDataInterface):
         Returns:
             Redditor object from the Pull Push API
         """
-        # Pull Push API endpoint for users (using search)
-        endpoint = "/search"
-        params = {
-            "author": name,
-            "size": 1
-        }
-        data = self.make_http_request(endpoint, params)
-        # Return the first result if available
-        return data.get('hits', [{}])[0] if data.get('hits') else {}
+        pass
+
+    def redditor_by_id(self, user_id: str) -> AdapterRedditor:
+        """
+        Get a redditor (user) by id.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from the Pull Push API
+        """
+        pass
 
     def subreddit(self, name: str) -> Any:
         """

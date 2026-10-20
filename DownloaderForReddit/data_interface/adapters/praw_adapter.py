@@ -93,6 +93,19 @@ class PRAWAdapter(RedditDataInterface):
         reddit = self._get_praw_instance()
         return reddit.redditor(name)
 
+    def redditor_by_id(self, user_id: str) -> Any:
+        """
+        Get a redditor (user) by id.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from PRAW
+        """
+        pass
+    
+
     def subreddit(self, name: str) -> Any:
         """
         Get a subreddit by name.

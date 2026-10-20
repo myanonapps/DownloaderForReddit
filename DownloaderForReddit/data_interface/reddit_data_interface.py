@@ -116,6 +116,19 @@ class RedditDataInterface(ABC):
         pass
 
     @abstractmethod
+    def redditor_by_id(self, user_id: str) -> Any:
+        """
+        Get a redditor (user) by id.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from the Arctic Shift API
+        """
+        pass
+
+    @abstractmethod
     def subreddit(self, name: str) -> Any:
         """
         Get a subreddit by name.
