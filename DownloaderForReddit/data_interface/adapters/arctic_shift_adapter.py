@@ -21,6 +21,7 @@ from typing import Any, override
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
+from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
 from DownloaderForReddit.database.model_enums import PostDownloadSource
@@ -43,6 +44,7 @@ class ArcticShiftAdapter(RedditDataInterface):
         
         """
         super().__init__(BASE_URL, token, download_session)
+        self._source:PostDownloadSource = PostDownloadSource.ARCTIC_SHIFT
 
     @override
     def check_specialiazed_429(self, response) -> bool:
@@ -80,7 +82,7 @@ class ArcticShiftAdapter(RedditDataInterface):
         data = self.make_http_request(endpoint)
         if 'data' in data:
             for dict_submission in data['data']:
-                submission = AdapterSubmission(PostDownloadSource.ARCTIC_SHIFT, dict_submission)
+                submission = AdapterSubmission(self._source, dict_submission)
                 submissions.append(submission)
         return submissions
 
@@ -105,7 +107,7 @@ class ArcticShiftAdapter(RedditDataInterface):
                 data = {}
         else:
             data = {}
-        return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
+        return AdapterRedditor(self._source, data)
 
     def redditor_by_id(self, user_id: str) -> AdapterRedditor:
         """
@@ -128,7 +130,7 @@ class ArcticShiftAdapter(RedditDataInterface):
                 data = {}
         else:
             data = {}
-        return AdapterRedditor(PostDownloadSource.ARCTIC_SHIFT, data)
+        return AdapterRedditor(self._source, data)
 
     def subreddit(self, name: str) -> Any:
         """
@@ -141,9 +143,9 @@ class ArcticShiftAdapter(RedditDataInterface):
             Subreddit object from the Arctic Shift API
         """
         # Arctic Shift API endpoint for subreddits
-        endpoint = f"/r/{name}"
+        endpoint = f"api/subreddits/search?subreddit={name}"
         data = self.make_http_request(endpoint)
-        return data
+        return AdapterSubreddit(self._source, data)
 
     def get_authenticated_user(self) -> str:
         return ""
@@ -151,8 +153,8 @@ class ArcticShiftAdapter(RedditDataInterface):
     def check_user_name(self, name) -> ValidationSet:
         account = self.redditor(name)
         if account and account.fullname:
-            return ValidationSet(name=account.fullname, date_created=datetime.fromtimestamp(account.created), valid=True)
-        return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=account.fullname, date_created=datetime.fromtimestamp(account.created), reddit_id=account.id, valid=True)
+        return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 
     def check_subreddit_name(self, name) -> ValidationSet:
         pass

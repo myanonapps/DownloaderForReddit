@@ -9,6 +9,7 @@ from typing import Any
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
+from DownloaderForReddit.database.model_enums import PostDownloadSource
 
 
 BASE_URL = "https://api.pullpush.io/"
@@ -29,6 +30,7 @@ class PullPushAdapter(RedditDataInterface):
             base_url: The base URL of the Pull Push API (default: https://api.pullpush.io/)
         """
         super().__init__(BASE_URL, token, download_session)
+        self._source:PostDownloadSource = PostDownloadSource.PULL_PUSH
 
     def posts_by_author(self):
         pass

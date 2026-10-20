@@ -54,7 +54,7 @@ class RedditObjectCreator:
                     validation_set = ValidationSet(name=user_name, date_created=None, valid=True)
                 if validation_set.valid:
                     list_defaults['significant'] = True
-                    user = User(name=validation_set.name, date_created=validation_set.date_created, **list_defaults)
+                    user = User(name=validation_set.name, date_created=validation_set.date_created, reddit_id=validation_set.reddit_id, **list_defaults)
                     session.add(user)
                     session.commit()
                     return user.id, True
@@ -72,7 +72,7 @@ class RedditObjectCreator:
                 if validation_set.valid:
                     list_defaults['significant'] = True
                     subreddit = \
-                        Subreddit(name=validation_set.name, date_created=validation_set.date_created, **list_defaults)
+                        Subreddit(name=validation_set.name, date_created=validation_set.date_created, reddit_id=validation_set.reddit_id, **list_defaults)
                     session.add(subreddit)
                     session.commit()
                     return subreddit.id, True
@@ -80,7 +80,7 @@ class RedditObjectCreator:
                 return subreddit.id, False
             return None
 
-    def create_reddit_object_list(self, name, commit=True):
+    def create_reddit_object_list(self, name, commit=True) -> bool:
         with self.db.get_scoped_session() as session:
             exists = session.query(RedditObjectList.id)\
                      .filter(RedditObjectList.name == name)\

@@ -13,6 +13,7 @@ from DownloaderForReddit.core import const
 from DownloaderForReddit.core.const import RATE_LIMIT_DOC_URL
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
+from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.messaging.message import Message
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
@@ -40,6 +41,7 @@ class PRAWAdapter(RedditDataInterface):
         """
         super().__init__("", token, download_session)
         self._praw = None
+        self._source:PostDownloadSource = PostDownloadSource.REDDIT
 
 
     def _get_praw_instance(self) -> praw.Reddit:
@@ -151,9 +153,9 @@ class PRAWAdapter(RedditDataInterface):
             # date first, the redditor object is updated with information supplied by reddit's server.
             created = datetime.fromtimestamp(user.created)
             actual_name = user.name
-            return ValidationSet(name=actual_name, date_created=created, valid=True)
+            return ValidationSet(name=actual_name, date_created=created, reddit_id=user.id, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except prawcore.exceptions.TooManyRequests:
             # This error's except clause must be tried first because it is a subclass of prawcore.ResponseException
             logger.error('Too many requests', exc_info=True)
@@ -163,13 +165,13 @@ class PRAWAdapter(RedditDataInterface):
                 f'{const.RATE_LIMIT_DOC_URL}'
             )
             Message.send_error(message)
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except Exception:
             logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except BaseException:
             logger.error('Somebody is throwing a BaseException. Unable to validate user name', extra={'user_name': name}, exc_info=True)
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 
     def check_subreddit_name(self, name) -> ValidationSet:
         try:
@@ -177,9 +179,9 @@ class PRAWAdapter(RedditDataInterface):
             # actual name pulled from reddit because capitalization differences may cause problems throughout the app
             created = datetime.fromtimestamp(sub.created)
             actual_name = sub.display_name
-            return ValidationSet(name=actual_name, date_created=created, valid=True)
+            return ValidationSet(name=actual_name, date_created=created, reddit_id=sub.id, valid=True)
         except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except prawcore.exceptions.TooManyRequests:
             # This error's except clause must be tried first because it is a subclass of prawcore.ResponseException
             logger.error('Too many requests', exc_info=True)
@@ -192,8 +194,8 @@ class PRAWAdapter(RedditDataInterface):
             return ValidationSet(name=name, date_created=None, valid=False)
         except Exception:
             logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except BaseException:
             logger.error('Somebody is throwing a BaseException. Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
-            return ValidationSet(name=name, date_created=None, valid=False)
+            return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 

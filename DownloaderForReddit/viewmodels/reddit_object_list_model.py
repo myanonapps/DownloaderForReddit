@@ -65,11 +65,13 @@ class RedditObjectListModel(QAbstractListModel):
     def add_new_list(self, list_name, list_type):
         creator = RedditObjectCreator(list_type)
         ro_list = creator.create_reddit_object_list(list_name)
-        if ro_list is not None:
+        if ro_list:
             self.session.add(ro_list)
             self.list = ro_list
             self.sort_list()
             return True
+        else:
+            self.set_list(list_name)
         return False
 
     def delete_current_list(self):

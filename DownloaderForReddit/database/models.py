@@ -433,6 +433,7 @@ class User(RedditObject):
     __tablename__ = 'user'
 
     id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
+    reddit_id = Column(String(collation='NOCASE'), nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'USER',
@@ -444,6 +445,7 @@ class Subreddit(RedditObject):
     __tablename__ = 'subreddit'
 
     id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
+    reddit_id = Column(String(collation='NOCASE'), nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': 'SUBREDDIT',

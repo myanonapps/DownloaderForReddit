@@ -22,7 +22,7 @@ from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import system_util
 from ..version import __version__
 
-ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
+ValidationSet = namedtuple('ValidationSet', 'name date_created valid reddit_id')
 
 REDIRECT_URL = 'http://127.0.0.1:8086/'
 USER_AGENT = (

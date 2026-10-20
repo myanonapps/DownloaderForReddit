@@ -90,8 +90,8 @@ class DownloadRunner(QObject):
 
     def validate_user(self, user_obj:RedditObject):
         with self.db.get_scoped_session() as session:
-            if user_obj.post_download_source == PostDownloadSource.ARCTIC_SHIFT or user_obj.post_download_source == PostDownloadSource.PULL_PUSH:
-                redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
+            if user_obj.reddit_id and (user_obj.post_download_source == PostDownloadSource.ARCTIC_SHIFT or user_obj.post_download_source == PostDownloadSource.PULL_PUSH):
+                redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor_by_id(user_obj.reddit_id)
             else:
                 redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):

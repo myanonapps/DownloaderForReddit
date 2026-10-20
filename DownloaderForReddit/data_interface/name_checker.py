@@ -26,7 +26,7 @@ class NameChecker:
             return adapter.check_user_name(name)
         elif self._object_type == 'SUBREDDIT':
             return adapter.check_subreddit_name(name)
-        return ValidationSet(name=name, date_created=None, valid=False)
+        return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 
     def check_user_name(self, name:str) -> ValidationSet:
         self._object_type = 'USER'
