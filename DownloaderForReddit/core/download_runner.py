@@ -328,6 +328,7 @@ class DownloadRunner(QObject):
         if self.settings_manager.validate_names_before_download or not (user.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
             redditor = self.validate_user(user)
         else:
+            Message.send_debug(f'{user.name} validity not checked')
             redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id)
 
         if redditor is not None:
