@@ -334,7 +334,7 @@ class RedditDataInterface(ABC):
                 self.increment_rate_limit_count()
                 wait_time = self.get_rate_limit_seconds(response)
                 self.add_rate_limit_duration(wait_time)
-                Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit")
+                Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit: {endpoint}")
                 self.logger.warning("Sleeping %d seconds due to rate limit on: %s", wait_time, endpoint)
                 time.sleep(wait_time)
             else:
