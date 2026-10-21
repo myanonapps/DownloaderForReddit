@@ -129,6 +129,19 @@ class RedditDataInterface(ABC):
         pass
 
     @abstractmethod
+    def redditor_hardcoded(self, name: str, user_id:str|None=None) -> Any:
+        """
+        Create a redditor (user) object by hand.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from data
+        """
+        pass
+
+    @abstractmethod
     def subreddit(self, name: str) -> Any:
         """
         Get a subreddit by name.
@@ -293,9 +306,11 @@ class RedditDataInterface(ABC):
         tries = DEFAULT_RETRIES
         loop = 0
 
+        url = urljoin(self._base_url, endpoint)
         while True:
             loop += 1
-            response = self._http_session.get(urljoin(self._base_url, endpoint), params=params)
+            self.logger.debug("HTTP get executing to: %s", url)
+            response = self._http_session.get(url, timeout=10, params=params)
             if response.ok:
                 break
             b_429, b_specialized = self.check_too_many_requests(response)

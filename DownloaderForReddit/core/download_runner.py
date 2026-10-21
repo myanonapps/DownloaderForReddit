@@ -325,7 +325,10 @@ class DownloadRunner(QObject):
                 return self.get_user_submissions(user_id, session=session)
         user = session.query(User).get(user_id)
         user.set_existing()
-        redditor = self.validate_user(user)
+        if self.settings_manager.validate_names_before_download or not (user.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
+            redditor = self.validate_user(user)
+        else:
+            redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id)
 
         if redditor is not None:
             self.handle_submissions(user, redditor)

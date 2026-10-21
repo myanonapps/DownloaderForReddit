@@ -106,7 +106,18 @@ class PRAWAdapter(RedditDataInterface):
             Redditor object from PRAW
         """
         pass
-    
+
+    def redditor_hardcoded(self, name: str, user_id:str|None=None) -> Any:
+        """
+        Create a redditor (user) object by hand.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from data
+        """
+        pass    
 
     def subreddit(self, name: str) -> Any:
         """

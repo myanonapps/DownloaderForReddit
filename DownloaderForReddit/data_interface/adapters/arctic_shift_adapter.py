@@ -132,6 +132,19 @@ class ArcticShiftAdapter(RedditDataInterface):
             data = {}
         return AdapterRedditor(self._source, data)
 
+    def redditor_hardcoded(self, name: str, user_id:str|None=None)  -> AdapterRedditor:
+        """
+        Create a redditor (user) object by hand.
+        
+        Args:
+            name: The Reddit username
+            
+        Returns:
+            Redditor object from data
+        """
+        data = {"author": name, "fullname": name, "id": user_id}
+        return AdapterRedditor(self._source, data)
+
     def subreddit(self, name: str) -> Any:
         """
         Get a subreddit by name.

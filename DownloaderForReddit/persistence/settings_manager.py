@@ -55,6 +55,7 @@ class SettingsManager:
         self.pull_push_access_token = self.get('core', 'pull_push_access_token', None)
         self.pull_push_access = self.get('core', 'pull_push_access', None)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
+        self.validate_names_before_download = self.get('core', 'validate_names_before_download', False)
 
         default_extractor_dict = {
             extractor.__name__: True for extractor in BaseExtractor.__subclasses__()
