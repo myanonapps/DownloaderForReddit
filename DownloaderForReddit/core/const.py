@@ -26,7 +26,7 @@ import os
 
 
 DATABASE_NAME = 'dfr.db'
-IMAGE_EXT = ('jpg', 'jpeg', 'png')
+IMAGE_EXT = ('jpg', 'jpeg', 'png', 'jpe')
 GIF_EXT = ('gif', 'gifv', 'webm')
 VID_EXT = ('mp4', 'wmv', 'avi', 'mpg', 'divx')
 TEXT_EXT = ('txt', 'html')
