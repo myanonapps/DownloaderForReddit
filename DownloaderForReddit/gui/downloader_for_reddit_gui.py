@@ -1165,7 +1165,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setVisible(True)
         self.shift_download_buttons()
         self.setup_run_timer()
-        Message.send_status_tray('Starting download')
         self.system_tray_icon.setToolTip('Downloader For Reddit (running)')
 
     def finished_download_gui_shift(self):
