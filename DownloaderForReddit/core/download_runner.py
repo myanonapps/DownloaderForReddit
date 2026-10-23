@@ -95,7 +95,7 @@ class DownloadRunner(QObject):
             else:
                 redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):
-            Message.send_debug(f'{user_obj.name} is valid')
+            Message.send_debug(f'Validity check passed: {user_obj.name}')
             return redditor
         return None
 
@@ -106,37 +106,42 @@ class DownloadRunner(QObject):
             else:
                 subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit(subreddit_obj.name)
         if self.validate_object(subreddit, subreddit_obj):
-            Message.send_debug(f'{subreddit_obj.name} is valid')
+            Message.send_debug(f'Validity check passed: {subreddit_obj.name}')
             return subreddit
-        else:
-            return None
+        return None
+
+    def handle_exception(self, exception, reddit_object:RedditObject):
+        if isinstance(exception, (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound)):
+            self.handle_invalid_reddit_object(reddit_object)
+            reddit_object.set_inactive()
+        elif isinstance(exception, prawcore.exceptions.Forbidden):
+            self.handle_forbidden_reddit_object(reddit_object)
+        elif isinstance(exception, prawcore.RequestException):
+            self.handle_failed_connection()
+        elif isinstance(exception, prawcore.exceptions.TooManyRequests):
+            self.handle_too_many_praw_requests_error(reddit_object)
+        elif isinstance(exception, requests.exceptions.HTTPError):
+            if exception.response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                self.handle_too_many_http_requests_error(reddit_object)
+            elif exception.response.status_code in [HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.BAD_GATEWAY]:
+                self.handle_failed_connection()
+            else:
+                self.handle_unknown_error(reddit_object)
+        elif isinstance(exception, Exception):
+            self.handle_unknown_error(reddit_object)
+        elif isinstance(exception, BaseException):
+            self.handle_unknown_error(reddit_object)
+            self.logger.exception("Somebody is throwing a BaseException")
+
 
     def validate_object(self, praw_object, reddit_object):
         try:
-            if praw_object.fullname:
+            if hasattr(praw_object, "fullname") and praw_object.fullname:
                 return True
             reddit_object.set_inactive()
             return False
-        except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
-            self.handle_invalid_reddit_object(reddit_object)
-            reddit_object.set_inactive()
-        except prawcore.exceptions.Forbidden:
-            self.handle_forbidden_reddit_object(reddit_object)
-            reddit_object.set_inactive()
-        except prawcore.RequestException:
-            self.handle_failed_connection()
-        except prawcore.exceptions.TooManyRequests:
-            self.handle_too_many_praw_requests_error(reddit_object)
-        except requests.exceptions.HTTPError as exception:
-            if exception.response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
-                self.handle_too_many_http_requests_error(reddit_object)
-            else:
-                self.handle_unknown_error(reddit_object)
-        except Exception:
-            self.handle_unknown_error(reddit_object)
-        except BaseException:
-            self.logger.exception("Somebody is throwing a BaseException")
-            self.handle_unknown_error(reddit_object)
+        except BaseException as e:
+            self.handle_exception(e, reddit_object)
         return False
 
     def handle_invalid_reddit_object(self, reddit_object):
@@ -146,7 +151,7 @@ class DownloadRunner(QObject):
         self.remove_invalid_object.emit(reddit_object.id)
 
     def handle_forbidden_reddit_object(self, reddit_object):
-        self.logger.warning('Forbidden reddit object detected', extra={'object_type': reddit_object.object_type,
+        self.logger.warning('Forbidden from accessing reddit object', extra={'object_type': reddit_object.object_type,
                                                                        'reddit_object': reddit_object.name})
         Message.send_warning(f'Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}')
         self.remove_forbidden_object.emit(reddit_object.id)
@@ -167,23 +172,21 @@ class DownloadRunner(QObject):
     def handle_too_many_http_requests_error(self, reddit_object):
         self.logger.error('Too many requests error', exc_info=True)
         message = (
-            f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
-            f'not be validated.  Please try again later.\n'
+            f'Rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}). Please try again later.\n'
         )
         Message.send_error(message)
 
     def handle_too_many_praw_requests_error(self, reddit_object):
         self.logger.error('Too many requests error', exc_info=True)
         message = (
-            f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
-            f'not be validated.  Please try again later.\n'
+            f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) Please try again later.\n'
             f'For More information about this error, please visit the link below:\n'
             f'{const.RATE_LIMIT_DOC_URL}'
         )
         Message.send_error(message)
 
     def handle_unknown_error(self, reddit_object):
-        self.logger.error('Failed to validate reddit object due to unknown error',
+        self.logger.error('Failed to process reddit object due to unknown error',
                           extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name},
                           exc_info=True)
 
@@ -328,7 +331,7 @@ class DownloadRunner(QObject):
         if self.settings_manager.validate_names_before_download or not (user.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
             redditor = self.validate_user(user)
         else:
-            Message.send_debug(f'{user.name} validity not checked')
+            Message.send_debug(f'Validity check skipped: {user.name}')
             redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id)
 
         if redditor is not None:
@@ -392,18 +395,11 @@ class DownloadRunner(QObject):
                             submissions.append(submission)
                 else:
                     break
-            return submissions
-        except prawcore.exceptions.TooManyRequests:
-            extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
-            self.logger.error('Reddit reports too many requests.  Ending submission extraction',
-                              extra=extra, exc_info=True)
-            message = (
-                f'Reddit rate limit reached. Failed to extract submissions for: {reddit_object.name}.  '
-                f'Please try again shortly.\n'
-                f'For more information, please visit the link below:\n{const.RATE_LIMIT_DOC_URL}'
-            )
-            Message.send_error(message)
-            return submissions
+        except BaseException as e:
+            self.handle_exception(e, reddit_object)
+        return submissions
+
+        
 
     def get_raw_submissions(self, praw_object, reddit_object):
         """
@@ -582,7 +578,8 @@ class DownloadRunner(QObject):
             message = f'\nDownload stopped{message}'
         self.logger.info('Download complete', extra=extra)
         Message.send_info('\n' + message)
-        Message.send_status_tray(message)
+        if downloaded_content_count:
+            Message.send_status_tray(f'Download Count: {downloaded_content_count}')
 
     def stop_download(self, hard_stop=False):
         self.stopped = True
