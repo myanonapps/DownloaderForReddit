@@ -4,7 +4,7 @@ from operator import attrgetter
 
 class TokenParser:
 
-    regex = '%\[(.*?)\]'
+    regex = r'%\[(.*?)\]'
 
     token_dict = {
         'title': lambda x: TokenParser.tokenize(x, 'sanitized_title', 'post.sanitized_title'),
