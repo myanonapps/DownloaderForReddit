@@ -1,6 +1,6 @@
 import webbrowser
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QStyle
-from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat, QPainter
+from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat
 from PyQt6.QtCore import QEvent, Qt, QModelIndex, QPointF
 
 class HyperlinkDelegate(QStyledItemDelegate):
@@ -26,8 +26,9 @@ class HyperlinkDelegate(QStyledItemDelegate):
         if option.state & QStyle.StateFlag.State_Selected:
             # Use the default selection background for selected items
             painter.fillRect(option.rect, option.palette.highlight())
-            
-            # Paint the text with the highlight text color
+
+            # For selected items, we need to preserve the original text colors from document
+            # but ensure proper visibility - we'll use the highlight text color for better contrast
             text_color = option.palette.highlightedText().color()
         else:
             # Use normal background
@@ -35,18 +36,19 @@ class HyperlinkDelegate(QStyledItemDelegate):
             text_color = option.palette.text().color()
 
         doc = self.get_document(option, index)
-        
+
         # Adjust painter for text positioning
         painter.save()
         painter.translate(option.rect.topLeft())
-        
-        # Apply the appropriate text color
+
+        # Apply the appropriate text color - but we need to be more careful about preserving
+        # original colors from model data that were already applied in get_document()
         cursor = QTextCursor(doc)
         cursor.select(QTextCursor.SelectionType.Document)
         fmt = QTextCharFormat()
         fmt.setForeground(text_color)
         cursor.mergeCharFormat(fmt)
-        
+
         doc.drawContents(painter)
         painter.restore()
 
