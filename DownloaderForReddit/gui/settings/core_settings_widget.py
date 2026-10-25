@@ -39,6 +39,8 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
         self.extraction_thread_count_spinbox.setValue(self.settings.extraction_thread_count)
         self.download_thread_count_spinbox.setValue(self.settings.download_thread_count)
         self.download_on_add_checkbox.setChecked(self.settings.download_on_add)
+        self.validate_names_before_add_checkbox.setChecked(self.settings.validate_names_before_add)
+        self.validate_names_before_download_checkbox.setChecked(self.settings.validate_names_before_download)
         self.finish_incomplete_extractions_checkbox.setChecked(
             self.settings.finish_incomplete_extractions_at_session_start)
         self.finish_incomplete_downloads_checkbox.setChecked(
@@ -89,6 +91,8 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
         self.settings.multi_part_threshold = threshold_size
         self.settings.multi_part_thread_count = self.multi_part_thread_count_spinbox.value()
         self.settings.download_on_add = self.download_on_add_checkbox.isChecked()
+        self.settings.validate_names_before_add = self.validate_names_before_add_checkbox.isChecked()
+        self.settings.validate_names_before_download = self.validate_names_before_download_checkbox.isChecked()
         for extractor, checkbox in self.extractor_map.items():
             self.settings.extractor_dict[extractor] = checkbox.isChecked()
 
