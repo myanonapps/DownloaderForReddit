@@ -29,7 +29,7 @@ from datetime import datetime
 import logging
 from PyQt6.QtWidgets import (QMainWindow, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
                              QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
-from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import QModelIndex, QThread, Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QCursor, QPixmap, QIcon, QActionGroup
 from PyQt6.QtGui import QColor
 
@@ -532,8 +532,31 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
         menu.addSeparator()
         menu.addAction('Clear Output', self.output_view_model.clear)
+
+        # Add copy functionality - only enable if items are selected
+        selected_items = self.output_list_view.selectedIndexes()
+        if selected_items:
+            menu.addAction('Copy Selected', self.copy_selected_to_clipboard)
+        else:
+            menu.addAction('Copy All', self.copy_all_to_clipboard)
+
         menu.exec(QCursor.pos())
-    # endregion
+
+    def copy_selected_to_clipboard(self):
+        selected_items = self.output_list_view.selectedIndexes()
+        if selected_items:
+            clipboard = QApplication.clipboard()
+            text = '\n'.join([self.output_view_model.data(index, Qt.ItemDataRole.DisplayRole) 
+                            for index in selected_items])
+            clipboard.setText(text)
+
+    def copy_all_to_clipboard(self):
+        clipboard = QApplication.clipboard()
+        all_text = '\n'.join([self.output_view_model.data(
+            QModelIndex(), Qt.ItemDataRole.DisplayRole) for _ in range(self.output_view_model.rowCount())])
+        clipboard.setText(all_text)
+
+
 
     def user_settings(self, users):
         """

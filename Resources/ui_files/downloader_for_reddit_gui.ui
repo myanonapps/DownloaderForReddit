@@ -339,7 +339,7 @@ QListView::item:active {
            <set>QAbstractItemView::NoEditTriggers</set>
           </property>
           <property name="selectionMode">
-           <enum>QAbstractItemView::NoSelection</enum>
+           <enum>QAbstractItemView::ContiguousSelection</enum>
           </property>
          </widget>
         </item>

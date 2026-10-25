@@ -1,9 +1,7 @@
 import webbrowser
-from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
-from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QStyle
+from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat, QPainter
 from PyQt6.QtCore import QEvent, Qt, QModelIndex, QPointF
-
-
 
 class HyperlinkDelegate(QStyledItemDelegate):
     """
@@ -23,10 +21,32 @@ class HyperlinkDelegate(QStyledItemDelegate):
         :param index: QModelIndex providing access to model data.
         :return: None
         """
-        doc = self.get_document(option, index)
+        # Handle selection state properly by using Qt's built-in painting for selected items
+        # This ensures that selection highlighting works correctly while maintaining hyperlink functionality
+        if option.state & QStyle.StateFlag.State_Selected:
+            # Use the default selection background for selected items
+            painter.fillRect(option.rect, option.palette.highlight())
+            
+            # Paint the text with the highlight text color
+            text_color = option.palette.highlightedText().color()
+        else:
+            # Use normal background
+            painter.fillRect(option.rect, option.palette.base())
+            text_color = option.palette.text().color()
 
+        doc = self.get_document(option, index)
+        
+        # Adjust painter for text positioning
         painter.save()
         painter.translate(option.rect.topLeft())
+        
+        # Apply the appropriate text color
+        cursor = QTextCursor(doc)
+        cursor.select(QTextCursor.SelectionType.Document)
+        fmt = QTextCharFormat()
+        fmt.setForeground(text_color)
+        cursor.mergeCharFormat(fmt)
+        
         doc.drawContents(painter)
         painter.restore()
 
