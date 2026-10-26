@@ -30,7 +30,7 @@ import logging
 from PyQt6.QtWidgets import (QMainWindow, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
                              QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
 from PyQt6.QtCore import QModelIndex, QThread, Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QCursor, QPixmap, QIcon, QActionGroup
+from PyQt6.QtGui import QAction, QCursor, QPixmap, QIcon, QActionGroup
 from PyQt6.QtGui import QColor
 
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
@@ -530,8 +530,41 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def output_context_menu(self):
         menu = QMenu()
         menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
+       
+        # Create and add the submenu
+        # 1. Create the Submenu for Log Levels
+        log_level_menu = QMenu("Log Level", self)
+        menu.addMenu(log_level_menu)
+
+        # 2. Create a QActionGroup to make items mutually exclusive
+        log_group = QActionGroup(self)
+        log_group.setExclusive(True)  # Enforces that only one item is checked
+
+        # 3. Define your log levels
+        levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        
+        # Default level to check
+        default_level = "INFO"
+
+        for x in MessagePriority:
+            # Create a checkable action
+            action = QAction(x.name, self)
+            action.setCheckable(True)
+            
+            # Check the default level
+            if x.name == self.settings_manager.output_priority_level.name:
+                action.setChecked(True)
+
+            # Add to the group (handles exclusive logic) and the menu (handles UI layout)
+            log_group.addAction(action)
+            log_level_menu.addAction(action)
+
+        # 5. Connect the group's trigger signal to handle selection changes
+        log_group.triggered.connect(self.on_log_level_changed)
+
+
         menu.addSeparator()
-        menu.addAction('Clear Output', self.output_view_model.clear)
+        
 
         # Add copy functionality - only enable if items are selected
         selected_items = self.output_list_view.selectedIndexes()
@@ -539,8 +572,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             menu.addAction('Copy Selected', self.copy_selected_to_clipboard)
         else:
             menu.addAction('Copy All', self.copy_all_to_clipboard)
-
+        menu.addSeparator()
+        menu.addAction('Clear Output', self.output_view_model.clear)
         menu.exec(QCursor.pos())
+
+    def on_log_level_changed(self, action):
+        # Retrieve the selected level text
+        selected_level = action.text()
+        for x in MessagePriority:
+            if x.name == selected_level:
+                self.settings_manager.output_priority_level = x
+                self.update_output()
 
     def copy_selected_to_clipboard(self):
         selected_items = self.output_list_view.selectedIndexes()
