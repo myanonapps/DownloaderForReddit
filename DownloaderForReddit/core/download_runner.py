@@ -548,14 +548,13 @@ class DownloadRunner(QObject):
         Constructs and displays a finish message to the user and a log message.
         :param dl_session: The active download session for this run.
         """
-        stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session)
+        stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped)
         extra:dict = stats.to_dict()
-        message = stats.to_output_string()
+        message = "Download complete"
         if self.stopped:
-            extra.update(download_stopped=True)
-            message = f'\nDownload stopped{message}'
-        self.logger.info('Download complete', extra=extra)
-        Message.send_info('\n' + message)
+            message = "Download stopped"
+        Message.send_info(f'{message}\n')
+        self.logger.info("%s", message, extra=extra)
         Message.send_finished_stats(json.dumps(stats.to_dict()))
         if stats.get_content_downloaded_count() > 0:
             Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}')

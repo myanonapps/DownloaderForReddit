@@ -15,10 +15,29 @@ class DownloadRunnerStats:
     """
 
     def __init__(self, dict_data:dict):
+        self._dict_data = {}
+        self.reset()
+        if dict_data:
+            self.set_session_count(1)
+            self.set_id(dig(dict_data, "id", default=0))
+            self.set_stopped(dig(dict_data, "stopped", default=False))
+            self.set_session_duration(DownloadRunnerStats.get_session_duration_from_dict(dict_data))
+            self.set_user_significant_count(DownloadRunnerStats.get_user_significant_count_from_dict(dict_data))
+            self.set_user_total_count(DownloadRunnerStats.get_user_total_count_from_dict(dict_data))
+            self.set_subreddit_significant_count(DownloadRunnerStats.get_subreddit_significant_count_from_dict(dict_data))
+            self.set_subreddit_total_count(DownloadRunnerStats.get_subreddit_total_count_from_dict(dict_data))
+            self.set_comment_extracted_count(DownloadRunnerStats.get_comment_extracted_count_from_dict(dict_data))
+            self.set_content_downloaded_count(DownloadRunnerStats.get_content_downloaded_count_from_dict(dict_data))
+            self.set_post_extracted_count(DownloadRunnerStats.get_post_extracted_count_from_dict(dict_data))
+            self.set_ratelimit_count(DownloadRunnerStats.get_ratelimit_count_from_dict(dict_data))
+            self.set_ratelimit_duration(DownloadRunnerStats.get_ratelimit_duration_from_dict(dict_data))
+
+    def reset(self):
         self._dict_data = {
             "id": 0,
             "count": 0,
             "duration": 0.0,
+            "stopped": False,
             "ratelimit": {
                 "count": 0,
                 "duration": 0.0
@@ -42,19 +61,13 @@ class DownloadRunnerStats:
             }
 
         }
-        if dict_data:
-            self.set_session_count(1)
-            self.set_id(dict_data["id"])
-            self.set_session_duration(DownloadRunnerStats.get_session_duration_from_dict(dict_data))
-            self.set_user_significant_count(DownloadRunnerStats.get_user_significant_count_from_dict(dict_data))
-            self.set_user_total_count(DownloadRunnerStats.get_user_total_count_from_dict(dict_data))
-            self.set_subreddit_significant_count(DownloadRunnerStats.get_subreddit_significant_count_from_dict(dict_data))
-            self.set_subreddit_total_count(DownloadRunnerStats.get_subreddit_total_count_from_dict(dict_data))
-            self.set_comment_extracted_count(DownloadRunnerStats.get_comment_extracted_count_from_dict(dict_data))
-            self.set_content_downloaded_count(DownloadRunnerStats.get_content_downloaded_count_from_dict(dict_data))
-            self.set_post_extracted_count(DownloadRunnerStats.get_post_extracted_count_from_dict(dict_data))
-            self.set_ratelimit_count(DownloadRunnerStats.get_ratelimit_count_from_dict(dict_data))
-            self.set_ratelimit_duration(DownloadRunnerStats.get_ratelimit_duration_from_dict(dict_data))
+    
+
+    def is_stopped(self) -> bool:
+        return dig(self._dict_data, "stopped", default=False)
+
+    def set_stopped(self, stopped:bool):
+        self._dict_data["stopped"] = stopped
 
     def get_id(self) -> int:
         """
@@ -390,6 +403,7 @@ class DownloadRunnerStats:
 
     def add_session(self, dict_data: dict) -> None:
         self._dict_data["id"] = 0
+        self._dict_data["stopped"] = False
 
         self.set_content_downloaded_count(self.get_content_downloaded_count() + self.get_content_downloaded_count_from_dict(dict_data))
         self.set_comment_extracted_count(self.get_comment_extracted_count() + self.get_comment_extracted_count_from_dict(dict_data))
@@ -411,18 +425,27 @@ class DownloadRunnerStats:
             cloned["ratelimit"]['time'] = self.get_ratelimit_duration_time()
         return cloned
 
-    def to_output_string(self) -> str:
-        return f'Run: {self.get_session_count()} for {self.get_session_duration_time()}\n' \
+    def to_output_string(self, with_id:bool=False) -> str:
+        prefix = ""
+        if with_id and self.get_id():
+            prefix = f' ({self.get_id()})'
+        suffix = ""
+        if self.is_stopped():
+            suffix = " (Stopped)"
+            
+        return f'Run{prefix}: {self.get_session_count()} for {self.get_session_duration_time()}{suffix}\n' \
                   f'Rate Limit: {self.get_ratelimit_count()} for {self.get_ratelimit_duration_time()}\n'\
                   f'Download Count: {self.get_content_downloaded_count()}\n' \
                   f'Downloaded Users: {self.get_user_significant_count()}\n' \
                   f'Downloaded Subreddits: {self.get_subreddit_significant_count()}\n' \
                   f'Post Count: {self.get_post_extracted_count()}\n' \
-                  f'Comment Count: {self.get_comment_extracted_count()}\n'
+                  f'Comment Count: {self.get_comment_extracted_count()}'
 
-def from_session(dl_session:DownloadSession) -> DownloadRunnerStats:
+def from_session(dl_session:DownloadSession, stopped:bool=False) -> DownloadRunnerStats:
     stats:DownloadRunnerStats = DownloadRunnerStats({})
     stats.set_session_count(1)
+    stats.set_stopped(stopped)
+
     stats.set_id(dl_session.id)
     stats.set_session_duration(dl_session.get_duration())
     stats.set_user_significant_count(dl_session.get_downloaded_user_count())

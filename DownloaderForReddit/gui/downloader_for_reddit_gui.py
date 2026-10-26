@@ -576,8 +576,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         else:
             menu.addAction('Copy All', self.copy_all_to_clipboard)
         menu.addSeparator()
-        menu.addAction('Clear Output', self.output_view_model.clear)
+        menu.addAction('Clear', self.on_clear)
         menu.exec(QCursor.pos())
+
+    def on_clear(self):
+        self.output_view_model.clear()
+        self.cumulative_stats.reset()
+        label:QLabel = self.total_stats_label
+        label.setText(self.cumulative_stats.to_output_string())
 
     def on_log_level_changed(self, action):
         # Retrieve the selected level text
@@ -785,7 +791,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def update_stat_views(self, current: DownloadRunnerStats):
         label:QLabel = self.session_stats_label
-        label.setText(current.to_output_string())
+        label.setText(current.to_output_string(True))
         self.cumulative_stats.add_session(current.to_dict())
         label:QLabel = self.total_stats_label
         label.setText(self.cumulative_stats.to_output_string())
