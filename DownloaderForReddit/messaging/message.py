@@ -15,6 +15,8 @@ class MessageType(Enum):
 
     STATUS_TRAY = 6
 
+    FINISHED_STATS = 7
+
 
 class MessagePriority(Enum):
 
@@ -74,6 +76,10 @@ class Message:
     def send_extraction_error(cls, message: str):
         cls.send(MessageType.POTENTIAL_PROGRESS, priority=MessagePriority.ERROR)
         cls.send(MessageType.TEXT, message, MessagePriority.ERROR)
+
+    @classmethod
+    def send_finished_stats(cls, message_json: str):
+        cls.send(MessageType.FINISHED_STATS, message_json, MessagePriority.INFO)
 
     @classmethod
     def send_download_error(cls, message: str):

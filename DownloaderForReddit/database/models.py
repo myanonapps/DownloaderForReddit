@@ -492,6 +492,9 @@ class DownloadSession(BaseModel):
         except AttributeError:
             return 'Never finished'
 
+    def get_duration(self) -> float:
+        return self.duration
+    
     def get_rate_limit_count(self) -> int:
         return self.rate_limit_count
 

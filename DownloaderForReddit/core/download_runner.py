@@ -1,4 +1,5 @@
 from http import HTTPStatus
+import json
 import platform
 import logging
 from queue import Queue, Empty
@@ -10,7 +11,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor
 import requests
 from sqlalchemy import or_
+from DownloaderForReddit.core import download_runner_stats
 from DownloaderForReddit.core.download.downloader import Downloader
+from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
@@ -545,41 +548,17 @@ class DownloadRunner(QObject):
         Constructs and displays a finish message to the user and a log message.
         :param dl_session: The active download session for this run.
         """
-        significant_user_count = dl_session.get_downloaded_user_count()
-        total_user_count = dl_session.get_downloaded_user_count(significant=False)
-        significant_subreddit_count = dl_session.get_downloaded_subreddit_count()
-        total_subreddit_count = dl_session.get_downloaded_subreddit_count(significant=False)
-        extracted_post_count = dl_session.get_extracted_post_count()
-        extracted_comment_count = dl_session.get_comment_count()
-        downloaded_content_count = dl_session.get_downloaded_content_count()
-        rate_limit_count = dl_session.get_rate_limit_count()
-        rate_limit_duration_display = system_util.format_duration_full(dl_session.get_rate_limit_duration())
-        extra = {
-            'download_time': dl_session.duration_display,
-            'significant_user_count': significant_user_count,
-            'significant_subreddit_count': significant_subreddit_count,
-            'total_user_count': total_user_count,
-            'total_subreddit_count': total_subreddit_count,
-            'post_extraction_count': extracted_post_count,
-            'comment_extraction_count': extracted_comment_count,
-            'download_count': downloaded_content_count,
-            'rate_limit_count': rate_limit_count,
-            'rate_limit_duration': rate_limit_duration_display
-        }
-        message = f'Finished\nRun Time: {dl_session.duration_display}\n' \
-                  f'Rate Limit: {rate_limit_count} for {rate_limit_duration_display}\n'\
-                  f'Download Count: {downloaded_content_count}\n' \
-                  f'Downloaded Users: {significant_user_count}\n' \
-                  f'Downloaded Subreddits: {significant_subreddit_count}\n' \
-                  f'Post Count: {extracted_post_count}\n' \
-                  f'Comment Count: {extracted_comment_count}\n'
+        stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session)
+        extra:dict = stats.to_dict()
+        message = stats.to_output_string()
         if self.stopped:
             extra.update(download_stopped=True)
             message = f'\nDownload stopped{message}'
         self.logger.info('Download complete', extra=extra)
         Message.send_info('\n' + message)
-        if downloaded_content_count:
-            Message.send_status_tray(f'Download Count: {downloaded_content_count}')
+        Message.send_finished_stats(json.dumps(stats.to_dict()))
+        if stats.get_content_downloaded_count() > 0:
+            Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}')
 
     def stop_download(self, hard_stop=False):
         self.stopped = True

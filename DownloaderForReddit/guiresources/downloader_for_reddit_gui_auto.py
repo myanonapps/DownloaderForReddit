@@ -175,6 +175,42 @@ class Ui_MainWindow(object):
         self.schedule_label.setObjectName("schedule_label")
         self.horizontalLayout_8.addWidget(self.schedule_label)
         self.verticalLayout_3.addWidget(self.schedule_widget)
+        self.stats_layout = QtWidgets.QHBoxLayout()
+        self.stats_layout.setSpacing(6)
+        self.stats_layout.setObjectName("stats_layout")
+        self.session_stats_group = QtWidgets.QGroupBox(parent=self.layoutWidget2)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Maximum)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.session_stats_group.sizePolicy().hasHeightForWidth())
+        self.session_stats_group.setSizePolicy(sizePolicy)
+        self.session_stats_group.setObjectName("session_stats_group")
+        self.session_stats_layout = QtWidgets.QVBoxLayout(self.session_stats_group)
+        self.session_stats_layout.setContentsMargins(-1, 4, -1, 4)
+        self.session_stats_layout.setObjectName("session_stats_layout")
+        self.session_stats_label = QtWidgets.QLabel(parent=self.session_stats_group)
+        self.session_stats_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading|QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignTop)
+        self.session_stats_label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.LinksAccessibleByMouse|QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.session_stats_label.setObjectName("session_stats_label")
+        self.session_stats_layout.addWidget(self.session_stats_label)
+        self.stats_layout.addWidget(self.session_stats_group)
+        self.total_stats_group = QtWidgets.QGroupBox(parent=self.layoutWidget2)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Maximum)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.total_stats_group.sizePolicy().hasHeightForWidth())
+        self.total_stats_group.setSizePolicy(sizePolicy)
+        self.total_stats_group.setObjectName("total_stats_group")
+        self.total_stats_layout = QtWidgets.QVBoxLayout(self.total_stats_group)
+        self.total_stats_layout.setContentsMargins(-1, 4, -1, 4)
+        self.total_stats_layout.setObjectName("total_stats_layout")
+        self.total_stats_label = QtWidgets.QLabel(parent=self.total_stats_group)
+        self.total_stats_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading|QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignTop)
+        self.total_stats_label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.LinksAccessibleByMouse|QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.total_stats_label.setObjectName("total_stats_label")
+        self.total_stats_layout.addWidget(self.total_stats_label)
+        self.stats_layout.addWidget(self.total_stats_group)
+        self.verticalLayout_3.addLayout(self.stats_layout)
         self.output_list_view = QtWidgets.QListView(parent=self.layoutWidget2)
         self.output_list_view.setStyleSheet("QListView {\n"
 "    outline: 0;\n"
@@ -407,6 +443,24 @@ class Ui_MainWindow(object):
         self.constain_to_sub_list_radio.setText(_translate("MainWindow", "Constrain Users To Subreddit List"))
         self.label_3.setText(_translate("MainWindow", "Download Scheduled:"))
         self.schedule_label.setText(_translate("MainWindow", "00:00:00"))
+        self.session_stats_group.setToolTip(_translate("MainWindow", "Statistics for the current session"))
+        self.session_stats_group.setTitle(_translate("MainWindow", "Last Session"))
+        self.session_stats_label.setText(_translate("MainWindow", "Run Time: 0 secs\n"
+"Rate Limit: 0 for 0 secs\n"
+"Download Count: 0\n"
+"Downloaded Users: 0\n"
+"Downloaded Subreddits: 0\n"
+"Post Count: 0\n"
+"Comment Count: 0"))
+        self.total_stats_group.setToolTip(_translate("MainWindow", "Combined statistics for all sessions since the output was last cleared"))
+        self.total_stats_group.setTitle(_translate("MainWindow", "Cumulative Sessions"))
+        self.total_stats_label.setText(_translate("MainWindow", "Run Time: 0 for 0 secs\n"
+"Rate Limit: 0 for 0 secs\n"
+"Download Count: 0\n"
+"Downloaded Users: 0\n"
+"Downloaded Subreddits: 0\n"
+"Post Count: 0\n"
+"Comment Count: 0"))
         self.file_menu.setTitle(_translate("MainWindow", "File"))
         self.lists_menu.setTitle(_translate("MainWindow", "Lists"))
         self.help_menu.setTitle(_translate("MainWindow", "Help"))

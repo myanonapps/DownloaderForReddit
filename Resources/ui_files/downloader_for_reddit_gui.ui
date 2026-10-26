@@ -317,6 +317,99 @@
          </widget>
         </item>
         <item>
+         <layout class="QHBoxLayout" name="stats_layout">
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <item>
+           <widget class="QGroupBox" name="session_stats_group">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Statistics for the current session</string>
+            </property>
+            <property name="title">
+             <string>Last Session</string>
+            </property>
+            <layout class="QVBoxLayout" name="session_stats_layout">
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="session_stats_label">
+               <property name="text">
+                <string>Run Time: 0 for 0 secs
+Rate Limit: 0 for 0 secs
+Download Count: 0
+Downloaded Users: 0
+Downloaded Subreddits: 0
+Post Count: 0
+Comment Count: 0</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+               </property>
+               <property name="textInteractionFlags">
+                <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="total_stats_group">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Combined statistics for all sessions since the output was last cleared</string>
+            </property>
+            <property name="title">
+             <string>Cumulative Sessions</string>
+            </property>
+            <layout class="QVBoxLayout" name="total_stats_layout">
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="total_stats_label">
+               <property name="text">
+                <string>Run Time: 0 for 0 secs
+Rate Limit: 0 for 0 secs
+Download Count: 0
+Downloaded Users: 0
+Downloaded Subreddits: 0
+Post Count: 0
+Comment Count: 0</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+               </property>
+               <property name="textInteractionFlags">
+                <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
          <widget class="QListView" name="output_list_view">
           <property name="styleSheet">
            <string notr="true">QListView {

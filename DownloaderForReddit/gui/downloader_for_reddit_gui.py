@@ -24,6 +24,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import io
+import json
 import platform
 from datetime import datetime
 import logging
@@ -35,6 +36,7 @@ from PyQt6.QtGui import QColor
 
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
+from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 
@@ -96,6 +98,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress = 0
         self.running = False
         self.invalid_list = []
+        self.cumulative_stats:DownloadRunnerStats = DownloadRunnerStats({})
         self.db_handler = injector.get_database_handler()
         spin_pars = SpinnerParameters(disable_parent_when_spinning=True, roundness=80.0, minimum_trail_opacity=10.0, trail_fade_percentage=72.0, inner_radius=10,
                                       number_of_lines=12, line_length=12, line_width=4, revolutions_per_second=1.4, color=QColor(0, 0, 0))
@@ -772,11 +775,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def finish_update(self):
         pass
 
-    def handle_message(self, message):
+    def handle_message(self, message:Message):
         if message.message_type == MessageType.STATUS_TRAY:
             self.set_tray_icon_message(message)
+        elif message.message_type == MessageType.FINISHED_STATS:
+            self.update_stat_views(DownloadRunnerStats(json.loads(message.message)))
         else:
             self.output_view_model.handle_message(message)
+
+    def update_stat_views(self, current: DownloadRunnerStats):
+        label:QLabel = self.session_stats_label
+        label.setText(current.to_output_string())
+        self.cumulative_stats.add_session(current.to_dict())
+        label:QLabel = self.total_stats_label
+        label.setText(self.cumulative_stats.to_output_string())
 
     def handle_progress(self, message):
         """
