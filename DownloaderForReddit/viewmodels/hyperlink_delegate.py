@@ -1,85 +1,91 @@
 import webbrowser
-from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
-from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QStyle
+from PyQt6.QtGui import QTextDocument, QTextCursor, QTextCharFormat, QPalette
 from PyQt6.QtCore import QEvent, Qt, QModelIndex, QPointF
-
 
 
 class HyperlinkDelegate(QStyledItemDelegate):
     """
-    Provides a delegate for rendering hyperlinks in item views.
+    Delegate for rendering HTML/hyperlinks in item views.
 
-    This class inherits from QStyledItemDelegate and is used to display and interact with
-    content containing hyperlinks within item views. It renders HTML content and handles
-    mouse events to support hyperlink navigation while preserving the item's intended
-    color.
+    The style draws the item background (selection, hover, focus, alternating rows).
+    Text uses the model's ForegroundRole color when not selected, and the palette's
+    highlighted-text color when selected. Links stay clickable in both states.
     """
-    def paint(self, painter, option, index):
-        """
-        Overrides the paint method to render hyperlinks and colored text in the item view.
 
-        :param painter: QPainter object used for rendering the text.
-        :param option: QStyleOptionViewItem containing options for rendering the item.
-        :param index: QModelIndex providing access to model data.
-        :return: None
-        """
-        doc = self.get_document(option, index)
+    def paint(self, painter, option, index):
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        group = self._color_group(opt)
+
+        if selected:
+            painter.fillRect(opt.rect, opt.palette.brush(group, QPalette.ColorRole.Highlight))
+
+        text_color = opt.palette.brush(group, QPalette.ColorRole.HighlightedText) if selected else None
+        doc = self.get_document(option, index, opt.rect.width(), text_color)
 
         painter.save()
-        painter.translate(option.rect.topLeft())
+        painter.translate(opt.rect.topLeft())
         doc.drawContents(painter)
         painter.restore()
 
     def sizeHint(self, option, index):
-        """
-        Overrides the sizeHint method to return the size of the document element after
-        the formatting is applied to render the HTML correctly.
-
-        :param option: Contains style option controls for rendering items
-        :param index: Refers to the model index of the item
-        :return: Calculated size of the item as a QSize object
-        """
-        doc = self.get_document(option, index)
+        doc = self.get_document(option, index, option.rect.width())
         return doc.size().toSize()
 
-    def get_document(self, option: QStyleOptionViewItem, index: QModelIndex) -> QTextDocument:
-        """
-        Generates a QTextDocument object with formatted HTML content and foreground
-        color based on provided index data.
+    @staticmethod
+    def _selected_brush(opt: QStyleOptionViewItem):
+        """Returns the highlighted-text brush if the item is selected, else None."""
+        if not (opt.state & QStyle.StateFlag.State_Selected):
+            return None
+        if not (opt.state & QStyle.StateFlag.State_Enabled):
+            group = QPalette.ColorGroup.Disabled
+        elif opt.state & QStyle.StateFlag.State_Active:
+            group = QPalette.ColorGroup.Active
+        else:
+            group = QPalette.ColorGroup.Inactive
+        return opt.palette.brush(group, QPalette.ColorRole.HighlightedText)
 
-        :param option: The style option which provides information such as the rectangle
-                       dimensions to adjust the document's text width.
-        :param index: The model index containing data for the document, such as HTML content
-                      and optional foreground color.
-        :return: A QTextDocument object set with the formatted HTML content and modified
-                 foreground color (if applicable).
+    def get_document(self, option: QStyleOptionViewItem, index: QModelIndex,
+                     width: int = 0, color_override=None) -> QTextDocument:
+        """
+        Builds the QTextDocument for an item.
+
+        :param width: Text width to lay out at (<= 0 leaves the width unconstrained).
+        :param color_override: Brush that takes precedence over the model's ForegroundRole
+                               (used for selected text).
         """
         doc = QTextDocument()
-        html = index.data(Qt.ItemDataRole.DisplayRole)
-        doc.setHtml(html)
-        color = index.data(Qt.ItemDataRole.ForegroundRole)
+        doc.setHtml(index.data(Qt.ItemDataRole.DisplayRole) or "")
 
+        color = color_override if color_override is not None else index.data(Qt.ItemDataRole.ForegroundRole)
         if color:
             cursor = QTextCursor(doc)
             cursor.select(QTextCursor.SelectionType.Document)
             fmt = QTextCharFormat()
             fmt.setForeground(color)
-            cursor.mergeCharFormat(fmt)
+            cursor.mergeCharFormat(fmt)  # also recolors anchors, underline is kept
 
-        doc.setTextWidth(option.rect.width())
+        if width > 0:
+            doc.setTextWidth(width)
         return doc
 
+    @staticmethod
+    def _color_group(opt: QStyleOptionViewItem) -> QPalette.ColorGroup:
+        if not (opt.state & QStyle.StateFlag.State_Enabled):
+            return QPalette.ColorGroup.Disabled
+        if opt.state & QStyle.StateFlag.State_Active:
+            return QPalette.ColorGroup.Active
+        return QPalette.ColorGroup.Inactive
+
     def editorEvent(self, event, model, option, index):
-        """
-        Overrides the editorEvent method to handle mouse events for hyperlink navigation.
-        """
         if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
-            doc = QTextDocument()
-            html = index.data(Qt.ItemDataRole.DisplayRole)
-            doc.setHtml(html)
-            pos = event.pos() - option.rect.topLeft()
-            anchor = doc.documentLayout().anchorAt(QPointF(pos))
+            doc = self.get_document(option, index, option.rect.width())
+            pos = event.position() - QPointF(option.rect.topLeft())
+            anchor = doc.documentLayout().anchorAt(pos)
             if anchor:
                 webbrowser.open(anchor)
                 return True
-        return False
+        return super().editorEvent(event, model, option, index)
