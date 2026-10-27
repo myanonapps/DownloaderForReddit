@@ -56,10 +56,7 @@ class OutputViewModel(QAbstractListModel):
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
         if role == Qt.ItemDataRole.DisplayRole:
-            if self.settings_manager.show_priority_level:
-                text = self.display_messages[row].output
-            else:
-                text = self.display_messages[row].message
+            text = self.display_messages[row].to_string(self.settings_manager)
             formatted_text = html_formatting.format_html(text)
             return formatted_text
         if role == Qt.ItemDataRole.ForegroundRole and self.settings_manager.use_color_output:

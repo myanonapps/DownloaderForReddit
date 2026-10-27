@@ -17,208 +17,219 @@
    <item>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QGroupBox" name="output_display_groupbox">
+      <widget class="QGroupBox" name="output_content_groupbox">
        <property name="title">
-        <string>Output Display</string>
+        <string>Output Content</string>
        </property>
-       <layout class="QFormLayout" name="formLayout">
-        <item row="0" column="0">
+       <layout class="QFormLayout" name="formLayout_3">
+        <item row="1" column="0">
          <widget class="QLabel" name="label">
           <property name="toolTip">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The level of message that will be displayed in the output window. All levels above the selected will be displayed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="text">
-           <string>Output priority level:</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="priority_level_combo"/>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If selected, each message shown in the output will start with the message's priority level&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Output priority level:</string>
+           <string>Priority level filter:</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QCheckBox" name="show_priority_level_checkbox">
+         <widget class="QComboBox" name="priority_level_combo"/>
+        </item>
+        <item row="5" column="0" colspan="2">
+         <layout class="QHBoxLayout" name="horizontalLayout_2"/>
+        </item>
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="clear_on_run_checkbox">
           <property name="text">
-           <string/>
+           <string>Clear each run</string>
           </property>
          </widget>
         </item>
         <item row="2" column="0">
-         <widget class="QLabel" name="label_3">
+         <widget class="QCheckBox" name="output_saved_content_checkbox">
           <property name="text">
-           <string>Clear output on run:</string>
+           <string>Include saved content</string>
           </property>
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QCheckBox" name="clear_on_run_checkbox">
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0" colspan="2">
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0" colspan="2">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QLabel" name="label_4">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If checked, when content is downloaded the full path of the content will be shown in the output window.  If not checked, it will be the user/subreddit name followed by the content title.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Output saved content full path: </string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="output_saved_content_full_path_checkbox">
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <widget class="QComboBox" name="output_saved_content_combo"/>
         </item>
        </layout>
       </widget>
      </item>
      <item>
-      <widget class="QGroupBox" name="color_groupbox">
+      <widget class="QGroupBox" name="output_display_groupbox">
        <property name="title">
-        <string>Output Colors</string>
+        <string>Output Format</string>
        </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <layout class="QFormLayout" name="formLayout_2">
-        <item row="0" column="0">
-         <widget class="QLabel" name="debug_color_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>DEBUG output color</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QPushButton" name="change_debug_color_button">
-          <property name="text">
-           <string>Change</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="info_color_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>INFO output color</string>
-          </property>
-         </widget>
+       <layout class="QFormLayout" name="formLayout">
+        <item row="4" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout_3"/>
         </item>
         <item row="1" column="1">
-         <widget class="QPushButton" name="change_info_color_button">
-          <property name="text">
-           <string>Change</string>
+         <widget class="QGroupBox" name="color_groupbox">
+          <property name="title">
+           <string>Output Colors</string>
           </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <layout class="QFormLayout" name="formLayout_2">
+           <item row="0" column="0">
+            <widget class="QLabel" name="debug_color_label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>DEBUG output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="change_debug_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="info_color_label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>INFO output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="change_info_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="warning_color_label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>WARNING output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QPushButton" name="change_warning_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="error_color_label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>ERROR output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QPushButton" name="change_error_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="critical_color_label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>CRITICAL output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QPushButton" name="change_critical_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="requested_color_label">
+             <property name="text">
+              <string>REQUESTED output color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QPushButton" name="change_requested_color_button">
+             <property name="text">
+              <string>Change</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </widget>
         </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="warning_color_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
+        <item row="4" column="1">
+         <widget class="QCheckBox" name="show_session_id_checkbox">
           <property name="text">
-           <string>WARNING output color</string>
+           <string>Show download session</string>
           </property>
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QPushButton" name="change_warning_color_button">
+         <widget class="QCheckBox" name="show_priority_level_checkbox">
           <property name="text">
-           <string>Change</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="error_color_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>ERROR output color</string>
+           <string>Show priority level</string>
           </property>
          </widget>
         </item>
         <item row="3" column="1">
-         <widget class="QPushButton" name="change_error_color_button">
-          <property name="text">
-           <string>Change</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="critical_color_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>CRITICAL output color</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
-         <widget class="QPushButton" name="change_critical_color_button">
-          <property name="text">
-           <string>Change</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="requested_color_label">
-          <property name="text">
-           <string>REQUESTED output color</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="1">
-         <widget class="QPushButton" name="change_requested_color_button">
-          <property name="text">
-           <string>Change</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="show_datetime_layout">
+          <item>
+           <widget class="QCheckBox" name="show_datetime_checkbox">
+            <property name="text">
+             <string>Show time</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="datetime_format_edit">
+            <property name="toolTip">
+             <string>Date/time format (strftime), e.g. %m/%d/%y %I:%M:%S %p</string>
+            </property>
+            <property name="text">
+             <string>%m/%d/%y %I:%M:%S %p</string>
+            </property>
+            <property name="placeholderText">
+             <string>%m/%d/%y %I:%M:%S %p</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>

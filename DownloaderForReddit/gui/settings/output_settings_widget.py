@@ -1,9 +1,11 @@
+
 from PyQt6.QtWidgets import QColorDialog
 from PyQt6.QtCore import Qt
 
 from DownloaderForReddit.guiresources.settings.output_settings_widget_auto import Ui_OutputSettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
-from ...messaging.message import MessagePriority
+from ...messaging.message import ContentOutput, MessagePriority
+
 
 
 class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
@@ -15,6 +17,8 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         for x in MessagePriority:
             self.priority_level_combo.addItem(x.name, x)
             self.connect_color_picker_buttons(x.name.lower())
+        for x in ContentOutput:
+            self.output_saved_content_combo.addItem(x.value, x)
         self.debug_color_label.setStyleSheet('background-color: white;')
 
     def connect_color_picker_buttons(self, priority):
@@ -24,8 +28,14 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
     def load_settings(self):
         self.priority_level_combo.setCurrentText(self.settings.output_priority_level.name)
         self.show_priority_level_checkbox.setChecked(self.settings.show_priority_level)
+        self.show_datetime_checkbox.setChecked(self.settings.show_datetime)
+        self.show_session_id_checkbox.setChecked(self.settings.show_session_id)
         self.clear_on_run_checkbox.setChecked(self.settings.clear_messages_on_run)
-        self.output_saved_content_full_path_checkbox.setChecked(self.settings.output_saved_content_full_path)
+        self.datetime_format_edit.setText(self.settings.datetime_format)
+        self.output_saved_content_checkbox.setChecked(self.settings.output_saved_content)
+        for x in ContentOutput:
+            if self.settings.output_saved_content_format == x.name:
+                self.output_saved_content_combo.setCurrentText(x.value)
         self.color_groupbox.setChecked(self.settings.use_color_output)
 
         for x in MessagePriority:
@@ -61,8 +71,12 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
             self.settings.output_priority_level = self.priority_level_combo.currentData(Qt.ItemDataRole.UserRole)
             self.main_window.update_output()
         self.settings.show_priority_level = self.show_priority_level_checkbox.isChecked()
+        self.settings.show_datetime = self.show_datetime_checkbox.isChecked()
+        self.settings.show_session_id = self.show_session_id_checkbox.isChecked()
         self.settings.clear_messages_on_run = self.clear_on_run_checkbox.isChecked()
-        self.settings.output_saved_content_full_path = self.output_saved_content_full_path_checkbox.isChecked()
+        self.settings.datetime_format = self.datetime_format_edit.text()
+        self.settings.output_saved_content = self.output_saved_content_checkbox.isChecked()
+        self.settings.output_saved_content_format = self.output_saved_content_combo.currentData(Qt.ItemDataRole.UserRole).name
         self.settings.use_color_output = self.color_groupbox.isChecked()
         for key, value in self.colors.items():
             setattr(self.settings, f'{key}_color', value)

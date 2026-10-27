@@ -7,7 +7,7 @@ from ..utils import system_util
 from ..core import const
 from ..database.model_enums import LimitOperator,DuplicateControlMethod,NsfwFilter,CommentDownload,CommentSortMethod, PostDownloadSource,PostSortMethod
 from ..database import model_enums
-from ..messaging.message import MessagePriority
+from ..messaging.message import ContentOutput, MessagePriority
 
 
 class SettingsManager:
@@ -157,8 +157,12 @@ class SettingsManager:
         self.critical_color = self.get('output', 'critical_color', [255, 0, 0])
         self.requested_color = self.get('output', 'requested_color', [0, 0, 0])
         self.show_priority_level = self.get('output', 'show_priority_level', True)
+        self.show_datetime = self.get('output', 'show_datetime', False)
+        self.show_session_id = self.get('output', 'show_session_id', False)
+        self.datetime_format = self.get('output', 'datetime_format', "%m/%d/%y %I:%M:%S %p")
         self.clear_messages_on_run = self.get('output', 'clear_messages_on_run', True)
-        self.output_saved_content_full_path = self.get('output', 'output_saved_content_full_path', False)
+        self.output_saved_content = self.get('output', 'output_saved_content', False)
+        self.output_saved_content_format = self.get('output', 'output_saved_content_format', ContentOutput.FULL_PATH.name)
         # endregion
 
         # region Display Settings

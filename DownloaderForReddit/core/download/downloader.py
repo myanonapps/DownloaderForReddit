@@ -8,7 +8,7 @@ from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.core.errors import Error
 from DownloaderForReddit.utils import injector, system_util, general_utils
 from DownloaderForReddit.database import Content
-from DownloaderForReddit.messaging.message import Message
+from DownloaderForReddit.messaging.message import ContentOutput, Message
 
 from .multipart_downloader import MultipartDownloader
 from . import HEADERS
@@ -197,7 +197,8 @@ class Downloader(Runner):
             self.handle_date_modified(content)
             content.set_downloaded(self.download_session_id)
             self.download_count += 1
-            self.output_downloaded_message(content)
+            if self.settings_manager.output_saved_content:
+                self.output_downloaded_message(content)
         else:
             self.handle_download_stopped(content)
 
@@ -248,18 +249,18 @@ class Downloader(Runner):
         Retrieve the appropriate output data for the downloaded content based on the settings configuration.
 
         This method determines whether to return the full file path of the downloaded content or a formatted string
-        containing the username and title. The behavior is controlled by the `output_saved_content_full_path` setting
+        containing the username and title. The behavior is controlled by the `output_saved_content_format` setting
         in the `settings_manager`.
 
         :param content: The content object for which the output data is generated. It contains details like the
             user's name and the content's title.
-        :return: If the `output_saved_content_full_path` setting is enabled, returns the full file path of the content.
-            Otherwise, returns a formatted string containing the username and the title of the content.
+        :return: Based on the `output_saved_content_format` setting
         """
-        if self.settings_manager.output_saved_content_full_path:
+        if self.settings_manager.output_saved_content_format == ContentOutput.FULL_PATH.name:
             return content.get_full_file_path()
-        else:
+        elif self.settings_manager.output_saved_content_format == ContentOutput.USER_TITLE.name:
             return f'{content.user.name}: {content.title}'
+        return ""
 
     def handle_download_stopped(self, content: Content) -> None:
         """
