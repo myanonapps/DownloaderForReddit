@@ -20,7 +20,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>../images/RedditDownloaderIcon.png</normaloff>../images/RedditDownloaderIcon.png</iconset>
+    <normaloff>C:/Users/David/images/RedditDownloaderIcon.png</normaloff>C:/Users/David/images/RedditDownloaderIcon.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -185,91 +185,6 @@
       <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <layout class="QHBoxLayout" name="download_button_layout">
-          <item>
-           <widget class="QPushButton" name="download_button">
-            <property name="font">
-             <font>
-              <pointsize>10</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Download selected user or subreddit list</string>
-            </property>
-            <property name="text">
-             <string>Download</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="soft_stop_download_button">
-            <property name="font">
-             <font>
-              <pointsize>10</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Stops the current download, but allows in progress downloads to finish</string>
-            </property>
-            <property name="text">
-             <string>Stop Download</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="terminate_download_button">
-            <property name="toolTip">
-             <string>Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)</string>
-            </property>
-            <property name="text">
-             <string>Terminate Download</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <item>
-           <widget class="QRadioButton" name="download_users_radio">
-            <property name="toolTip">
-             <string>Download only user list</string>
-            </property>
-            <property name="text">
-             <string>Users</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="download_subreddits_radio">
-            <property name="toolTip">
-             <string>Download only subreddit list</string>
-            </property>
-            <property name="text">
-             <string>Subreddits</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="constain_to_sub_list_radio">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Download user list, but only extract posts made to subreddits in the subreddit list&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Constrain Users To Subreddit List</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QWidget" name="schedule_widget" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
@@ -293,26 +208,6 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
-           <item>
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>Download Scheduled:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="schedule_label">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>00:00:00</string>
-             </property>
-            </widget>
-           </item>
           </layout>
          </widget>
         </item>
@@ -546,6 +441,78 @@ QListView::item:active {
    <addaction name="menuDatabase"/>
    <addaction name="menuDownload"/>
    <addaction name="help_menu"/>
+  </widget>
+  <widget class="QToolBar" name="download_toolbar">
+   <property name="windowTitle">
+    <string>Download Toolbar</string>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QToolBar {
+	spacing: 6px;
+	padding: 4px 6px;
+	border: none;
+	border-bottom: 1px solid #c8c8c8;
+	background: #f3f3f3;
+}
+
+QToolBar::separator {
+	width: 1px;
+	background: #c8c8c8;
+	margin: 4px 8px;
+}
+
+QToolButton {
+	padding: 5px 12px;
+	border: 1px solid #b4b4b4;
+	border-radius: 4px;
+	color: #202020;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #e4e4e4);
+}
+
+QToolButton:hover {
+	border-color: #3d7fd6;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f6faff, stop:1 #d9e9fb);
+}
+
+QToolButton:pressed {
+	border-color: #2a6cc4;
+	background: #c9ddf5;
+	padding-top: 6px;
+	padding-bottom: 4px;
+}
+
+QToolButton:disabled {
+	color: #9a9a9a;
+	border-color: #d6d6d6;
+	background: #efefef;
+}
+
+QToolBar QLabel {
+	padding: 0px 4px;
+}</string>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>20</width>
+     <height>20</height>
+    </size>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextBesideIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="download_action"/>
+   <addaction name="soft_stop_download_action"/>
+   <addaction name="terminate_download_action"/>
+   <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="add_user_list_menu_item">
@@ -805,6 +772,30 @@ QListView::item:active {
   <action name="connect_reddit_account_menu_item">
    <property name="text">
     <string>Connect Reddit Account</string>
+   </property>
+  </action>
+  <action name="download_action">
+   <property name="text">
+    <string>Download</string>
+   </property>
+   <property name="toolTip">
+    <string>Download selected user or subreddit list</string>
+   </property>
+  </action>
+  <action name="soft_stop_download_action">
+   <property name="text">
+    <string>Stop</string>
+   </property>
+   <property name="toolTip">
+    <string>Stops the current download, but allows in progress downloads to finish</string>
+   </property>
+  </action>
+  <action name="terminate_download_action">
+   <property name="text">
+    <string>Terminate</string>
+   </property>
+   <property name="toolTip">
+    <string>Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)</string>
    </property>
   </action>
  </widget>

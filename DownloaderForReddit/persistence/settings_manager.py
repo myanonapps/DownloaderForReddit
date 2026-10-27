@@ -1,3 +1,4 @@
+from enum import StrEnum
 import os
 import logging
 import toml
@@ -9,6 +10,10 @@ from ..database.model_enums import LimitOperator,DuplicateControlMethod,NsfwFilt
 from ..database import model_enums
 from ..messaging.message import ContentOutput, MessagePriority
 
+class DownloadScope(StrEnum):
+    USERS = "Users"
+    SUBREDDITS = "Subreddits"
+    USERS_CONSTRAINED = "Users constrained to subreddit list"
 
 class SettingsManager:
 
@@ -56,6 +61,8 @@ class SettingsManager:
         self.pull_push_access = self.get('core', 'pull_push_access', None)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
         self.validate_names_before_download = self.get('core', 'validate_names_before_download', False)
+
+        self.download_scope = self.get('core', 'download_scope', DownloadScope.USERS.name)
 
         default_extractor_dict = {
             extractor.__name__: True for extractor in BaseExtractor.__subclasses__()

@@ -17,7 +17,7 @@ class Ui_MainWindow(object):
         font.setPointSize(10)
         MainWindow.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/RedditDownloaderIcon.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap("C:/Users/David/images/RedditDownloaderIcon.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(parent=MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -116,41 +116,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.layoutWidget2)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.download_button_layout = QtWidgets.QHBoxLayout()
-        self.download_button_layout.setObjectName("download_button_layout")
-        self.download_button = QtWidgets.QPushButton(parent=self.layoutWidget2)
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.download_button.setFont(font)
-        self.download_button.setObjectName("download_button")
-        self.download_button_layout.addWidget(self.download_button)
-        self.soft_stop_download_button = QtWidgets.QPushButton(parent=self.layoutWidget2)
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.soft_stop_download_button.setFont(font)
-        self.soft_stop_download_button.setObjectName("soft_stop_download_button")
-        self.download_button_layout.addWidget(self.soft_stop_download_button)
-        self.terminate_download_button = QtWidgets.QPushButton(parent=self.layoutWidget2)
-        self.terminate_download_button.setObjectName("terminate_download_button")
-        self.download_button_layout.addWidget(self.terminate_download_button)
-        self.verticalLayout_3.addLayout(self.download_button_layout)
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.download_users_radio = QtWidgets.QRadioButton(parent=self.layoutWidget2)
-        self.download_users_radio.setObjectName("download_users_radio")
-        self.horizontalLayout_3.addWidget(self.download_users_radio)
-        self.download_subreddits_radio = QtWidgets.QRadioButton(parent=self.layoutWidget2)
-        self.download_subreddits_radio.setObjectName("download_subreddits_radio")
-        self.horizontalLayout_3.addWidget(self.download_subreddits_radio)
-        self.constain_to_sub_list_radio = QtWidgets.QRadioButton(parent=self.layoutWidget2)
-        self.constain_to_sub_list_radio.setObjectName("constain_to_sub_list_radio")
-        self.horizontalLayout_3.addWidget(self.constain_to_sub_list_radio)
-        self.verticalLayout_3.addLayout(self.horizontalLayout_3)
-        self.line = QtWidgets.QFrame(parent=self.layoutWidget2)
-        self.line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-        self.line.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
-        self.line.setObjectName("line")
-        self.verticalLayout_3.addWidget(self.line)
         self.schedule_widget = QtWidgets.QWidget(parent=self.layoutWidget2)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
         sizePolicy.setHorizontalStretch(0)
@@ -163,17 +128,6 @@ class Ui_MainWindow(object):
         self.horizontalLayout_8.setContentsMargins(-1, 0, -1, 0)
         self.horizontalLayout_8.setSpacing(15)
         self.horizontalLayout_8.setObjectName("horizontalLayout_8")
-        self.label_3 = QtWidgets.QLabel(parent=self.schedule_widget)
-        self.label_3.setObjectName("label_3")
-        self.horizontalLayout_8.addWidget(self.label_3)
-        self.schedule_label = QtWidgets.QLabel(parent=self.schedule_widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.schedule_label.sizePolicy().hasHeightForWidth())
-        self.schedule_label.setSizePolicy(sizePolicy)
-        self.schedule_label.setObjectName("schedule_label")
-        self.horizontalLayout_8.addWidget(self.schedule_label)
         self.verticalLayout_3.addWidget(self.schedule_widget)
         self.stats_layout = QtWidgets.QHBoxLayout()
         self.stats_layout.setSpacing(6)
@@ -253,6 +207,55 @@ class Ui_MainWindow(object):
         self.menuDatabase = QtWidgets.QMenu(parent=self.menubar)
         self.menuDatabase.setObjectName("menuDatabase")
         MainWindow.setMenuBar(self.menubar)
+        self.download_toolbar = QtWidgets.QToolBar(parent=MainWindow)
+        self.download_toolbar.setStyleSheet("QToolBar {\n"
+"    spacing: 6px;\n"
+"    padding: 4px 6px;\n"
+"    border: none;\n"
+"    border-bottom: 1px solid #c8c8c8;\n"
+"    background: #f3f3f3;\n"
+"}\n"
+"\n"
+"QToolBar::separator {\n"
+"    width: 1px;\n"
+"    background: #c8c8c8;\n"
+"    margin: 4px 8px;\n"
+"}\n"
+"\n"
+"QToolButton {\n"
+"    padding: 5px 12px;\n"
+"    border: 1px solid #b4b4b4;\n"
+"    border-radius: 4px;\n"
+"    color: #202020;\n"
+"    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #e4e4e4);\n"
+"}\n"
+"\n"
+"QToolButton:hover {\n"
+"    border-color: #3d7fd6;\n"
+"    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f6faff, stop:1 #d9e9fb);\n"
+"}\n"
+"\n"
+"QToolButton:pressed {\n"
+"    border-color: #2a6cc4;\n"
+"    background: #c9ddf5;\n"
+"    padding-top: 6px;\n"
+"    padding-bottom: 4px;\n"
+"}\n"
+"\n"
+"QToolButton:disabled {\n"
+"    color: #9a9a9a;\n"
+"    border-color: #d6d6d6;\n"
+"    background: #efefef;\n"
+"}\n"
+"\n"
+"QToolBar QLabel {\n"
+"    padding: 0px 4px;\n"
+"}")
+        self.download_toolbar.setMovable(False)
+        self.download_toolbar.setIconSize(QtCore.QSize(20, 20))
+        self.download_toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.download_toolbar.setObjectName("download_toolbar")
+        MainWindow.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self.download_toolbar)
         self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
@@ -355,6 +358,12 @@ class Ui_MainWindow(object):
         self.minimize_to_tray_menu_item.setObjectName("minimize_to_tray_menu_item")
         self.connect_reddit_account_menu_item = QtGui.QAction(parent=MainWindow)
         self.connect_reddit_account_menu_item.setObjectName("connect_reddit_account_menu_item")
+        self.download_action = QtGui.QAction(parent=MainWindow)
+        self.download_action.setObjectName("download_action")
+        self.soft_stop_download_action = QtGui.QAction(parent=MainWindow)
+        self.soft_stop_download_action.setObjectName("soft_stop_download_action")
+        self.terminate_download_action = QtGui.QAction(parent=MainWindow)
+        self.terminate_download_action.setObjectName("terminate_download_action")
         self.file_menu.addAction(self.open_settings_menu_item)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.connect_reddit_account_menu_item)
@@ -410,6 +419,10 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuDatabase.menuAction())
         self.menubar.addAction(self.menuDownload.menuAction())
         self.menubar.addAction(self.help_menu.menuAction())
+        self.download_toolbar.addAction(self.download_action)
+        self.download_toolbar.addAction(self.soft_stop_download_action)
+        self.download_toolbar.addAction(self.terminate_download_action)
+        self.download_toolbar.addSeparator()
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -429,23 +442,9 @@ class Ui_MainWindow(object):
         self.subreddit_list_combo.setToolTip(_translate("MainWindow", "Current subreddit list"))
         self.add_subreddit_button.setText(_translate("MainWindow", "Add Subreddit"))
         self.remove_subreddit_button.setText(_translate("MainWindow", "Remove Subreddit"))
-        self.download_button.setToolTip(_translate("MainWindow", "Download selected user or subreddit list"))
-        self.download_button.setText(_translate("MainWindow", "Download"))
-        self.soft_stop_download_button.setToolTip(_translate("MainWindow", "Stops the current download, but allows in progress downloads to finish"))
-        self.soft_stop_download_button.setText(_translate("MainWindow", "Stop Download"))
-        self.terminate_download_button.setToolTip(_translate("MainWindow", "Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)"))
-        self.terminate_download_button.setText(_translate("MainWindow", "Terminate Download"))
-        self.download_users_radio.setToolTip(_translate("MainWindow", "Download only user list"))
-        self.download_users_radio.setText(_translate("MainWindow", "Users"))
-        self.download_subreddits_radio.setToolTip(_translate("MainWindow", "Download only subreddit list"))
-        self.download_subreddits_radio.setText(_translate("MainWindow", "Subreddits"))
-        self.constain_to_sub_list_radio.setToolTip(_translate("MainWindow", "<html><head/><body><p>Download user list, but only extract posts made to subreddits in the subreddit list</p></body></html>"))
-        self.constain_to_sub_list_radio.setText(_translate("MainWindow", "Constrain Users To Subreddit List"))
-        self.label_3.setText(_translate("MainWindow", "Download Scheduled:"))
-        self.schedule_label.setText(_translate("MainWindow", "00:00:00"))
         self.session_stats_group.setToolTip(_translate("MainWindow", "Statistics for the current session"))
         self.session_stats_group.setTitle(_translate("MainWindow", "Last Session"))
-        self.session_stats_label.setText(_translate("MainWindow", "Run Time: 0 secs\n"
+        self.session_stats_label.setText(_translate("MainWindow", "Run Time: 0 for 0 secs\n"
 "Rate Limit: 0 for 0 secs\n"
 "Download Count: 0\n"
 "Downloaded Users: 0\n"
@@ -469,6 +468,7 @@ class Ui_MainWindow(object):
         self.list_order_menu_item.setTitle(_translate("MainWindow", "Sort Order"))
         self.menuDownload.setTitle(_translate("MainWindow", "Download"))
         self.menuDatabase.setTitle(_translate("MainWindow", "Database"))
+        self.download_toolbar.setWindowTitle(_translate("MainWindow", "Download Toolbar"))
         self.add_user_list_menu_item.setText(_translate("MainWindow", "Add User List"))
         self.add_subreddit_list_menu_item.setText(_translate("MainWindow", "Add Subreddit List"))
         self.file_save.setText(_translate("MainWindow", "Save"))
@@ -519,3 +519,9 @@ class Ui_MainWindow(object):
         self.command_line_options_menu_item.setText(_translate("MainWindow", "Command Line Options"))
         self.minimize_to_tray_menu_item.setText(_translate("MainWindow", "Minimize To Tray"))
         self.connect_reddit_account_menu_item.setText(_translate("MainWindow", "Connect Reddit Account"))
+        self.download_action.setText(_translate("MainWindow", "Download"))
+        self.download_action.setToolTip(_translate("MainWindow", "Download selected user or subreddit list"))
+        self.soft_stop_download_action.setText(_translate("MainWindow", "Stop"))
+        self.soft_stop_download_action.setToolTip(_translate("MainWindow", "Stops the current download, but allows in progress downloads to finish"))
+        self.terminate_download_action.setText(_translate("MainWindow", "Terminate"))
+        self.terminate_download_action.setToolTip(_translate("MainWindow", "Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)"))

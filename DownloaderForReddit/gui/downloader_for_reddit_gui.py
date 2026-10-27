@@ -28,8 +28,8 @@ import json
 import platform
 from datetime import datetime
 import logging
-from PyQt6.QtWidgets import (QMainWindow, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
-                             QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
+from PyQt6.QtWidgets import (QComboBox, QMainWindow, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
+                             QMessageBox, QStyle, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
 from PyQt6.QtCore import QModelIndex, QThread, Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QCursor, QPixmap, QIcon, QActionGroup
 from PyQt6.QtGui import QColor
@@ -39,6 +39,7 @@ from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
+from DownloaderForReddit.persistence.settings_manager import DownloadScope
 
 from ..core.user_auth import UserAuth
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
@@ -60,7 +61,7 @@ from ..core.cli import CLI
 from ..database.models import RedditObject, RedditObjectList, ListAssociation
 from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
-from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker, reddit_utils)
+from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker)
 from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 from ..viewmodels.output_view_model import OutputViewModel
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
@@ -68,6 +69,19 @@ from ..messaging.message import MessageType, MessagePriority, Message
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..version import __version__
 
+
+class ClickableLabel(QLabel):
+    clicked = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mouseReleaseEvent(self, event):
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self.rect().contains(event.position().toPoint())):
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
@@ -118,12 +132,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.move(geom['x'], geom['y'])
         self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
 
-        if self.settings_manager.download_radio_state == 'USER':
-            self.download_users_radio.setChecked(True)
-        elif self.settings_manager.download_radio_state == 'SUBREDDIT':
-            self.download_subreddits_radio.setChecked(True)
-        else:
-            self.constain_to_sub_list_radio.setChecked(True)
         # endregion
 
         self.queue = queue
@@ -236,10 +244,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_search_edit.textChanged.connect(
             lambda text: self.subreddit_list_model.search_list(text))
 
-        self.download_button.clicked.connect(self.run_full_download)
-        self.soft_stop_download_button.clicked.connect(lambda: self.stop_download_signal.emit(False))
-        self.terminate_download_button.clicked.connect(lambda: self.stop_download_signal.emit(True))
-        self.shift_download_buttons()
+        self.download_action.triggered.connect(self.run_full_download)
+        self.soft_stop_download_action.triggered.connect(lambda: self.stop_download_signal.emit(False))
+        self.terminate_download_action.triggered.connect(lambda: self.stop_download_signal.emit(True))
+        self.update_download_action_states()
 
         self.add_user_button.clicked.connect(self.add_user)
         self.remove_user_button.clicked.connect(self.remove_user)
@@ -269,9 +277,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.subreddit_list_combo.customContextMenuRequested.connect(self.subreddit_list_combo_context_menu)
 
-        self.schedule_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.schedule_widget.customContextMenuRequested.connect(self.schedule_context_menu)
-
         self.output_list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.output_list_view.customContextMenuRequested.connect(self.output_context_menu)
 
@@ -298,6 +303,43 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.statusbar.addPermanentWidget(self.progress_label)
         self.progress_label.setText('Extraction Complete')
         self.progress_label.setVisible(False)
+
+        self.download_scope_combo = QComboBox()
+        for x in DownloadScope:
+            self.download_scope_combo.addItem(x.value, x)
+
+        style = self.style()
+        SP = QStyle.StandardPixmap
+
+        self.download_action.setIcon(style.standardIcon(SP.SP_MediaPlay))
+        self.soft_stop_download_action.setIcon(style.standardIcon(SP.SP_MediaStop))
+        self.terminate_download_action.setIcon(style.standardIcon(SP.SP_BrowserStop))
+
+        scope_label = QLabel("Scope:")
+        scope_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+
+        # match the height of the toolbar buttons
+        button_height = self.download_toolbar.widgetForAction(self.download_action).sizeHint().height()
+        scope_label.setFixedHeight(button_height)
+        self.download_scope_combo.setFixedHeight(button_height)
+
+        self.download_toolbar.addWidget(scope_label)
+        self.download_toolbar.addWidget(self.download_scope_combo)
+        self.download_toolbar.addSeparator()
+        self.schedule_label = ClickableLabel("Next scheduled: ")
+        self.schedule_label.setToolTip("Open schedule settings")
+        self.schedule_label.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.schedule_label.setStyleSheet("QLabel:hover { color: #2a6cc4; }")
+        self.schedule_label.clicked.connect(
+                                        lambda: self.open_settings_dialog(open_display='Scheduled Downloads')
+                                        )
+        self.download_toolbar.addWidget(self.schedule_label)
+        self.schedule_countdown_label = QLabel("00:00:00")
+        self.download_toolbar.addWidget(self.schedule_countdown_label)
+
+        for x in DownloadScope:
+            if x.name == self.settings_manager.download_scope:
+                self.download_scope_combo.setCurrentText(x.value)
 
         self.setup_system_tray_icon()
 
@@ -525,11 +567,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_model.refresh_session()
         self.subreddit_list_model.refresh_session()
 
-    def schedule_context_menu(self):
-        menu = QMenu()
-        menu.addAction('Schedule Settings', lambda: self.open_settings_dialog(open_display='Schedule'))
-        menu.exec(QCursor.pos())
-
     def output_context_menu(self):
         menu = QMenu()
         menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
@@ -657,12 +694,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             'run_unextracted': run_unextracted,
             'run_undownloaded': run_undownloaded
         }
-        if self.download_users_radio.isChecked():
+        scope = self.download_scope_combo.currentData()
+        if scope == DownloadScope.USERS:
             self.download_user_list(**kwargs)
-        elif self.download_subreddits_radio.isChecked():
+        elif scope == DownloadScope.SUBREDDITS:
             self.download_subreddit_list(**kwargs)
-        else:
+        elif scope == DownloadScope.USERS_CONSTRAINED:
             self.download_user_list_constrained(**kwargs)
+        else:
+            return
 
     def download_user_list(self, **kwargs):
         user_id_list = self.user_list_model.get_id_list()
@@ -860,13 +900,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setValue(self.progress)
 
     def update_scheduled_download(self, countdown):
-        if countdown is not None and self.settings_manager.show_schedule_countdown != 'DO_NOT_SHOW':
-            self.schedule_widget.setVisible(True)
-            self.schedule_label.setText(countdown)
+        self.schedule_label.setVisible(self.settings_manager.show_schedule_countdown == 'SHOW')
+        self.schedule_countdown_label.setVisible(self.settings_manager.show_schedule_countdown == 'SHOW')
+        if countdown is None:
+            self.schedule_countdown_label.setText("No Download Scheduled")
         else:
-            self.schedule_label.setText('No Download Scheduled')
-            if self.settings_manager.show_schedule_countdown != 'SHOW':
-                self.schedule_widget.setVisible(False)
+            self.schedule_countdown_label.setText(countdown)
 
     def add_user_list(self, *, list_name=None):
         if list_name is None:
@@ -1246,7 +1285,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.statusbar.clearMessage()
         self.progress_label.setVisible(False)
         self.progress_bar.setVisible(True)
-        self.shift_download_buttons()
+        self.update_download_action_states()
         self.setup_run_timer()
         self.system_tray_icon.setToolTip('Downloader For Reddit (running)')
 
@@ -1255,7 +1294,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.running = False
         self.progress_bar.setVisible(False)
         self.potential_downloads = 0
-        self.shift_download_buttons()
+        self.update_download_action_states()
         self.timer_widget.setVisible(False)
         self.run_time = 0
         # list models are sorted to refresh the display list and
@@ -1264,10 +1303,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.check_invalid()
         self.system_tray_icon.setToolTip('Downloader For Reddit')
 
-    def shift_download_buttons(self):
-        self.download_button.setVisible(not self.running)
-        self.soft_stop_download_button.setVisible(self.running)
-        self.terminate_download_button.setVisible(self.running)
+    def update_download_action_states(self):
+        self.download_action.setEnabled(not self.running)
+        self.soft_stop_download_action.setEnabled(self.running)
+        self.terminate_download_action.setEnabled(self.running)
 
     def check_invalid(self):
         if len(self.invalid_list) > 0:
@@ -1415,13 +1454,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager.horizontal_splitter_state = self.horz_splitter.sizes()
         self.settings_manager.current_user_list = self.user_lists_combo.currentText()
         self.settings_manager.current_subreddit_list = self.subreddit_list_combo.currentText()
+        self.settings_manager.download_scope = self.download_scope_combo.currentData().name
 
-        if self.download_users_radio.isChecked():
-            self.settings_manager.download_radio_state = 'USER'
-        elif self.download_subreddits_radio.isChecked():
-            self.settings_manager.download_radio_state = 'SUBREDDIT'
-        else:
-            self.settings_manager.download_radio_state = 'CONSTRAIN'
 
     def load_state(self):
         """
