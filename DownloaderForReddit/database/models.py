@@ -494,13 +494,13 @@ class DownloadSession(BaseModel):
 
     def get_duration(self) -> float:
         return self.duration
-    
+
     def get_rate_limit_count(self) -> int:
         return self.rate_limit_count
 
     def get_rate_limit_duration(self) -> int:
         return self.rate_limit_duration
-    
+
     def get_downloaded_reddit_object_count(self, session=None):
         if session is None:
             session = self.get_session()

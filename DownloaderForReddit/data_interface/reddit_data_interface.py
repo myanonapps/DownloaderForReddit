@@ -57,7 +57,7 @@ class RedditDataInterface(ABC):
 
     def get_access_url(self) -> QUrl:
         return self._access_url
-    
+
     def increment_rate_limit_count(self):
         """Increment the rate limit count in the download session."""
         if self._download_session is not None:
@@ -138,7 +138,7 @@ class RedditDataInterface(ABC):
         pass
 
     @abstractmethod
-    def redditor_hardcoded(self, name: str, user_id:str|None=None) -> Any:
+    def redditor_hardcoded(self, name: str, user_id:str|None=None, created:datetime|None=None) -> Any:
         """
         Create a redditor (user) object by hand.
         
@@ -160,6 +160,20 @@ class RedditDataInterface(ABC):
             
         Returns:
             Subreddit object from the Reddit Data Interface
+        """
+        pass
+
+    @abstractmethod
+    def subreddit_hardcoded(self, name: str, sub_id:str|None=None, created:datetime|None=None) -> Any:
+        """
+        Create a subreddit by hand.
+        
+        Args:
+            name: The subreddit object name
+            sub_id: The subreddit object id
+            
+        Returns:
+            Subreddit object from data
         """
         pass
 
@@ -263,7 +277,7 @@ class RedditDataInterface(ABC):
             # Works for both seconds (e.g., 1792233600) and milliseconds
             timestamp = float(reset_at)
             # If the timestamp is way in the future, it might be in milliseconds
-            if timestamp > 1e11: 
+            if timestamp > 1e11:
                 timestamp /= 1000
             reset_datetime = datetime.fromtimestamp(timestamp, timezone.utc)
         except ValueError:

@@ -137,20 +137,23 @@ class ArcticShiftAdapter(RedditDataInterface):
             data = {}
         return AdapterRedditor(self._source, data)
 
-    def redditor_hardcoded(self, name: str, user_id:str|None=None)  -> AdapterRedditor:
+    def redditor_hardcoded(self, name: str, user_id:str|None=None, created:datetime|None=None)  -> AdapterRedditor:
         """
         Create a redditor (user) object by hand.
         
         Args:
             name: The Reddit username
+            user_id: The Reddit user id
             
         Returns:
             Redditor object from data
         """
         data = {"author": name, "fullname": name, "id": user_id}
+        if created:
+            data.update({"created": created.timestamp(), "created_utc": created.timestamp()})
         return AdapterRedditor(self._source, data)
 
-    def subreddit(self, name: str) -> Any:
+    def subreddit(self, name: str) -> AdapterSubreddit:
         """
         Get a subreddit by name.
         
@@ -170,8 +173,25 @@ class ArcticShiftAdapter(RedditDataInterface):
             else:
                 data = {}
         else:
-            data = {}        
+            data = {}
         return AdapterSubreddit(self._source, data)
+
+    def subreddit_hardcoded(self, name: str, sub_id:str|None=None, created:datetime|None=None)  -> AdapterSubreddit:
+        """
+        Create a subreddit object by hand.
+        
+        Args:
+            name: The subreddit name
+            sub_id: The subreddit id
+            
+        Returns:
+            Subreddit object from the Arctic Shift API
+        """
+        data = {"name": name, "id": sub_id}
+        if created:
+            data.update({"created": created.timestamp(), "created_utc": created.timestamp()})
+        return AdapterSubreddit(self._source, data)
+
 
     def subreddit_by_id(self, sub_id: str) -> Any:
         """
@@ -193,7 +213,7 @@ class ArcticShiftAdapter(RedditDataInterface):
             else:
                 data = {}
         else:
-            data = {}        
+            data = {}
         return AdapterSubreddit(self._source, data)
 
     def get_authenticated_user(self) -> str:

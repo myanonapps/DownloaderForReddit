@@ -173,6 +173,5 @@ class AdapterSubreddit(AdapterData):
         name = dig(dict_data, "name", default="")
         setattr(self, NAME_KEY, dig(dict_data, "title", default=name))
         setattr(self, ID_KEY, dig(dict_data, "id", default=""))
-        setattr(self, CREATED_KEY, dig(dict_data, "created", default=""))
-        setattr(self, CREATED_UTC_KEY, dig(dict_data, "created_utc", default=""))
-
+        setattr(self, CREATED_KEY, dig(dict_data, "created", default=0))
+        setattr(self, CREATED_UTC_KEY, dig(dict_data, "created_utc", default=0))

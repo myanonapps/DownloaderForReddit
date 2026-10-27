@@ -17,7 +17,6 @@ from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
-from DownloaderForReddit.utils import system_util
 from ..utils import video_merger
 from . import const
 from .content_runner import ContentRunner
@@ -329,13 +328,13 @@ class DownloadRunner(QObject):
         if session is None:
             with self.db.get_scoped_session() as session:
                 return self.get_user_submissions(user_id, session=session)
-        user = session.query(User).get(user_id)
+        user:User = session.query(User).get(user_id)
         user.set_existing()
         if self.settings_manager.validate_names_before_download or not (user.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
             redditor = self.validate_user(user)
         else:
             Message.send_debug(f'Validity check skipped: {user.name}')
-            redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id)
+            redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id, user.date_created)
 
         if redditor is not None:
             self.handle_submissions(user, redditor)
@@ -345,9 +344,13 @@ class DownloadRunner(QObject):
         if session is None:
             with self.db.get_scoped_session() as session:
                 return self.get_subreddit_submissions(subreddit_id, session=session)
-        subreddit = session.query(Subreddit).get(subreddit_id)
+        subreddit:Subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
-        sub = self.validate_subreddit(subreddit)
+        if self.settings_manager.validate_names_before_download or not (subreddit.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
+            sub = self.validate_subreddit(subreddit)
+        else:
+            Message.send_debug(f'Validity check skipped: {subreddit.name}')
+            sub = RedditAdapterManager().get_adapter_for_object(subreddit, session.query(DownloadSession).get(self.download_session_id)).subreddit_hardcoded(subreddit.name, subreddit.reddit_id)
 
         if sub is not None:
             self.handle_submissions(subreddit, sub)
@@ -402,7 +405,6 @@ class DownloadRunner(QObject):
             self.handle_exception(e, reddit_object)
         return submissions
 
-        
 
     def get_raw_submissions(self, praw_object, reddit_object):
         """

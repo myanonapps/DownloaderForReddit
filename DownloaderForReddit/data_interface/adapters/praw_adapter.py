@@ -71,7 +71,7 @@ class PRAWAdapter(RedditDataInterface):
         return self._praw
 
     def posts_by_author(self):
-        pass   
+        pass
 
     def submission(self, id:str) -> Any:
         """
@@ -111,7 +111,7 @@ class PRAWAdapter(RedditDataInterface):
         """
         pass
 
-    def redditor_hardcoded(self, name: str, user_id:str|None=None) -> Any:
+    def redditor_hardcoded(self, name: str, user_id:str|None=None, created:datetime|None=None) -> Any:
         """
         Create a redditor (user) object by hand.
         
@@ -121,7 +121,7 @@ class PRAWAdapter(RedditDataInterface):
         Returns:
             Redditor object from data
         """
-        pass    
+        pass
 
     def subreddit(self, name: str) -> Any:
         """
@@ -135,6 +135,19 @@ class PRAWAdapter(RedditDataInterface):
         """
         reddit = self._get_praw_instance()
         return reddit.subreddit(name)
+
+    def subreddit_hardcoded(self, name: str, sub_id:str|None=None, created:datetime|None=None) -> Any:
+        """
+        Create a subreddit by hand.
+        
+        Args:
+            name: The subreddit object name
+            sub_id: The subreddit object id
+            
+        Returns:
+            Subreddit object from data
+        """
+        pass
 
     def get_authenticated_user(self) -> str:
         try:
@@ -213,4 +226,3 @@ class PRAWAdapter(RedditDataInterface):
         except BaseException:
             logger.error('Somebody is throwing a BaseException. Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
-
