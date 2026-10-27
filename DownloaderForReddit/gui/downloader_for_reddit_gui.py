@@ -1320,7 +1320,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         :return: None
         """
-        self.user_auth = UserAuth(reddit_utils=reddit_utils, parent=self)
+        self.user_auth = UserAuth(parent=self)
         self.user_auth.connected.connect(self.finish_oauth_flow)
         self.user_auth.start_oauth()
 

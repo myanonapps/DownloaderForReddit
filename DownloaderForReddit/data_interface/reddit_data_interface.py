@@ -15,6 +15,7 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 from email.utils import parsedate_to_datetime
 import requests
+from PyQt6.QtCore import QUrl
 
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.database.models import DownloadSession, RedditObject
@@ -41,6 +42,8 @@ class RedditDataInterface(ABC):
     """
     def __init__(self, base_url:str, token: RedditAdapterToken, download_session=None):
         self._base_url:str = base_url
+        self._authorization_url = QUrl("")
+        self._access_url = QUrl("")
         self._redirect_url:str = REDIRECT_URL
         self._user_agent:str = USER_AGENT
         self._http_session = None
@@ -49,6 +52,12 @@ class RedditDataInterface(ABC):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self._download_session:DownloadSession = download_session
 
+    def get_authorization_url(self) -> QUrl:
+        return self._authorization_url
+
+    def get_access_url(self) -> QUrl:
+        return self._access_url
+    
     def increment_rate_limit_count(self):
         """Increment the rate limit count in the download session."""
         if self._download_session is not None:

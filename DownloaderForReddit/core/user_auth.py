@@ -1,9 +1,14 @@
 import logging
 
-from PyQt6.QtCore import QByteArray, QUrl, QObject, pyqtSignal
+from PyQt6.QtCore import QByteArray, QObject, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager
-# from PyQt6.QtNetworkAuth import QOAuthHttpServerReplyHandler, QOAuth2AuthorizationCodeFlow
+from PyQt6.QtNetworkAuth import QOAuthHttpServerReplyHandler, QOAuth2AuthorizationCodeFlow
+
+from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
+from DownloaderForReddit.data_interface.adapters.praw_adapter import PRAWAdapter
+from DownloaderForReddit.database.model_enums import PostDownloadSource
+
 
 
 class UaNetworkAccessManager(QNetworkAccessManager):
@@ -55,16 +60,10 @@ class UserAuth(QObject):
     """
     connected = pyqtSignal(bool)
 
-    def __init__(self, reddit_utils, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
-        self.reddit_utils = reddit_utils
-        self.client_id = reddit_utils.CLIENT_ID
-        self.user_agent = reddit_utils.USER_AGENT
-        self.redirect_uri = reddit_utils.REDIRECT_URL
-        self.token_scope = reddit_utils.TOKEN_SCOPES
-        self.authorization_url = QUrl("https://www.reddit.com/api/v1/authorize")
-        self.access_url = QUrl("https://www.reddit.com/api/v1/access_token")
+        self.adapter:PRAWAdapter = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT)
         self.oauth = None
 
     def start_oauth(self):
@@ -80,32 +79,33 @@ class UserAuth(QObject):
         :return: Instance of QOAuth2AuthorizationCodeFlow configured for the authorization process.
         :rtype: QOAuth2AuthorizationCodeFlow
         """
-        manager = UaNetworkAccessManager(self.user_agent, self)
-        # TODO: Implement PyQt6 oauth
-        # reply_handler = QOAuthHttpServerReplyHandler(8086)
-        # oauth = QOAuth2AuthorizationCodeFlow(
-        #    self.client_id,
-        #    self.authorization_url,
-        #    self.access_url,
-        #    manager,
-        #    self
-        #)
+        manager = UaNetworkAccessManager(self.adapter.get_user_agent(), self)
+        reply_handler = QOAuthHttpServerReplyHandler(8086)
+        oauth = QOAuth2AuthorizationCodeFlow(
+           self.adapter.CLIENT_ID,
+           self.adapter.get_authorization_url(),
+           self.adapter.get_access_url(),
+           manager,
+           self
+        )
 
         oauth.granted.connect(self.finish_oauth)
         oauth.error.connect(
-            lambda error, description: self.logger.error(f'OAuth error: {error} - {description}')
+            lambda error, description: self.logger.error('OAuth error: %s - %s', error, description)
         )
 
         oauth.authorizeWithBrowser.connect(QDesktopServices.openUrl)
         oauth.setReplyHandler(reply_handler)
-        oauth.setScope(" ".join(self.token_scope))
-        oauth.setUserAgent(self.user_agent)
+        oauth.setScope(" ".join(self.adapter.TOKEN_SCOPES))
+        oauth.setUserAgent(self.adapter.get_user_agent())
 
+        # Qt6 takes these as a multi-map (key -> list of values). A bare string is
+        # iterated character by character, giving duration=p&duration=e&...
         params = {
-            "duration": "permanent"
+            "duration": ["permanent"]
         }
 
-        oauth.resourceOwnerAuthorization(self.authorization_url, params)
+        oauth.resourceOwnerAuthorization(self.adapter.get_authorization_url(), params)
         self.oauth = oauth
         return oauth
 
@@ -134,8 +134,8 @@ class UserAuth(QObject):
             )
             return
 
-        self.reddit_utils.save_token(token)
-        
+        RedditAdapterManager().save_adapter_token(PostDownloadSource.REDDIT, token)
+
         if self.oauth:
             self.oauth.replyHandler().close()
         self.connected.emit(True)

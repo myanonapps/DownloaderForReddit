@@ -8,6 +8,7 @@ import logging
 from typing import Any
 import praw
 import prawcore
+from PyQt6.QtCore import QUrl
 
 from DownloaderForReddit.core import const
 from DownloaderForReddit.core.const import RATE_LIMIT_DOC_URL
@@ -17,11 +18,6 @@ from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.messaging.message import Message
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
-# Configuration values from reddit_utils.py
-TOKEN_SCOPES = ['identity', 'mysubreddits', 'subscribe', 'account', 'history', 'read']
-TOKEN_DURATION = 'permanent'
-
-CLIENT_ID = 'frGEUVAuHGL2PQ'
 
 
 class PRAWAdapter(RedditDataInterface):
@@ -32,6 +28,12 @@ class PRAWAdapter(RedditDataInterface):
     while providing a consistent interface for different Reddit Data Interface implementations.
     """
 
+    # Configuration values from reddit_utils.py
+    TOKEN_SCOPES = ['identity', 'mysubreddits', 'subscribe', 'account', 'history', 'read']
+    TOKEN_DURATION = 'permanent'
+
+    CLIENT_ID = 'frGEUVAuHGL2PQ'
+
     def __init__(self, token:RedditAdapterToken, download_session=None):
         """
         Initialize the PRAW adapter.
@@ -40,6 +42,8 @@ class PRAWAdapter(RedditDataInterface):
             token: Optional refresh token for authenticated access
         """
         super().__init__("", token, download_session)
+        self._authorization_url = QUrl("https://www.reddit.com/api/v1/authorize")
+        self._access_url = QUrl("https://www.reddit.com/api/v1/access_token")
         self._praw = None
         self._source:PostDownloadSource = PostDownloadSource.REDDIT
 
@@ -51,14 +55,14 @@ class PRAWAdapter(RedditDataInterface):
 
         if self._token is not None:
             self._praw = praw.Reddit(
-                client_id=CLIENT_ID,
+                client_id=self.CLIENT_ID,
                 user_agent=self.get_user_agent(),
                 client_secret=None,
                 refresh_token=self._token.get_decrypted()
             )
         else:
             self._praw = praw.Reddit(
-                client_id=CLIENT_ID,
+                client_id=self.CLIENT_ID,
                 user_agent=self.get_user_agent(),
                 client_secret=None,
                 redirect_uri=self.get_redirect_url()
@@ -69,7 +73,7 @@ class PRAWAdapter(RedditDataInterface):
     def posts_by_author(self):
         pass   
 
-    def submission(self, id: str) -> Any:
+    def submission(self, id:str) -> Any:
         """
         Get a submission by its ID.
         
