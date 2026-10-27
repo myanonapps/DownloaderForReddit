@@ -79,8 +79,13 @@ class UserAuth(QObject):
         :return: Instance of QOAuth2AuthorizationCodeFlow configured for the authorization process.
         :rtype: QOAuth2AuthorizationCodeFlow
         """
+        # Discard any previous flow so its reply handler releases the callback port
+        self._cleanup_oauth()
+
         manager = UaNetworkAccessManager(self.adapter.get_user_agent(), self)
-        reply_handler = QOAuthHttpServerReplyHandler(8086)
+        # Parented to self: setReplyHandler does not take ownership, so without a parent the
+        # handler could be garbage collected as soon as this method returns
+        reply_handler = QOAuthHttpServerReplyHandler(8086, self)
         oauth = QOAuth2AuthorizationCodeFlow(
            self.adapter.CLIENT_ID,
            self.adapter.get_authorization_url(),
@@ -90,9 +95,8 @@ class UserAuth(QObject):
         )
 
         oauth.granted.connect(self.finish_oauth)
-        oauth.error.connect(
-            lambda error, description: self.logger.error('OAuth error: %s - %s', error, description)
-        )
+        oauth.error.connect(self._on_oauth_error)
+        oauth.requestFailed.connect(self._on_request_failed)
 
         oauth.authorizeWithBrowser.connect(QDesktopServices.openUrl)
         oauth.setReplyHandler(reply_handler)
@@ -105,9 +109,48 @@ class UserAuth(QObject):
             "duration": ["permanent"]
         }
 
-        oauth.resourceOwnerAuthorization(self.adapter.get_authorization_url(), params)
         self.oauth = oauth
+        oauth.resourceOwnerAuthorization(self.adapter.get_authorization_url(), params)
         return oauth
+
+    def _cleanup_oauth(self):
+        """
+        Closes the reply handler (freeing the callback port) and discards the current OAuth flow, if any.
+
+        :return: None
+        """
+        oauth, self.oauth = self.oauth, None
+        if oauth is None:
+            return
+
+        handler = oauth.replyHandler()
+        if handler is not None:
+            handler.close()
+            handler.deleteLater()
+
+        manager = oauth.networkAccessManager()
+        oauth.deleteLater()
+        if manager is not None:
+            manager.deleteLater()
+
+    def _fail_oauth(self, message, *args):
+        """
+        Logs a failure, cleans up the OAuth flow, and reports the failed connection. Does nothing if the flow
+        has already been cleaned up, since a single failure can trigger more than one signal.
+
+        :return: None
+        """
+        if self.oauth is None:
+            return
+        self.logger.error(message, *args)
+        self._cleanup_oauth()
+        self.connected.emit(False)
+
+    def _on_oauth_error(self, error, description, uri):
+        self._fail_oauth('OAuth error: %s - %s', error, description)
+
+    def _on_request_failed(self, error):
+        self._fail_oauth('OAuth request failed: %s', error)
 
     def finish_oauth(self):
         """
@@ -129,8 +172,7 @@ class UserAuth(QObject):
             if self.oauth:
                 self.oauth.replyHandler().close()
             self.logger.error(
-                'Failed to connect reddit account: OAuth object has no refresh token',
-                exc_info=True
+                'Failed to connect reddit account: OAuth object has no refresh token'
             )
             return
 
