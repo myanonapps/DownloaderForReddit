@@ -443,7 +443,7 @@ QToolBar QLabel {
     <string>Statistics</string>
    </property>
    <attribute name="dockWidgetArea">
-    <number>8</number>
+    <number>4</number>
    </attribute>
    <widget class="QWidget" name="stats_dock_contents">
     <layout class="QVBoxLayout" name="stats_dock_layout">

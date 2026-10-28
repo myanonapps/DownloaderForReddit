@@ -360,7 +360,7 @@ class Ui_MainWindow(object):
         self.stats_grid_layout.setColumnMinimumWidth(2, 120)
         self.stats_dock_layout.addWidget(self.stats_group, 0, QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignTop)
         self.stats_dock.setWidget(self.stats_dock_contents)
-        MainWindow.addDockWidget(QtCore.Qt.DockWidgetArea(8), self.stats_dock)
+        MainWindow.addDockWidget(QtCore.Qt.DockWidgetArea(4), self.stats_dock)
         self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
