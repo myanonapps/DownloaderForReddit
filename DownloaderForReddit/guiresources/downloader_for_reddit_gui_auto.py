@@ -303,6 +303,7 @@ class Ui_MainWindow(object):
         self.menuDatabase.setObjectName("menuDatabase")
         MainWindow.setMenuBar(self.menubar)
         self.download_toolbar = QtWidgets.QToolBar(parent=MainWindow)
+        self.download_toolbar.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.download_toolbar.setStyleSheet("QToolBar {\n"
 "    spacing: 6px;\n"
 "    padding: 4px 6px;\n"
@@ -349,6 +350,7 @@ class Ui_MainWindow(object):
         self.download_toolbar.setMovable(False)
         self.download_toolbar.setIconSize(QtCore.QSize(20, 20))
         self.download_toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.download_toolbar.setFloatable(False)
         self.download_toolbar.setObjectName("download_toolbar")
         MainWindow.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self.download_toolbar)
         self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
@@ -524,10 +526,10 @@ class Ui_MainWindow(object):
         self.menuDatabase.addSeparator()
         self.menuDatabase.addAction(self.statistics_view_menu_item)
         self.menubar.addAction(self.file_menu.menuAction())
-        self.menubar.addAction(self.view_menu.menuAction())
-        self.menubar.addAction(self.lists_menu.menuAction())
-        self.menubar.addAction(self.menuDatabase.menuAction())
         self.menubar.addAction(self.menuActions.menuAction())
+        self.menubar.addAction(self.menuDatabase.menuAction())
+        self.menubar.addAction(self.lists_menu.menuAction())
+        self.menubar.addAction(self.view_menu.menuAction())
         self.menubar.addAction(self.help_menu.menuAction())
         self.download_toolbar.addAction(self.download_action)
         self.download_toolbar.addAction(self.soft_stop_download_action)

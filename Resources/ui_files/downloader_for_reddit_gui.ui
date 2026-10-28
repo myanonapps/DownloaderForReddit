@@ -670,13 +670,16 @@ QListView::item:active {
     <addaction name="statistics_view_menu_item"/>
    </widget>
    <addaction name="file_menu"/>
-   <addaction name="view_menu"/>
-   <addaction name="lists_menu"/>
-   <addaction name="menuDatabase"/>
    <addaction name="menuActions"/>
+   <addaction name="menuDatabase"/>
+   <addaction name="lists_menu"/>
+   <addaction name="view_menu"/>
    <addaction name="help_menu"/>
   </widget>
   <widget class="QToolBar" name="download_toolbar">
+   <property name="contextMenuPolicy">
+    <enum>Qt::CustomContextMenu</enum>
+   </property>
    <property name="windowTitle">
     <string>Download Toolbar</string>
    </property>
@@ -736,6 +739,9 @@ QToolBar QLabel {
    </property>
    <property name="toolButtonStyle">
     <enum>Qt::ToolButtonTextBesideIcon</enum>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>

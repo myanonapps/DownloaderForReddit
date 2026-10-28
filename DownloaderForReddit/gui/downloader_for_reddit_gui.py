@@ -280,6 +280,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.output_list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.output_list_view.customContextMenuRequested.connect(self.output_context_menu)
 
+        self.download_toolbar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.download_toolbar.customContextMenuRequested.connect(lambda pos: None)
+
         self.run_time = 0
         self.timer_widget = QWidget()
         self.timer_widget.setVisible(False)
