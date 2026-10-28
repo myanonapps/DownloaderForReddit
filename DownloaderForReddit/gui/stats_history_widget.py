@@ -12,7 +12,6 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Protocol
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QBrush, QColor
@@ -27,22 +26,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-
-class RunStats(Protocol):
-    """What the widget needs from a DownloadRunnerStats object (no import required)."""
-
-    def get_id(self) -> int: ...
-    def is_stopped(self) -> bool: ...
-    def get_session_count(self) -> int: ...
-    def get_session_duration_time(self) -> str: ...
-    def get_ratelimit_count(self) -> int: ...
-    def get_ratelimit_duration_time(self) -> str: ...
-    def get_content_downloaded_count(self) -> int: ...
-    def get_user_significant_count(self) -> int: ...
-    def get_subreddit_significant_count(self) -> int: ...
-    def get_post_extracted_count(self) -> int: ...
-    def get_comment_extracted_count(self) -> int: ...
-
+from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 
 # (key, row label)
 STAT_ROWS = [
@@ -93,7 +77,7 @@ QTableCornerButton::section {{
 """
 
 
-def format_stats(stats: RunStats, cumulative: bool) -> dict[str, str]:
+def format_stats(stats: DownloadRunnerStats, cumulative: bool) -> dict[str, str]:
     """Turn a stats object into display strings, using the same figures as to_output_string().
 
     In a single run's column the session count is always 1, so Run Time shows just the
@@ -113,7 +97,7 @@ def format_stats(stats: RunStats, cumulative: bool) -> dict[str, str]:
 
 
 @dataclass
-class Run:
+class StatsHistoryRun:
     ended: datetime
     values: dict[str, str] = field(default_factory=dict)   # snapshot taken when the run ended
     session_id: int | str = 0
@@ -123,7 +107,7 @@ class Run:
 class StatsHistoryWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, max_runs: int = 10):
         super().__init__(parent)
-        self._runs: deque[Run] = deque(maxlen=max_runs)   # index 0 is the newest run
+        self._runs: deque[StatsHistoryRun] = deque(maxlen=max_runs)   # index 0 is the newest run
 
         self.cumulative_table = self._make_table()
         self.runs_table = self._make_table()
@@ -164,7 +148,7 @@ class StatsHistoryWidget(QWidget):
 
     # ---- public API -------------------------------------------------------------
 
-    def add_run(self, run: RunStats, cumulative: RunStats | None = None,
+    def add_run(self, run: DownloadRunnerStats, cumulative: DownloadRunnerStats | None = None,
                 ended_at: datetime | None = None) -> None:
         """Call once when a run finishes.
 
@@ -175,7 +159,7 @@ class StatsHistoryWidget(QWidget):
         The values are copied into strings immediately, so later changes to (or a reset of)
         the stats objects do not alter what is already shown.
         """
-        self._runs.appendleft(Run(
+        self._runs.appendleft(StatsHistoryRun(
             ended=ended_at or datetime.now(),
             values=format_stats(run, cumulative=False),
             session_id=run.get_id(),
@@ -186,7 +170,7 @@ class StatsHistoryWidget(QWidget):
         self._render_runs()
         self.runs_table.horizontalScrollBar().setValue(0)
 
-    def set_cumulative(self, stats: RunStats) -> None:
+    def set_cumulative(self, stats: DownloadRunnerStats) -> None:
         """Show a cumulative stats object in the pinned column."""
         self._show_cumulative(format_stats(stats, cumulative=True))
 
