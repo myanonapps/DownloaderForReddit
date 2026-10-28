@@ -52,8 +52,8 @@ class Message:
             priority_string = f"{self.priority.name} "
         if settings_manager.show_datetime:
             try:
-                if settings_manager.datetime_format:
-                    datetime_string = f'[{self.datetime.astimezone().strftime(settings_manager.datetime_format)}] '
+                if settings_manager.datetime_display_format:
+                    datetime_string = f'[{self.datetime.astimezone().strftime(settings_manager.datetime_display_format)}] '
                 else:
                     datetime_string = f'[{self.datetime.astimezone().strftime("%m/%d/%y %I:%M:%S %p")}] '
             except Exception:

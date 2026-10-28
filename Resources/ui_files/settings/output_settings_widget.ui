@@ -64,9 +64,6 @@
         <string>Output Format</string>
        </property>
        <layout class="QFormLayout" name="formLayout">
-        <item row="4" column="0">
-         <layout class="QVBoxLayout" name="verticalLayout_3"/>
-        </item>
         <item row="1" column="1">
          <widget class="QGroupBox" name="color_groupbox">
           <property name="title">
@@ -193,13 +190,6 @@
           </layout>
          </widget>
         </item>
-        <item row="4" column="1">
-         <widget class="QCheckBox" name="show_session_id_checkbox">
-          <property name="text">
-           <string>Show download session</string>
-          </property>
-         </widget>
-        </item>
         <item row="2" column="1">
          <widget class="QCheckBox" name="show_priority_level_checkbox">
           <property name="text">
@@ -208,28 +198,21 @@
          </widget>
         </item>
         <item row="3" column="1">
-         <layout class="QHBoxLayout" name="show_datetime_layout">
-          <item>
-           <widget class="QCheckBox" name="show_datetime_checkbox">
-            <property name="text">
-             <string>Show time</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="datetime_format_edit">
-            <property name="toolTip">
-             <string>Date/time format (strftime), e.g. %m/%d/%y %I:%M:%S %p</string>
-            </property>
-            <property name="text">
-             <string>%m/%d/%y %I:%M:%S %p</string>
-            </property>
-            <property name="placeholderText">
-             <string>%m/%d/%y %I:%M:%S %p</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <widget class="QCheckBox" name="show_datetime_checkbox">
+          <property name="text">
+           <string>Show time</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout_3"/>
+        </item>
+        <item row="4" column="1">
+         <widget class="QCheckBox" name="show_session_id_checkbox">
+          <property name="text">
+           <string>Show download session</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>

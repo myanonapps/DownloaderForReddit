@@ -166,7 +166,6 @@ class SettingsManager:
         self.show_priority_level = self.get('output', 'show_priority_level', True)
         self.show_datetime = self.get('output', 'show_datetime', False)
         self.show_session_id = self.get('output', 'show_session_id', False)
-        self.datetime_format = self.get('output', 'datetime_format', "%m/%d/%y %I:%M:%S %p")
         self.clear_messages_on_run = self.get('output', 'clear_messages_on_run', True)
         self.output_saved_content = self.get('output', 'output_saved_content', False)
         self.output_saved_content_format = self.get('output', 'output_saved_content_format', ContentOutput.FULL_PATH.name)

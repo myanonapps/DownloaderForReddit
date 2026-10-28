@@ -31,7 +31,6 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         self.show_datetime_checkbox.setChecked(self.settings.show_datetime)
         self.show_session_id_checkbox.setChecked(self.settings.show_session_id)
         self.clear_on_run_checkbox.setChecked(self.settings.clear_messages_on_run)
-        self.datetime_format_edit.setText(self.settings.datetime_format)
         self.output_saved_content_checkbox.setChecked(self.settings.output_saved_content)
         for x in ContentOutput:
             if self.settings.output_saved_content_format == x.name:
@@ -74,7 +73,6 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         self.settings.show_datetime = self.show_datetime_checkbox.isChecked()
         self.settings.show_session_id = self.show_session_id_checkbox.isChecked()
         self.settings.clear_messages_on_run = self.clear_on_run_checkbox.isChecked()
-        self.settings.datetime_format = self.datetime_format_edit.text()
         self.settings.output_saved_content = self.output_saved_content_checkbox.isChecked()
         self.settings.output_saved_content_format = self.output_saved_content_combo.currentData(Qt.ItemDataRole.UserRole).name
         self.settings.use_color_output = self.color_groupbox.isChecked()
