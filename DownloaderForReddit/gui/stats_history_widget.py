@@ -32,7 +32,7 @@ from DownloaderForReddit.utils import injector
 
 # (key, row label)
 STAT_ROWS = [
-    ("download_count", "Download Count"),
+    ("download_count", "Content Count"),
     ("downloaded_users", "Downloaded Users"),
     ("downloaded_subreddits", "Downloaded Subreddits"),
     ("post_count", "Post Count"),
