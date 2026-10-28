@@ -60,7 +60,13 @@ FLAG_COLOR = "#b45f06"
 HEADER_BG = "#dfe7f1"
 HEADER_BORDER = "#c3cfdd"
 HEADER_PADDING = 8
-HEADER_STYLE = f"""
+CELL_BORDER = "#e1e6ed"      # thin line under every data cell
+TABLE_STYLE = f"""
+QTableWidget::item {{
+    border: none;
+    border-bottom: 1px solid {CELL_BORDER};
+    padding: 0px {HEADER_PADDING}px;
+}}
 QHeaderView::section {{
     background-color: {HEADER_BG};
     border: none;
@@ -191,6 +197,7 @@ class StatsHistoryWidget(QWidget):
     @staticmethod
     def _make_table() -> QTableWidget:
         table = QTableWidget()
+        table.setAlternatingRowColors(True)
         table.setRowCount(len(STAT_ROWS))
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -210,7 +217,7 @@ class StatsHistoryWidget(QWidget):
             font = header.font()
             font.setBold(True)
             header.setFont(font)
-        table.setStyleSheet(HEADER_STYLE)
+        table.setStyleSheet(TABLE_STYLE)
         return table
 
     @staticmethod
