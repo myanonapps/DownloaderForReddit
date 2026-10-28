@@ -162,7 +162,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.connect_reddit_account_menu_item.setText(f"Sign out: {user}")
             self.connect_reddit_account_menu_item.triggered.connect(self.sign_out)
         else:
-            self.connect_reddit_account_menu_item.setText("Connect Reddit Account")
+            self.connect_reddit_account_menu_item.setText("Reddit Account")
             self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
@@ -1388,7 +1388,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def sign_out(self):
         RedditAdapterManager().delete_adapter_token(PostDownloadSource.REDDIT)
         Message.send_info('Signed out of Downloader for Reddit.')
-        self.connect_reddit_account_menu_item.setText("Connect Reddit Account")
+        self.connect_reddit_account_menu_item.setText("Reddit Account")
         self.connect_reddit_account_menu_item.triggered.disconnect(self.sign_out)
         self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
 
