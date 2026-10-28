@@ -556,7 +556,6 @@ QListView::item:active {
     </property>
     <addaction name="open_settings_menu_item"/>
     <addaction name="separator"/>
-    <addaction name="connect_reddit_account_menu_item"/>
     <addaction name="separator"/>
     <addaction name="open_data_directory_menu_item"/>
     <addaction name="separator"/>
@@ -568,14 +567,26 @@ QListView::item:active {
     <property name="title">
      <string>Lists</string>
     </property>
-    <addaction name="add_user_list_menu_item"/>
-    <addaction name="add_subreddit_list_menu_item"/>
+    <widget class="QMenu" name="menuUserList">
+     <property name="title">
+      <string>User</string>
+     </property>
+     <addaction name="add_user_list_menu_item"/>
+     <addaction name="remove_user_list_menu_item"/>
+     <addaction name="export_user_list_menu_item"/>
+    </widget>
+    <widget class="QMenu" name="menuSubreddit_List">
+     <property name="title">
+      <string>Subreddit</string>
+     </property>
+     <addaction name="add_subreddit_list_menu_item"/>
+     <addaction name="remove_subreddit_list_menu_item"/>
+     <addaction name="export_subreddit_list_menu_item"/>
+    </widget>
+    <addaction name="menuUserList"/>
+    <addaction name="menuSubreddit_List"/>
     <addaction name="separator"/>
-    <addaction name="remove_user_list_menu_item"/>
-    <addaction name="remove_subreddit_list_menu_item"/>
     <addaction name="separator"/>
-    <addaction name="export_user_list_menu_item"/>
-    <addaction name="export_subreddit_list_menu_item"/>
    </widget>
    <widget class="QMenu" name="help_menu">
     <property name="title">
@@ -610,17 +621,36 @@ QListView::item:active {
     <addaction name="list_sort_menu_item"/>
     <addaction name="list_order_menu_item"/>
    </widget>
-   <widget class="QMenu" name="menuDownload">
+   <widget class="QMenu" name="menuActions">
     <property name="title">
-     <string>Download</string>
+     <string>Actions</string>
     </property>
-    <addaction name="download_user_list_menu_item"/>
-    <addaction name="download_subreddit_list_menu_item"/>
-    <addaction name="download_user_list_constrained_menu_item"/>
+    <widget class="QMenu" name="menuDownload_2">
+     <property name="title">
+      <string>Download</string>
+     </property>
+     <addaction name="download_user_list_menu_item"/>
+     <addaction name="download_subreddit_list_menu_item"/>
+     <addaction name="download_user_list_constrained_menu_item"/>
+    </widget>
+    <widget class="QMenu" name="menuRun">
+     <property name="title">
+      <string>Run</string>
+     </property>
+     <addaction name="run_unfinished_extractions_menu_item"/>
+     <addaction name="run_unfinished_downloads_menu_item"/>
+     <addaction name="run_all_unfiinished_menu_item"/>
+    </widget>
+    <widget class="QMenu" name="menuConnect">
+     <property name="title">
+      <string>Connect</string>
+     </property>
+     <addaction name="connect_reddit_account_menu_item"/>
+    </widget>
     <addaction name="separator"/>
-    <addaction name="run_unfinished_extractions_menu_item"/>
-    <addaction name="run_unfinished_downloads_menu_item"/>
-    <addaction name="run_all_unfiinished_menu_item"/>
+    <addaction name="menuDownload_2"/>
+    <addaction name="menuRun"/>
+    <addaction name="menuConnect"/>
    </widget>
    <widget class="QMenu" name="menuDatabase">
     <property name="title">
@@ -643,7 +673,7 @@ QListView::item:active {
    <addaction name="view_menu"/>
    <addaction name="lists_menu"/>
    <addaction name="menuDatabase"/>
-   <addaction name="menuDownload"/>
+   <addaction name="menuActions"/>
    <addaction name="help_menu"/>
   </widget>
   <widget class="QToolBar" name="download_toolbar">
@@ -721,12 +751,12 @@ QToolBar QLabel {
   <widget class="QStatusBar" name="statusbar"/>
   <action name="add_user_list_menu_item">
    <property name="text">
-    <string>Add User List</string>
+    <string>Add</string>
    </property>
   </action>
   <action name="add_subreddit_list_menu_item">
    <property name="text">
-    <string>Add Subreddit List</string>
+    <string>Add</string>
    </property>
   </action>
   <action name="file_save">
@@ -736,12 +766,12 @@ QToolBar QLabel {
   </action>
   <action name="remove_user_list_menu_item">
    <property name="text">
-    <string>Remove User List</string>
+    <string>Remove</string>
    </property>
   </action>
   <action name="remove_subreddit_list_menu_item">
    <property name="text">
-    <string>Remove Subreddit List</string>
+    <string>Remove</string>
    </property>
   </action>
   <action name="open_settings_menu_item">
@@ -864,17 +894,17 @@ QToolBar QLabel {
   </action>
   <action name="download_user_list_menu_item">
    <property name="text">
-    <string>Download User List</string>
+    <string>User List</string>
    </property>
   </action>
   <action name="download_subreddit_list_menu_item">
    <property name="text">
-    <string>Download Subreddit List</string>
+    <string>Subreddit List</string>
    </property>
   </action>
   <action name="download_user_list_constrained_menu_item">
    <property name="text">
-    <string>Download User List Constrained</string>
+    <string>User List Constrained</string>
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Download user list, but only extract posts made to subreddits in the subreddit list&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -882,12 +912,12 @@ QToolBar QLabel {
   </action>
   <action name="run_unfinished_extractions_menu_item">
    <property name="text">
-    <string>Run Unfinished Extractions</string>
+    <string>Unfinished Extractions</string>
    </property>
   </action>
   <action name="run_unfinished_downloads_menu_item">
    <property name="text">
-    <string>Run Unfinished Downloads</string>
+    <string>Unfinished Downloads</string>
    </property>
   </action>
   <action name="sort_list_by_content_count_menu_item">
@@ -950,17 +980,17 @@ QToolBar QLabel {
   </action>
   <action name="run_all_unfiinished_menu_item">
    <property name="text">
-    <string>Run All Unfinished</string>
+    <string>All Unfinished</string>
    </property>
   </action>
   <action name="export_user_list_menu_item">
    <property name="text">
-    <string>Export User List</string>
+    <string>Export</string>
    </property>
   </action>
   <action name="export_subreddit_list_menu_item">
    <property name="text">
-    <string>Export Subreddit List</string>
+    <string>Export</string>
    </property>
   </action>
   <action name="command_line_options_menu_item">
@@ -975,7 +1005,7 @@ QToolBar QLabel {
   </action>
   <action name="connect_reddit_account_menu_item">
    <property name="text">
-    <string>Connect Reddit Account</string>
+    <string>Reddit Account</string>
    </property>
   </action>
   <action name="download_action">
@@ -1000,6 +1030,31 @@ QToolBar QLabel {
    </property>
    <property name="toolTip">
     <string>Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)</string>
+   </property>
+  </action>
+  <action name="actiontest">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="actionbogus">
+   <property name="text">
+    <string>bogus</string>
+   </property>
+  </action>
+  <action name="actionbogus_2">
+   <property name="text">
+    <string>bogus</string>
+   </property>
+  </action>
+  <action name="actionbogus_3">
+   <property name="text">
+    <string>bogus</string>
+   </property>
+  </action>
+  <action name="actionbogus_4">
+   <property name="text">
+    <string>bogus</string>
    </property>
   </action>
  </widget>
