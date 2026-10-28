@@ -183,7 +183,8 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.settings.short_title_char_length = self.short_title_length_spin_box.value()
         show_countdown = self.schedule_countdown_combo.currentData(Qt.ItemDataRole.UserRole)
         self.settings.show_schedule_countdown = show_countdown
-        self.main_window.schedule_widget.setVisible(show_countdown == 'SHOW')
+        self.main_window.schedule_label.setVisible(show_countdown == 'SHOW')
+        self.main_window.schedule_countdown_label.setVisible(show_countdown == 'SHOW')        
         self.settings.scroll_to_last_added = self.scroll_to_last_added_checkbox.isChecked()
         self.settings.colorize_new_reddit_objects = self.colorize_new_checkbox.isChecked()
         self.settings.colorize_disabled_reddit_objects = self.colorize_disabled_checkbox.isChecked()

@@ -27,6 +27,8 @@ from PyQt6.QtWidgets import (
 )
 
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
+from DownloaderForReddit.persistence.settings_manager import SettingsManager
+from DownloaderForReddit.utils import injector
 
 # (key, row label)
 STAT_ROWS = [
@@ -114,7 +116,8 @@ class StatsHistoryWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, max_runs: int = 10):
         super().__init__(parent)
         self._runs: deque[StatsHistoryRun] = deque(maxlen=max_runs)   # index 0 is the newest run
-
+        self.settings_manager:SettingsManager = injector.get_settings_manager()
+        
         self.cumulative_table = self._make_table()
         self.runs_table = self._make_table()
 
@@ -234,7 +237,7 @@ class StatsHistoryWidget(QWidget):
         table = self.runs_table
         table.setColumnCount(len(self._runs))
         for col, run in enumerate(self._runs):
-            title = run.ended.strftime("%m/%d %H:%M")
+            title = f"{run.session_id}"
             if run.stopped:
                 title += f" {FLAG_GLYPH}"
             header = QTableWidgetItem(title)
@@ -245,9 +248,7 @@ class StatsHistoryWidget(QWidget):
                 tip = "Run before the last"
             else:
                 tip = f"{col} runs before the last"
-            tip += f"\nEnded {run.ended.strftime('%Y-%m-%d %H:%M:%S')}"
-            if run.session_id:
-                tip += f"\nSession {run.session_id}"
+            tip += f"\nEnded {run.ended.strftime(self.settings_manager.datetime_display_format)}"
             if run.stopped:
                 tip += "\nThis run was stopped before it finished, so these counts may be incomplete."
                 header.setForeground(QBrush(QColor(FLAG_COLOR)))
