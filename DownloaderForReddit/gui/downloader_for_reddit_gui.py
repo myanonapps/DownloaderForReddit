@@ -101,8 +101,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.view_menu.addAction(self.user_dock.toggleViewAction())
         self.view_menu.addAction(self.subreddit_dock.toggleViewAction())
+        self.view_menu.addAction(self.stats_dock.toggleViewAction())
         self.splitDockWidget(self.user_dock, self.subreddit_dock, Qt.Orientation.Horizontal)
         self.resizeDocks([self.user_dock, self.subreddit_dock], [260, 260], Qt.Orientation.Horizontal)
+        self.setCorner(Qt.Corner.TopLeftCorner, Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.setCorner(Qt.Corner.BottomLeftCorner, Qt.DockWidgetArea.LeftDockWidgetArea)
         self.version = __version__
         self.failed_list = []
         self.last_downloaded_objects = {}
@@ -356,6 +359,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.log_startup()
 
+    def createPopupMenu(self):
+        menu = QMenu(self)
+        menu.addAction(self.user_dock.toggleViewAction())
+        menu.addAction(self.subreddit_dock.toggleViewAction())
+        menu.addAction(self.stats_dock.toggleViewAction())
+        return menu
+
     def log_startup(self):
         self.logger.info('Application started', extra={
             'dfr_version': __version__,
@@ -576,7 +586,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def output_context_menu(self):
         menu = QMenu()
-        menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
+        menu.addAction('Settings', lambda: self.open_settings_dialog(open_display='Output'))
        
         # Create and add the submenu
         # 1. Create the Submenu for Log Levels
