@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime, date
-
+from PyQt6.QtCore import QByteArray
 from . import injector
 from . import system_util
 from .token_parser import TokenParser
@@ -162,3 +162,10 @@ def dig(d: dict, *keys, default=None):
     if node is None and default is not None:
         return default
     return node
+
+def qbyte_to_b64(data: QByteArray) -> str:
+    return data.toBase64().data().decode("ascii")
+
+
+def qbyte_from_b64(text: str) -> QByteArray:
+    return QByteArray.fromBase64(text.encode("ascii"))

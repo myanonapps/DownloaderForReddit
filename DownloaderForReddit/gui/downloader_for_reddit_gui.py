@@ -39,7 +39,7 @@ from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
-from DownloaderForReddit.persistence.settings_manager import DownloadScope
+from DownloaderForReddit.persistence.settings_manager import DownloadScope, SettingsManager
 
 from ..core.user_auth import UserAuth
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
@@ -99,6 +99,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         QMainWindow.__init__(self)
         self.setupUi(self)
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.view_menu.addAction(self.user_dock.toggleViewAction())
+        self.view_menu.addAction(self.subreddit_dock.toggleViewAction())
+        self.splitDockWidget(self.user_dock, self.subreddit_dock, Qt.Orientation.Horizontal)
+        self.resizeDocks([self.user_dock, self.subreddit_dock], [260, 260], Qt.Orientation.Horizontal)
         self.version = __version__
         self.failed_list = []
         self.last_downloaded_objects = {}
@@ -124,13 +128,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.oauth = None
 
         # region Settings
-        self.settings_manager = injector.get_settings_manager()
+        self.settings_manager:SettingsManager = injector.get_settings_manager()
 
-        geom = self.settings_manager.main_window_geom
-        self.resize(geom['width'], geom['height'])
-        if geom['x'] != 0 and geom['y'] != 0:
-            self.move(geom['x'], geom['y'])
-        self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
+        if self.settings_manager.main_window_geometry:
+            self.restoreGeometry(general_utils.qbyte_from_b64(self.settings_manager.main_window_geometry))
+        if self.settings_manager.main_window_state:
+            self.restoreState(general_utils.qbyte_from_b64(self.settings_manager.main_window_state))
+        self.download_toolbar.setVisible(True)
 
         # endregion
 
@@ -1482,11 +1486,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         super().close()
 
     def save_main_window_settings(self):
-        self.settings_manager.main_window_geom['width'] = self.width()
-        self.settings_manager.main_window_geom['height'] = self.height()
-        self.settings_manager.main_window_geom['x'] = self.x()
-        self.settings_manager.main_window_geom['y'] = self.y()
-        self.settings_manager.horizontal_splitter_state = self.horz_splitter.sizes()
+        self.settings_manager.main_window_geometry = general_utils.qbyte_to_b64(self.saveGeometry())
+        self.settings_manager.main_window_state = general_utils.qbyte_to_b64(self.saveState())
+
         self.settings_manager.current_user_list = self.user_lists_combo.currentText()
         self.settings_manager.current_subreddit_list = self.subreddit_list_combo.currentText()
         self.settings_manager.download_scope = self.download_scope_combo.currentData().name
