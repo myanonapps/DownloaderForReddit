@@ -639,7 +639,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def on_clear(self):
         self.output_view_model.clear()
         self.cumulative_stats.reset()
-        self.stats_history.clear(clear_runs=False)      # resets Cumulative only
+        self.stats_history.clear(clear_runs=True)      # resets Cumulative only
 
 
     def on_log_level_changed(self, action):
