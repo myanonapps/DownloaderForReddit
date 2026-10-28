@@ -288,7 +288,7 @@ class DownloadRunner(QObject):
             if self.user_id_list is not None:
                 for user_id in self.user_id_list:
                     self.get_user_submissions(user_id)
-            else:
+            elif self.subreddit_id_list is not None:
                 for subreddit_id in self.subreddit_id_list:
                     self.get_subreddit_submissions(subreddit_id)
 

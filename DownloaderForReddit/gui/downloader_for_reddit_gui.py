@@ -829,12 +829,44 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         else:
             self.output_view_model.handle_message(message)
 
+
+    def set_stats(self, prefix: str, values: dict[str, str]):
+        """prefix is 'last' or 'total'; values maps each stat key to its display text."""
+        for key in (
+                    "run_time", "rate_limit", "download_count", "downloaded_users",
+                    "downloaded_subreddits", "post_count", "comment_count",
+                ):
+            getattr(self, f"{prefix}_{key}_label").setText(values[key])
+
     def update_stat_views(self, current: DownloadRunnerStats):
-        label:QLabel = self.session_stats_label
-        label.setText(current.to_output_string(True))
+        if current.is_stopped():
+            self.last_session_header_label.setText(f"Last Session\u26A0\n{current.get_id()}")
+            self.last_session_header_label.setStyleSheet("color: #b45f06;")
+            self.last_session_header_label.setToolTip(f"This session was stopped before it finished.")
+        else:
+            self.last_session_header_label.setText(f"Last Session\n{current.get_id()}")
+            self.last_session_header_label.setStyleSheet("")
+            self.last_session_header_label.setToolTip("Statistics for the current session")
+
+        self.set_stats("last", {
+            "run_time": f"{current.get_session_count()} for {current.get_session_duration_time()}",
+            "rate_limit": f"{current.get_ratelimit_count()} for {current.get_ratelimit_duration_time()}",
+            "download_count": f"{current.get_content_downloaded_count()}",
+            "downloaded_users": f"{current.get_user_significant_count()}",
+            "downloaded_subreddits": f"{current.get_subreddit_significant_count()}",
+            "post_count": f"{current.get_post_extracted_count()}",
+            "comment_count": f"{current.get_comment_extracted_count()}",
+        })
         self.cumulative_stats.add_session(current.to_dict())
-        label:QLabel = self.total_stats_label
-        label.setText(self.cumulative_stats.to_output_string())
+        self.set_stats("total", {
+            "run_time": f"{self.cumulative_stats.get_session_count()} for {self.cumulative_stats.get_session_duration_time()}",
+            "rate_limit": f"{self.cumulative_stats.get_ratelimit_count()} for {self.cumulative_stats.get_ratelimit_duration_time()}",
+            "download_count": f"{self.cumulative_stats.get_content_downloaded_count()}",
+            "downloaded_users": f"{self.cumulative_stats.get_user_significant_count()}",
+            "downloaded_subreddits": f"{self.cumulative_stats.get_subreddit_significant_count()}",
+            "post_count": f"{self.cumulative_stats.get_post_extracted_count()}",
+            "comment_count": f"{self.cumulative_stats.get_comment_extracted_count()}",
+        })
 
     def handle_progress(self, message):
         """
