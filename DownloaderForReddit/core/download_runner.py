@@ -97,7 +97,7 @@ class DownloadRunner(QObject):
             else:
                 redditor = RedditAdapterManager().get_adapter_for_object(user_obj, session.query(DownloadSession).get(self.download_session_id)).redditor(user_obj.name)
         if self.validate_object(redditor, user_obj):
-            Message.send_debug(f'Validity check passed: {user_obj.name}')
+            Message.send_debug(f'Validity check passed: {user_obj.name}', session_id=self.download_session_id)
             return redditor
         return None
 
@@ -108,7 +108,7 @@ class DownloadRunner(QObject):
             else:
                 subreddit = RedditAdapterManager().get_adapter_for_object(subreddit_obj, session.query(DownloadSession).get(self.download_session_id)).subreddit(subreddit_obj.name)
         if self.validate_object(subreddit, subreddit_obj):
-            Message.send_debug(f'Validity check passed: {subreddit_obj.name}')
+            Message.send_debug(f'Validity check passed: {subreddit_obj.name}', session_id=self.download_session_id)
             return subreddit
         return None
 
@@ -149,13 +149,13 @@ class DownloadRunner(QObject):
     def handle_invalid_reddit_object(self, reddit_object):
         self.logger.warning('Invalid reddit object detected', extra={'object_type': reddit_object.object_type,
                                                                      'reddit_object': reddit_object.name})
-        Message.send_warning(f'Invalid {reddit_object.object_type.lower()}: {reddit_object.name}')
+        Message.send_warning(f'Invalid {reddit_object.object_type.lower()}: {reddit_object.name}', session_id=self.download_session_id)
         self.remove_invalid_object.emit(reddit_object.id)
 
     def handle_forbidden_reddit_object(self, reddit_object):
         self.logger.warning('Forbidden from accessing reddit object', extra={'object_type': reddit_object.object_type,
                                                                        'reddit_object': reddit_object.name})
-        Message.send_warning(f'Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}')
+        Message.send_warning(f'Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}', session_id=self.download_session_id)
         self.remove_forbidden_object.emit(reddit_object.id)
 
     def handle_failed_connection(self):
@@ -163,12 +163,12 @@ class DownloadRunner(QObject):
             self.continue_run = False
             self.logger.error('Failed connection attempts exceeded.  Ending download session', exc_info=True)
             Message.send_critical('Failed connection attempts exceeded.  The download session has been canceled.  '
-                                  'Please try the download again later.')
+                                  'Please try the download again later.', session_id=self.download_session_id)
         else:
             self.logger.error('Failed to connect to reddit',
                               extra={'connection_attempts': self.failed_connection_attempts})
             Message.send_error(f'Failed to connect to reddit.  Connection attempts remaining: '
-                               f'{3 - self.failed_connection_attempts}')
+                               f'{3 - self.failed_connection_attempts}', session_id=self.download_session_id)
             self.failed_connection_attempts += 1
 
     def handle_too_many_http_requests_error(self, reddit_object):
@@ -176,7 +176,7 @@ class DownloadRunner(QObject):
         message = (
             f'Rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}). Please try again later.\n'
         )
-        Message.send_error(message)
+        Message.send_error(message, session_id=self.download_session_id)
 
     def handle_too_many_praw_requests_error(self, reddit_object):
         self.logger.error('Too many requests error', exc_info=True)
@@ -185,7 +185,7 @@ class DownloadRunner(QObject):
             f'For More information about this error, please visit the link below:\n'
             f'{const.RATE_LIMIT_DOC_URL}'
         )
-        Message.send_error(message)
+        Message.send_error(message, session_id=self.download_session_id)
 
     def handle_unknown_error(self, reddit_object):
         self.logger.error('Failed to process reddit object due to unknown error',
@@ -333,7 +333,7 @@ class DownloadRunner(QObject):
         if self.settings_manager.validate_names_before_download or not (user.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
             redditor = self.validate_user(user)
         else:
-            Message.send_debug(f'Validity check skipped: {user.name}')
+            Message.send_debug(f'Validity check skipped: {user.name}', session_id=self.download_session_id)
             redditor = RedditAdapterManager().get_adapter_for_object(user, session.query(DownloadSession).get(self.download_session_id)).redditor_hardcoded(user.name, user.reddit_id, user.date_created)
 
         if redditor is not None:
@@ -349,7 +349,7 @@ class DownloadRunner(QObject):
         if self.settings_manager.validate_names_before_download or not (subreddit.post_download_source in [PostDownloadSource.ARCTIC_SHIFT, PostDownloadSource.PULL_PUSH]):
             sub = self.validate_subreddit(subreddit)
         else:
-            Message.send_debug(f'Validity check skipped: {subreddit.name}')
+            Message.send_debug(f'Validity check skipped: {subreddit.name}', session_id=self.download_session_id)
             sub = RedditAdapterManager().get_adapter_for_object(subreddit, session.query(DownloadSession).get(self.download_session_id)).subreddit_hardcoded(subreddit.name, subreddit.reddit_id)
 
         if sub is not None:
@@ -370,7 +370,7 @@ class DownloadRunner(QObject):
 
         if b_queued:
             if isinstance(praw_object, Redditor) or isinstance(praw_object, AdapterRedditor):
-                Message.send_info(f'Submissions being queued for: {reddit_object.name}')
+                Message.send_info(f'Submissions being queued for: {reddit_object.name}', session_id=self.download_session_id)
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
         if self.perpetual_download:
@@ -555,15 +555,15 @@ class DownloadRunner(QObject):
         message = "Download complete"
         if self.stopped:
             message = "Download stopped"
-        Message.send_info(f'{message}\n')
+        Message.send_info(f'{message}\n', session_id=self.download_session_id)
         self.logger.info("%s", message, extra=extra)
-        Message.send_finished_stats(json.dumps(stats.to_dict()))
+        Message.send_finished_stats(json.dumps(stats.to_dict()), session_id=self.download_session_id)
         if stats.get_content_downloaded_count() > 0:
-            Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}')
+            Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}', session_id=self.download_session_id)
 
     def stop_download(self, hard_stop=False):
         self.stopped = True
         self.continue_run = False
         self.stop_run.set()
         self.downloader.hard_stop = hard_stop
-        Message.send_warning('\nStopped\n')
+        Message.send_warning('\nStopped\n', session_id=self.download_session_id)

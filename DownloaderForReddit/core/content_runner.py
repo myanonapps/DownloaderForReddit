@@ -71,7 +71,7 @@ class ContentRunner(Runner):
         try:
             self.futures.remove(future)
         except ValueError:
-            Message.send_extraction_error("Missing future, runner may be out of sync with UI")
+            Message.send_extraction_error("Missing future, runner may be out of sync with UI", session_id=self.download_session_id)
             return
 
     @verify_run
@@ -86,9 +86,9 @@ class ContentRunner(Runner):
             try:
                 post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
             except MultipleResultsFound:
-                Message.send_extraction_error(f"Post already exists: {submission.url}")
+                Message.send_extraction_error(f"Post already exists: {submission.url}", session_id=self.download_session_id)
             except Exception:
-                Message.send_extraction_error(f"Post not creatable: {submission.url}")
+                Message.send_extraction_error(f"Post not creatable: {submission.url}", session_id=self.download_session_id)
                 self.logger.exception("Post not creatable: %s", submission)
             if post is not None:
                 submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,

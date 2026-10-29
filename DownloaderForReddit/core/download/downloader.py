@@ -242,7 +242,7 @@ class Downloader(Runner):
         :param content: The downloaded content object for which the message is generated.
         """
         output_data = self.get_downloaded_output_data(content)
-        Message.send_debug(f'Saved: {output_data}')
+        Message.send_debug(f'Saved: {output_data}', session_id=self.download_session_id)
 
     def get_downloaded_output_data(self, content: Content) -> str:
         """
@@ -270,7 +270,7 @@ class Downloader(Runner):
         """
         message = 'Download was stopped before finished'
         content.set_download_error(Error.DOWNLOAD_STOPPED, message)
-        Message.send_download_error(f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted')
+        Message.send_download_error(f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted', session_id=self.download_session_id)
 
     def finish_multi_part_download(self, content: Content, multipart_downloader: MultipartDownloader):
         parts = multipart_downloader.part_count
@@ -345,4 +345,4 @@ class Downloader(Runner):
     def output_error(self, content, message):
         output_append = f'\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n' \
                         f'Subreddit: {content.subreddit}\n'
-        Message.send_download_error(message + output_append)
+        Message.send_download_error(message + output_append, session_id=self.download_session_id)

@@ -91,17 +91,17 @@ class UpdateRunner(QObject):
                 old_score = post.score
                 post.score = submission.score
                 Message.send_info(f'{post.title} score updated\n'
-                                  f'    Old score: {old_score}  |  New Score: {post.score}')
+                                  f'    Old score: {old_score}  |  New Score: {post.score}', session_id=self.download_session_id)
             except Exception:
                 self.logger.error('Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
                                                                   'author': post.author.name,
                                                                   'subreddit': post.subreddit.name}, exc_info=True)
-                Message.send_warning(f'Failed to update score for {post.title}')
+                Message.send_warning(f'Failed to update score for {post.title}', session_id=self.download_session_id)
             except BaseException:
                 self.logger.error('Somebody throwing a BaseException. Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
                                                                   'author': post.author.name,
                                                                   'subreddit': post.subreddit.name}, exc_info=True)
-                Message.send_warning(f'Failed to update score for {post.title}')
+                Message.send_warning(f'Failed to update score for {post.title}', session_id=self.download_session_id)
 
     @verify_run
     def update_comments(self):
