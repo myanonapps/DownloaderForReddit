@@ -421,8 +421,8 @@ class DownloadRunnerStats:
         if check_rate_limit:
             if self.get_ratelimit_duration():
                 return True
-        if self.get_ratelimit_count():
-            return True
+            if self.get_ratelimit_count():
+                return True
         if check_duration:
             if self.get_session_duration():
                 return True
