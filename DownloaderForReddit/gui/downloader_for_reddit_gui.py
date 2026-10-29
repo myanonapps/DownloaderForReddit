@@ -298,7 +298,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.timer_widget.setLayout(layout)
         self.perpetual_run_label = QLabel('Perpetual Run |')
         layout.addWidget(self.perpetual_run_label)
-        layout.addWidget(QLabel('Run Time: '))
+        self.label_status_run = QLabel('Run Time: ')
+        layout.addWidget(self.label_status_run)
         self.timer_label = QLabel('00:00:00')
         layout.addWidget(self.timer_label)
 
@@ -772,18 +773,31 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
 
         self.stop_download_signal.connect(self.download_runner.stop_download)
+        self.download_runner.download_session_signal.connect(self.runner_start_signaled)
         self.thread = QThread()
         self.download_runner.moveToThread(self.thread)
         self.thread.started.connect(self.download_runner.run)
 
         self.download_runner.remove_invalid_object.connect(self.remove_invalid_reddit_object)
         self.download_runner.remove_forbidden_object.connect(self.remove_forbidden_reddit_object)
-        self.download_runner.finished.connect(self.thread.quit)
+        self.download_runner.finished.connect(self.runner_finished_signaled)
         self.download_runner.finished.connect(self.download_runner.deleteLater)
+
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.finished.connect(self.finished_download_gui_shift)
         self.thread.start()
         self.logger.info('Download thread started')
+
+    def runner_start_signaled(self, download_session_id: int):
+        self.label_status_run.setText(f'Run Time for session {download_session_id}: ')
+
+    def runner_finished_signaled(self, current:DownloadRunnerStats):
+        self.thread.quit()
+        self.cumulative_stats.add_session(current.to_dict())
+        if current.publish_worthy():
+            self.stats_history.add_run(current, self.cumulative_stats)
+        else:
+            self.stats_history.set_cumulative(self.cumulative_stats)
 
     def add_to_download(self, *args: int):
         """
@@ -844,10 +858,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def handle_message(self, message:Message):
         if message.message_type == MessageType.STATUS_TRAY:
             self.set_tray_icon_message(message)
-        elif message.message_type == MessageType.FINISHED_STATS:
-            current = DownloadRunnerStats(json.loads(message.message))
-            self.cumulative_stats.add_session(current.to_dict())
-            self.stats_history.add_run(current, self.cumulative_stats)
         else:
             self.output_view_model.handle_message(message)
 
@@ -873,7 +883,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.extend_progress(forward=False)
                 self.potential_downloads -= 1
                 self.update_status_bar()
-        else:
+        elif message.message_type == MessageType.ACTUAL_COUNT:
             self.update_progress()
             self.downloaded += 1
             self.update_status_bar()
@@ -1312,6 +1322,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.update_download_action_states()
         self.timer_widget.setVisible(False)
         self.run_time = 0
+        self.label_status_run.setText('Run Time: ')
         # list models are sorted to refresh the display list and
         self.user_list_model.refresh_session()
         self.subreddit_list_model.refresh_session()
@@ -1348,6 +1359,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         Starts the run timer and sets the appropriate displays visible to the user.
         """
+        self.run_time = 0
         self.run_timer.start(1000)
         self.timer_widget.setVisible(True)
         self.perpetual_run_label.setVisible(self.settings_manager.perpetual_download)

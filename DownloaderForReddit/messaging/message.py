@@ -2,6 +2,8 @@ from enum import Enum, StrEnum
 from typing import Optional
 from datetime import datetime, timezone
 
+from DownloaderForReddit.utils import general_utils
+
 from ..utils import injector
 
 class ContentOutput(StrEnum):
@@ -18,8 +20,6 @@ class MessageType(Enum):
     ACTUAL_COUNT = 5
 
     STATUS_TRAY = 6
-
-    FINISHED_STATS = 7
 
 
 class MessagePriority(Enum):
@@ -51,13 +51,7 @@ class Message:
         if settings_manager.show_priority_level:
             priority_string = f"{self.priority.name} "
         if settings_manager.show_datetime:
-            try:
-                if settings_manager.datetime_display_format:
-                    datetime_string = f'[{self.datetime.astimezone().strftime(settings_manager.datetime_display_format)}] '
-                else:
-                    datetime_string = f'[{self.datetime.astimezone().strftime("%m/%d/%y %I:%M:%S %p")}] '
-            except Exception:
-                datetime_string = f'[{self.datetime.astimezone().strftime("%m/%d/%y %I:%M:%S %p")}] '
+            datetime_string = f'[{general_utils.format_datetime(self.datetime.astimezone(), settings_manager)}] '
         if settings_manager.show_session_id and self.session_id:
             sessionid_string = f"({self.session_id}) "
         prefix = f'{datetime_string}{sessionid_string}{priority_string}'
@@ -99,10 +93,6 @@ class Message:
     def send_extraction_error(cls, message: str, session_id:int = 0):
         cls.send(MessageType.POTENTIAL_PROGRESS, priority=MessagePriority.ERROR, session_id=session_id)
         cls.send(MessageType.TEXT, message, MessagePriority.ERROR, session_id=session_id)
-
-    @classmethod
-    def send_finished_stats(cls, message_json: str, session_id:int = 0):
-        cls.send(MessageType.FINISHED_STATS, message_json, MessagePriority.INFO, session_id=session_id)
 
     @classmethod
     def send_download_error(cls, message: str, session_id:int = 0):

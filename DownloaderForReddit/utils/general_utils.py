@@ -118,16 +118,24 @@ def split_file_path(file_path: str) -> tuple[str, str, str]:
     return base_path, title, ext
 
 
-def format_datetime(date_time: datetime):
-    settings_manager = injector.get_settings_manager()
+def format_datetime(date_time: datetime, settings_manager=None):
+    if not settings_manager:
+        settings_manager = injector.get_settings_manager()
     datetime_format = settings_manager.datetime_display_format
-    return date_time.strftime(datetime_format)
+    try:
+        return date_time.strftime(datetime_format)
+    except Exception:
+       return date_time.strftime("%m/%d/%y %I:%M:%S %p")
 
 
-def format_date(raw_date: date):
-    settings_manager = injector.get_settings_manager()
-    date_format = settings_manager.date_display_format
-    return raw_date.strftime(date_format)
+def format_date(raw_date: date, settings_manager=None):
+    if not settings_manager:
+        settings_manager = injector.get_settings_manager()
+    try:
+        date_format = settings_manager.date_display_format
+        return raw_date.strftime(date_format)
+    except Exception:
+       return raw_date.strftime("%m/%d/%y")
 
 
 def format_date_path(formatted_date):

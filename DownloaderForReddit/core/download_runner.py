@@ -39,7 +39,7 @@ class DownloadRunner(QObject):
 
     remove_invalid_object = pyqtSignal(int)
     remove_forbidden_object = pyqtSignal(int)
-    finished = pyqtSignal()
+    finished = pyqtSignal(DownloadRunnerStats)
     download_session_signal = pyqtSignal(int)  # emits the id of the DownloadSession created at the start of the run
     setup_progress_bar = pyqtSignal(int)
     update_progress_bar_signal = pyqtSignal()
@@ -265,6 +265,7 @@ class DownloadRunner(QObject):
             session.add(download_session)
             session.commit()
             self.download_session_id = download_session.id
+        self.download_session_signal.emit(self.download_session_id)
 
     def start_extractor(self):
         self.extractor = ContentRunner(self.submission_queue, self.download_queue, self.download_session_id,
@@ -528,11 +529,12 @@ class DownloadRunner(QObject):
         except AttributeError:
             pass
         video_merger.merge_videos()
+        stats:DownloadRunnerStats = None
         with self.db.get_scoped_session() as session:
             dl_session = self.finish_download_session(session)
-            self.finish_messages(dl_session)
-        self.download_session_signal.emit(self.download_session_id)
-        self.finished.emit()
+            stats = download_runner_stats.from_session(dl_session, self.stopped)
+            self.finish_messages(stats)
+        self.finished.emit(stats)
 
     def finish_download_session(self, session):
         """
@@ -545,19 +547,17 @@ class DownloadRunner(QObject):
         session.commit()
         return download_session
 
-    def finish_messages(self, dl_session:DownloadSession):
+    def finish_messages(self, stats:DownloadRunnerStats):
         """
         Constructs and displays a finish message to the user and a log message.
         :param dl_session: The active download session for this run.
         """
-        stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped)
         extra:dict = stats.to_dict()
         message = "Download complete"
         if self.stopped:
             message = "Download stopped"
         Message.send_info(f'{message}\n', session_id=self.download_session_id)
         self.logger.info("%s", message, extra=extra)
-        Message.send_finished_stats(json.dumps(stats.to_dict()), session_id=self.download_session_id)
         if stats.get_content_downloaded_count() > 0:
             Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}', session_id=self.download_session_id)
 

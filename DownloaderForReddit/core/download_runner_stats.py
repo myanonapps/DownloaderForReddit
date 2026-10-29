@@ -401,6 +401,30 @@ class DownloadRunnerStats:
         """
         self._dict_data["content"]["downloaded"] = count
 
+    def publish_worthy(self, check_duration=False) -> bool:
+        if self.get_content_downloaded_count():
+            return True
+        if self.get_comment_extracted_count():
+            return True
+        if self.get_post_extracted_count():
+            return True
+        if self.get_subreddit_total_count():
+            return True
+        if self.get_user_total_count():
+            return True
+        if self.get_subreddit_significant_count():
+            return True
+        if self.get_user_significant_count():
+            return True
+        if self.get_ratelimit_duration():
+            return True
+        if self.get_ratelimit_count():
+            return True
+        if check_duration:
+            if self.get_session_duration():
+                return True
+        return False
+    
     def add_session(self, dict_data: dict) -> None:
         self._dict_data["id"] = 0
         self._dict_data["stopped"] = False
