@@ -25,11 +25,15 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+import platform
+import subprocess
 from pythonjsonlogger import jsonlogger
 
 from ..utils import system_util
 from ..local_logging.stream_formatter import JsonStreamFormatter
 
+def get_log_path():
+    return os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
 
 def make_logger():
     logger = logging.getLogger('DownloaderForReddit')
@@ -49,10 +53,16 @@ def make_logger():
     stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(stream_formatter)
 
-    log_path = os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
-    file_handler = RotatingFileHandler(log_path, maxBytes=1024*1024, backupCount=2)
+    file_handler = RotatingFileHandler(get_log_path(), maxBytes=1024*1024, backupCount=2)
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(json_formatter)
 
     logger.addHandler(stream_handler)
     logger.addHandler(file_handler)
+
+def open_log_externally():
+    """
+    Opens the log file in the system's default text editor.
+    Works seamlessly on both Linux and Windows.
+    """
+    system_util.open_text_editor(get_log_path())

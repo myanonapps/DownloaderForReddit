@@ -23,6 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
+import platform
 import sys
 import subprocess
 import shutil
@@ -270,3 +271,22 @@ def join_path(*args):
     :return:
     """
     return '/'.join(args)
+
+
+def open_text_editor(file_path):
+    """
+    Opens the specified file in the system's default text editor.
+    Works seamlessly on both Linux and Windows.
+    """
+    current_os = platform.system().lower()
+
+    if current_os == "windows":
+        # os.startfile is built into Python for Windows and respects default apps
+        os.startfile(file_path)
+        
+    elif current_os == "linux":
+        # xdg-open triggers the default GUI text editor configured in Linux Mint/Ubuntu
+        subprocess.run(["xdg-open", file_path], check=True)
+        
+    else:
+        raise NotImplementedError(f"Unsupported operating system: {platform.system()}")
