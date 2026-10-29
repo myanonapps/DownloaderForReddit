@@ -794,7 +794,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def runner_finished_signaled(self, current:DownloadRunnerStats):
         self.thread.quit()
         self.cumulative_stats.add_session(current.to_dict())
-        if current.publish_worthy():
+        if current.is_publish_worthy():
             self.stats_history.add_run(current, self.cumulative_stats)
         else:
             self.stats_history.set_cumulative(self.cumulative_stats)

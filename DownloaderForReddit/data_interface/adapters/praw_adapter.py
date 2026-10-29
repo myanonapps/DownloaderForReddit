@@ -162,7 +162,7 @@ class PRAWAdapter(RedditDataInterface):
                 f'For more information, please visit the link below\n'
                 f'{RATE_LIMIT_DOC_URL}'
             )
-            Message.send_error(message)
+            Message.send_error(message, session_id=self._download_session.id)
         except prawcore.RequestException:
             logger.error('Praw request failed', exc_info=True)
         except prawcore.ResponseException:
@@ -192,7 +192,7 @@ class PRAWAdapter(RedditDataInterface):
                 f'For more information, please visit the link below\n'
                 f'{const.RATE_LIMIT_DOC_URL}'
             )
-            Message.send_error(message)
+            Message.send_error(message, session_id=self._download_session.id)
             return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
         except Exception:
             logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
@@ -218,7 +218,7 @@ class PRAWAdapter(RedditDataInterface):
                 f'For more information, please visit the link below\n'
                 f'{const.RATE_LIMIT_DOC_URL}'
             )
-            Message.send_error(message)
+            Message.send_error(message, session_id=self._download_session.id)
             return ValidationSet(name=name, date_created=None, valid=False)
         except Exception:
             logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)

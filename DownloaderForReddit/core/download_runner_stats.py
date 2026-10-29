@@ -401,7 +401,9 @@ class DownloadRunnerStats:
         """
         self._dict_data["content"]["downloaded"] = count
 
-    def publish_worthy(self, check_duration=False) -> bool:
+    def is_publish_worthy(self, check_duration=False, check_rate_limit=False) -> bool:
+        if self.is_stopped():
+            return True
         if self.get_content_downloaded_count():
             return True
         if self.get_comment_extracted_count():
@@ -416,8 +418,9 @@ class DownloadRunnerStats:
             return True
         if self.get_user_significant_count():
             return True
-        if self.get_ratelimit_duration():
-            return True
+        if check_rate_limit:
+            if self.get_ratelimit_duration():
+                return True
         if self.get_ratelimit_count():
             return True
         if check_duration:
