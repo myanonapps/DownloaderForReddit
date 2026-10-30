@@ -371,7 +371,7 @@ class DownloadRunner(QObject):
 
         if b_queued:
             if isinstance(praw_object, Redditor) or isinstance(praw_object, AdapterRedditor):
-                Message.send_info(f'Submissions being queued for: {reddit_object.name}', session_id=self.download_session_id)
+                Message.send_debug(f'Submissions being queued for: {reddit_object.name}', session_id=self.download_session_id)
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
         if self.perpetual_download:
@@ -531,18 +531,18 @@ class DownloadRunner(QObject):
         video_merger.merge_videos()
         stats:DownloadRunnerStats = None
         with self.db.get_scoped_session() as session:
-            dl_session = self.finish_download_session(session)
-            stats = download_runner_stats.from_session(dl_session, self.stopped)
+            dl_session:DownloadSession = self.finish_download_session(session)
+            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped)
             self.finish_messages(stats)
         self.finished.emit(stats)
 
-    def finish_download_session(self, session):
+    def finish_download_session(self, session) -> DownloadSession:
         """
         Adds the finishing information to the current download session and commits it to the database.
         :param session: The sqlalchemy session that is active for use in committing the download session to storage.
         :return: The finished download session with all it's information.
         """
-        download_session = session.query(DownloadSession).get(self.download_session_id)
+        download_session:DownloadSession = session.query(DownloadSession).get(self.download_session_id)
         download_session.end_time = datetime.now()
         session.commit()
         return download_session
