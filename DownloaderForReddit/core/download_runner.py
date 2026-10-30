@@ -532,7 +532,24 @@ class DownloadRunner(QObject):
         stats:DownloadRunnerStats = None
         with self.db.get_scoped_session() as session:
             dl_session:DownloadSession = self.finish_download_session(session)
+            
+            # Count and add error statistics for this specific session
+            # Count extraction errors (posts with extraction_error set for this session)
+            extraction_errors = session.query(Post.id).filter(
+                Post.extraction_error != None,
+                Post.download_session_id == dl_session.id
+            ).count()
+            
+            # Count download errors (content items with download_error set for this session)
+            download_errors = session.query(Content.id).filter(
+                Content.download_error != None,
+                Content.download_session_id == dl_session.id
+            ).count()
+            
+            # Update the stats object to include error counts
             stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped)
+            stats.set_extraction_error_count(extraction_errors)
+            stats.set_download_error_count(download_errors)
             self.finish_messages(stats)
         self.finished.emit(stats)
 
