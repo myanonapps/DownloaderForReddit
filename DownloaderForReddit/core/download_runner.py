@@ -23,7 +23,7 @@ from .content_runner import ContentRunner
 from .submission_filter import SubmissionFilter
 from .runner import verify_run
 from .errors import NON_DOWNLOADABLE
-from ..database.models import DownloadSession, RedditObject, User, Subreddit, Post, Content
+from ..database.models import Comment, DownloadSession, RedditObject, User, Subreddit, Post, Content
 from ..data_interface.adapter_manager import RedditAdapterManager
 from ..messaging.message import Message
 from ..version import __version__
@@ -535,11 +535,16 @@ class DownloadRunner(QObject):
             
             # Count and add error statistics for this specific session
             # Count extraction errors (posts with extraction_error set for this session)
-            extraction_errors = session.query(Post.id).filter(
+            post_errors = session.query(Post.id).filter(
                 Post.extraction_error != None,
                 Post.download_session_id == dl_session.id
             ).count()
-            
+
+            comment_errors = session.query(Comment.id).filter(
+                Comment.extraction_error != None,
+                Comment.download_session_id == dl_session.id
+            ).count()
+
             # Count download errors (content items with download_error set for this session)
             download_errors = session.query(Content.id).filter(
                 Content.download_error != None,
@@ -547,9 +552,7 @@ class DownloadRunner(QObject):
             ).count()
             
             # Update the stats object to include error counts
-            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped)
-            stats.set_extraction_error_count(extraction_errors)
-            stats.set_download_error_count(download_errors)
+            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped, post_errors, comment_errors, download_errors)
             self.finish_messages(stats)
         self.finished.emit(stats)
 

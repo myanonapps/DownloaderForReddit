@@ -32,11 +32,11 @@ from DownloaderForReddit.utils import injector
 
 # (key, row label)
 STAT_ROWS = [
-    ("download_count", "Content Count"),
+    ("download_count", "Content Count/Error"),
     ("downloaded_users", "Downloaded Users"),
     ("downloaded_subreddits", "Downloaded Subreddits"),
-    ("post_count", "Post Count"),
-    ("comment_count", "Comment Count"),
+    ("post_count", "Post Count/Error"),
+    ("comment_count", "Comment Count/Error"),
     ("rate_limit", "Rate Limit"),
     ("run_time", "Run Time"),
 ]
@@ -45,11 +45,11 @@ STAT_ROWS = [
 DEFAULT_VALUES = {
     "run_time": "0 for 0 secs",
     "rate_limit": "0 for 0 secs",
-    "download_count": "0",
+    "download_count": "0 / 0",
     "downloaded_users": "0",
     "downloaded_subreddits": "0",
-    "post_count": "0",
-    "comment_count": "0",
+    "post_count": "0 / 0",
+    "comment_count": "0 / 0",
 }
 
 ROW_HEIGHT = 26
@@ -96,11 +96,11 @@ def format_stats(stats: DownloadRunnerStats, cumulative: bool) -> dict[str, str]
     return {
         "run_time": run_time,
         "rate_limit": f"{stats.get_ratelimit_count()} for {stats.get_ratelimit_duration_time()}",
-        "download_count": str(stats.get_content_downloaded_count()),
+        "download_count": f"{str(stats.get_content_downloaded_count())} / {str(stats.get_content_error_count())}",
         "downloaded_users": str(stats.get_user_significant_count()),
         "downloaded_subreddits": str(stats.get_subreddit_significant_count()),
-        "post_count": str(stats.get_post_extracted_count()),
-        "comment_count": str(stats.get_comment_extracted_count()),
+        "post_count": f"{str(stats.get_post_extracted_count())} / {str(stats.get_post_extraction_error_count())}",
+        "comment_count": f"{str(stats.get_comment_extracted_count())} / {str(stats.get_comment_extraction_error_count())}",
     }
 
 

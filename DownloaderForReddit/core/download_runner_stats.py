@@ -31,6 +31,9 @@ class DownloadRunnerStats:
             self.set_post_extracted_count(DownloadRunnerStats.get_post_extracted_count_from_dict(dict_data))
             self.set_ratelimit_count(DownloadRunnerStats.get_ratelimit_count_from_dict(dict_data))
             self.set_ratelimit_duration(DownloadRunnerStats.get_ratelimit_duration_from_dict(dict_data))
+            self.set_post_extraction_error_count(DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
+            self.set_comment_extraction_error_count(DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
+            self.set_content_error_count(DownloadRunnerStats.get_content_error_count_from_dict(dict_data))
 
     def reset(self):
         self._dict_data = {
@@ -51,17 +54,19 @@ class DownloadRunnerStats:
                 "total": 0
             },
             "post": {
-                "extracted": 0
+                "extracted": 0,
+                "error": 0
             },
             "comment": {
-                "extracted": 0
+                "extracted": 0,
+                "error": 0
             },
             "content": {
-                "downloaded": 0
+                "downloaded": 0,
+                "error": 0
             }
 
         }
-    
 
     def is_stopped(self) -> bool:
         return dig(self._dict_data, "stopped", default=False)
@@ -418,6 +423,12 @@ class DownloadRunnerStats:
             return True
         if self.get_user_significant_count():
             return True
+        if self.get_post_extraction_error_count():
+            return True
+        if self.get_comment_extraction_error_count():
+            return True
+        if self.get_content_error_count():
+            return True        
         if check_rate_limit:
             if self.get_ratelimit_duration():
                 return True
@@ -427,7 +438,37 @@ class DownloadRunnerStats:
             if self.get_session_duration():
                 return True
         return False
+
+    @staticmethod
+    def get_post_extraction_error_count_from_dict(dict_data:dict) -> int:
+        return dig(dict_data, "post", "error", default=0)
+
+    @staticmethod
+    def get_comment_extraction_error_count_from_dict(dict_data:dict) -> int:
+        return dig(dict_data, "comment", "error", default=0)
+
+    @staticmethod
+    def get_content_error_count_from_dict(dict_data:dict) -> int:
+        return dig(dict_data, "content", "error", default=0)
+
+    def get_post_extraction_error_count(self) -> int:
+        return DownloadRunnerStats.get_post_extraction_error_count_from_dict(self._dict_data)
     
+    def get_comment_extraction_error_count(self) -> int:
+        return DownloadRunnerStats.get_comment_extraction_error_count_from_dict(self._dict_data)
+
+    def get_content_error_count(self) -> int:
+        return DownloadRunnerStats.get_content_error_count_from_dict(self._dict_data)
+
+    def set_content_error_count(self, count:int) -> int:
+        self._dict_data["content"]["error"] = count
+
+    def set_post_extraction_error_count(self, count:int) -> int:
+        self._dict_data["post"]["error"] = count
+
+    def set_comment_extraction_error_count(self, count:int) -> int:
+        self._dict_data["comment"]["error"] = count
+
     def add_session(self, dict_data: dict) -> None:
         self._dict_data["id"] = 0
         self._dict_data["stopped"] = False
@@ -443,6 +484,9 @@ class DownloadRunnerStats:
         self.set_ratelimit_count(self.get_ratelimit_count() + self.get_ratelimit_count_from_dict(dict_data))
         self.set_session_duration(self.get_session_duration() + self.get_session_duration_from_dict(dict_data))
         self.set_session_count(self.get_session_count() + 1)
+        self.set_post_extraction_error_count(DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
+        self.set_comment_extraction_error_count(DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
+        self.set_content_error_count(DownloadRunnerStats.get_content_error_count_from_dict(dict_data))        
         
 
     def to_dict(self, times:bool=True) -> dict:
@@ -462,16 +506,22 @@ class DownloadRunnerStats:
             
         return f'Run{prefix}: {self.get_session_count()} for {self.get_session_duration_time()}{suffix}\n' \
                   f'Rate Limit: {self.get_ratelimit_count()} for {self.get_ratelimit_duration_time()}\n'\
+                  f'Download Errors: {self.get_content_error_count()}\n' \
+                  f'Post Errors: {self.get_post_extraction_error_count()}\n' \
+                  f'Comment Errors: {self.get_comment_extraction_error_count()}\n' \
                   f'Download Count: {self.get_content_downloaded_count()}\n' \
                   f'Downloaded Users: {self.get_user_significant_count()}\n' \
                   f'Downloaded Subreddits: {self.get_subreddit_significant_count()}\n' \
                   f'Post Count: {self.get_post_extracted_count()}\n' \
                   f'Comment Count: {self.get_comment_extracted_count()}'
 
-def from_session(dl_session:DownloadSession, stopped:bool=False) -> DownloadRunnerStats:
+def from_session(dl_session:DownloadSession, stopped:bool=False, post_errors:int=0, comment_errors:int=0, content_errors:int=0) -> DownloadRunnerStats:
     stats:DownloadRunnerStats = DownloadRunnerStats({})
     stats.set_session_count(1)
     stats.set_stopped(stopped)
+    stats.set_post_extraction_error_count(post_errors)
+    stats.set_comment_extraction_error_count(comment_errors)
+    stats.set_content_error_count(content_errors)
 
     stats.set_id(dl_session.id)
     stats.set_session_duration(dl_session.get_duration())
