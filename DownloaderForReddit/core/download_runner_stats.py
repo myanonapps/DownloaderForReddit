@@ -484,9 +484,9 @@ class DownloadRunnerStats:
         self.set_ratelimit_count(self.get_ratelimit_count() + self.get_ratelimit_count_from_dict(dict_data))
         self.set_session_duration(self.get_session_duration() + self.get_session_duration_from_dict(dict_data))
         self.set_session_count(self.get_session_count() + 1)
-        self.set_post_extraction_error_count(DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
-        self.set_comment_extraction_error_count(DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
-        self.set_content_error_count(DownloadRunnerStats.get_content_error_count_from_dict(dict_data))        
+        self.set_post_extraction_error_count(self.get_post_extraction_error_count() + DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
+        self.set_comment_extraction_error_count(self.get_comment_extraction_error_count() + DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
+        self.set_content_error_count(self.get_content_error_count() + DownloadRunnerStats.get_content_error_count_from_dict(dict_data))
         
 
     def to_dict(self, times:bool=True) -> dict:
