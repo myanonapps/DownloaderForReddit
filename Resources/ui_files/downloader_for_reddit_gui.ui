@@ -289,7 +289,7 @@ QToolBar QLabel {
        <item>
         <widget class="QLabel" name="label_2">
          <property name="text">
-          <string>Users:</string>
+          <string>Count:</string>
          </property>
         </widget>
        </item>
@@ -367,7 +367,7 @@ QToolBar QLabel {
        <item>
         <widget class="QLabel" name="label_4">
          <property name="text">
-          <string>Subreddits:</string>
+          <string>Count:</string>
          </property>
         </widget>
        </item>
