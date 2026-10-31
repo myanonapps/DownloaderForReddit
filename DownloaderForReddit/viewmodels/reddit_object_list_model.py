@@ -79,6 +79,7 @@ class RedditObjectListModel(QAbstractListModel):
             list_id = self.list.id
             self.reddit_objects.clear()
             self.list = None
+            self._emit_count()
             self.session.query(ListAssociation).filter(ListAssociation.reddit_object_list_id == list_id).delete()
             self.session.query(RedditObjectList).filter(RedditObjectList.id == list_id).delete()
             self.session.commit()
@@ -95,6 +96,9 @@ class RedditObjectListModel(QAbstractListModel):
         except NoResultFound:
             pass
 
+    def _emit_count(self):
+        self.count_change.emit(self.list.reddit_objects.count() if self.list is not None else 0)
+
     def sort_list(self):
         try:
             order = self.settings_manager.list_order_method
@@ -103,6 +107,7 @@ class RedditObjectListModel(QAbstractListModel):
             self.reddit_objects = \
                 f.filter(self.session, query=self.list.reddit_objects, order_by=order, desc=desc).all()
             self.refresh()
+            self._emit_count()
             self.check_last_added()
         except AttributeError:
             # AttributeError indicates that no list is set for this view model
@@ -223,6 +228,7 @@ class RedditObjectListModel(QAbstractListModel):
             self.beginInsertRows(parent, self.rowCount() - 1, self.rowCount())
             self.list.reddit_objects.append(item)
             self.endInsertRows()
+            self._emit_count()
             self.session.commit()
             self.reddit_object_added.emit(item.id)
             self.last_added = item
@@ -234,6 +240,7 @@ class RedditObjectListModel(QAbstractListModel):
         for x in range(rows): # pylint: disable=unused-variable
             self.list.reddit_objects.remove(self.list.reddit_objects[position])
         self.endRemoveRows()
+        self._emit_count()
         self.session.commit()
         return True
 
