@@ -34,6 +34,8 @@ class DownloadRunnerStats:
             self.set_post_extraction_error_count(DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
             self.set_comment_extraction_error_count(DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
             self.set_content_error_count(DownloadRunnerStats.get_content_error_count_from_dict(dict_data))
+            self.set_user_names(DownloadRunnerStats.get_user_names_from_dict(dict_data))
+            self.set_subreddit_names(DownloadRunnerStats.get_subreddit_names_from_dict(dict_data))
 
     def reset(self):
         self._dict_data = {
@@ -47,11 +49,13 @@ class DownloadRunnerStats:
             },
             "user": {
                 "significant": 0,
-                "total": 0
+                "total": 0,
+                "names": []
             },
             "subreddit": {
                 "significant": 0,
-                "total": 0
+                "total": 0,
+                "names": []
             },
             "post": {
                 "extracted": 0,
@@ -220,6 +224,24 @@ class DownloadRunnerStats:
         """
         return dig(dict_data, "user", "significant", default=0)
 
+    def get_user_names(self) -> list:
+        """
+        Get the names of users.
+        
+        Returns:
+            list: The names of users
+        """
+        return DownloadRunnerStats.get_user_names_from_dict(self._dict_data)
+
+    def get_subreddit_names(self) -> list:
+        """
+        Get the names of subreddits.
+        
+        Returns:
+            list: The names of subreddits
+        """
+        return DownloadRunnerStats.get_subreddit_names_from_dict(self._dict_data)
+
     def get_user_significant_count(self) -> int:
         """
         Get the count of significant users.
@@ -266,6 +288,15 @@ class DownloadRunnerStats:
         """
         self._dict_data["user"]["total"] = count
 
+    def set_user_names(self, names: set):
+        """
+        Set the names of users.
+        
+        Args:
+            names (set): The names of users to set
+        """
+        self._dict_data["user"]["names"] = names
+
     @staticmethod
     def get_subreddit_significant_count_from_dict(dict_data:dict) -> int:
         """
@@ -275,6 +306,26 @@ class DownloadRunnerStats:
             int: The significant subreddit count
         """
         return dig(dict_data, "subreddit", "significant", default=0)
+
+    @staticmethod
+    def get_subreddit_names_from_dict(dict_data:dict) -> int:
+        """
+        Get the names subreddits.
+        
+        Returns:
+            names: The subreddit names
+        """
+        return dig(dict_data, "subreddit", "names", default=[])
+
+    @staticmethod
+    def get_user_names_from_dict(dict_data:dict) -> int:
+        """
+        Get the names user.
+        
+        Returns:
+            names: The user names
+        """
+        return dig(dict_data, "user", "names", default=[])
 
     def get_subreddit_significant_count(self) -> int:
         """
@@ -321,6 +372,15 @@ class DownloadRunnerStats:
             count (int): The total subreddit count to set
         """
         self._dict_data["subreddit"]["total"] = count
+
+    def set_subreddit_names(self, names: set):
+        """
+        Set the names subreddits.
+        
+        Args:
+            names (set): The subreddit names to set
+        """
+        self._dict_data["subreddit"]["names"] = names
 
     @staticmethod
     def get_post_extracted_count_from_dict(dict_data:dict) -> int:
@@ -419,6 +479,10 @@ class DownloadRunnerStats:
             return True
         if self.get_user_total_count():
             return True
+        if self.get_user_names():
+            return True
+        if self.get_subreddit_names():
+            return True               
         if self.get_subreddit_significant_count():
             return True
         if self.get_user_significant_count():
@@ -487,6 +551,8 @@ class DownloadRunnerStats:
         self.set_post_extraction_error_count(self.get_post_extraction_error_count() + DownloadRunnerStats.get_post_extraction_error_count_from_dict(dict_data))
         self.set_comment_extraction_error_count(self.get_comment_extraction_error_count() + DownloadRunnerStats.get_comment_extraction_error_count_from_dict(dict_data))
         self.set_content_error_count(self.get_content_error_count() + DownloadRunnerStats.get_content_error_count_from_dict(dict_data))
+        self.set_user_names(list(set(self.get_user_names() + DownloadRunnerStats.get_user_names_from_dict(dict_data))))
+        self.set_subreddit_names(list(set(self.get_subreddit_names() + DownloadRunnerStats.get_subreddit_names_from_dict(dict_data))))
         
 
     def to_dict(self, times:bool=True) -> dict:
@@ -515,13 +581,16 @@ class DownloadRunnerStats:
                   f'Post Count: {self.get_post_extracted_count()}\n' \
                   f'Comment Count: {self.get_comment_extracted_count()}'
 
-def from_session(dl_session:DownloadSession, stopped:bool=False, post_errors:int=0, comment_errors:int=0, content_errors:int=0) -> DownloadRunnerStats:
+def from_session(dl_session:DownloadSession, stopped:bool=False, post_errors:int=0, comment_errors:int=0, content_errors:int=0, 
+                 user_names:set=None, subreddit_names:set=None) -> DownloadRunnerStats:
     stats:DownloadRunnerStats = DownloadRunnerStats({})
     stats.set_session_count(1)
     stats.set_stopped(stopped)
     stats.set_post_extraction_error_count(post_errors)
     stats.set_comment_extraction_error_count(comment_errors)
     stats.set_content_error_count(content_errors)
+    stats.set_user_names(list(user_names))
+    stats.set_subreddit_names(list(subreddit_names))
 
     stats.set_id(dl_session.id)
     stats.set_session_duration(dl_session.get_duration())

@@ -242,7 +242,7 @@ class Downloader(Runner):
         :param content: The downloaded content object for which the message is generated.
         """
         output_data = self.get_downloaded_output_data(content)
-        Message.send_debug(f'Saved: {output_data}', session_id=self.download_session_id)
+        Message.send_info(f'Saved: {output_data}', session_id=self.download_session_id)
 
     def get_downloaded_output_data(self, content: Content) -> str:
         """

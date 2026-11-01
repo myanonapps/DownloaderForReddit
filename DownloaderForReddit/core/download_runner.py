@@ -532,27 +532,69 @@ class DownloadRunner(QObject):
         stats:DownloadRunnerStats = None
         with self.db.get_scoped_session() as session:
             dl_session:DownloadSession = self.finish_download_session(session)
-            
-            # Count and add error statistics for this specific session
-            # Count extraction errors (posts with extraction_error set for this session)
-            post_errors = session.query(Post.id).filter(
-                Post.extraction_error != None,
-                Post.download_session_id == dl_session.id
-            ).count()
+            post_errors = 0
+            comment_errors = 0
+            download_errors = 0
+            user_names:set = set()
+            subreddit_names:set = set()
+            b_full = True
 
-            comment_errors = session.query(Comment.id).filter(
-                Comment.extraction_error != None,
-                Comment.download_session_id == dl_session.id
-            ).count()
+            if b_full:
 
-            # Count download errors (content items with download_error set for this session)
-            download_errors = session.query(Content.id).filter(
-                Content.download_error != None,
-                Content.download_session_id == dl_session.id
-            ).count()
-            
+                # Get all users who had posts/comments/content in this session
+
+                # Query for all Posts associated with this session
+                posts = session.query(Post).filter(Post.download_session_id == dl_session.id).all()
+                for post in posts:
+                    if post.extraction_error:
+                        post_errors += 1
+                    if post.author and post.author.name:
+                        user_names.add(post.author.name)
+                    if post.subreddit and post.subreddit.name:
+                        subreddit_names.add(post.subreddit.name)
+
+                # Query for all Comments associated with this session
+                comments = session.query(Comment).filter(Comment.download_session_id == dl_session.id).all()
+                for comment in comments:
+                    if comment.extraction_error:
+                        comment_errors += 1
+                    if comment.user and comment.user.name:
+                        user_names.add(comment.user.name)
+                    if comment.subreddit and comment.subreddit.name:
+                        subreddit_names.add(comment.subreddit.name)
+
+                # Query for all Content items associated with this session
+                content_items = session.query(Content).filter(Content.download_session_id == dl_session.id).all()
+                for content in content_items:
+                    if content.download_error:
+                        download_errors += 1
+                    if content.post and content.post.author and content.post.author.name:
+                        user_names.add(content.post.author.name)
+                    if content.subreddit and content.subreddit.name:
+                        subreddit_names.add(content.subreddit.name)
+
+            else:
+
+                # Count and add error statistics for this specific session
+                # Count extraction errors (posts with extraction_error set for this session)
+                post_errors = session.query(Post.id).filter(
+                    Post.extraction_error != None,
+                    Post.download_session_id == dl_session.id
+                ).count()
+
+                comment_errors = session.query(Comment.id).filter(
+                    Comment.extraction_error != None,
+                    Comment.download_session_id == dl_session.id
+                ).count()
+
+                # Count download errors (content items with download_error set for this session)
+                download_errors = session.query(Content.id).filter(
+                    Content.download_error != None,
+                    Content.download_session_id == dl_session.id
+                ).count()
+
             # Update the stats object to include error counts
-            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped, post_errors, comment_errors, download_errors)
+            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped, post_errors, comment_errors, download_errors, user_names, subreddit_names)
             self.finish_messages(stats)
         self.finished.emit(stats)
 
@@ -574,12 +616,27 @@ class DownloadRunner(QObject):
         """
         extra:dict = stats.to_dict()
         message = "Download complete"
+        extra_message = ""
         if self.stopped:
             message = "Download stopped"
-        Message.send_info(f'{message}\n', session_id=self.download_session_id)
-        self.logger.info("%s", message, extra=extra)
+        if stats.get_user_names() or stats.get_subreddit_names():
+            users = ""
+            subs = ""
+            if stats.get_user_names():
+                users = ', '.join(stats.get_user_names())
+            if stats.get_subreddit_names():
+                subs = ', '.join(stats.get_subreddit_names())
+            if users and subs:
+                extra_message = f":\n\tUsers: {users}\n\tSubreddits: {subs}"
+            elif users:
+                extra_message = f":\n\tUsers: {users}"
+            elif subs:
+                extra_message = f":\n\tSubreddits: {subs}"
+
+        Message.send_info(f'{message}{extra_message}\n', session_id=self.download_session_id)
+        self.logger.info("%s", message + extra_message, extra=extra)
         if stats.get_content_downloaded_count() > 0:
-            Message.send_status_tray(f'Download Count: {stats.get_content_downloaded_count()}', session_id=self.download_session_id)
+            Message.send_status_tray(f'{stats.get_content_downloaded_count()} downloads. Users: {users} Subreddits: {subs}', session_id=self.download_session_id)
 
     def stop_download(self, hard_stop=False):
         self.stopped = True
