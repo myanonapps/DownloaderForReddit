@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>906</width>
-    <height>640</height>
+    <height>712</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -268,6 +268,18 @@
            </property>
           </widget>
          </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="reddit_group_box">
+        <property name="title">
+         <string>Reddit</string>
+        </property>
+        <layout class="QVBoxLayout" name="reddit_layout">
+         <property name="spacing">
+          <number>8</number>
+         </property>
          <item>
           <widget class="QCheckBox" name="download_reddit_hosted_videos_checkbox">
            <property name="toolTip">
@@ -277,6 +289,29 @@
             <string>Support Reddit hosted videos</string>
            </property>
           </widget>
+         </item>
+         <item>
+          <layout class="QFormLayout" name="reddit_form_layout">
+           <property name="fieldGrowthPolicy">
+            <enum>QFormLayout::ExpandingFieldsGrow</enum>
+           </property>
+           <property name="verticalSpacing">
+            <number>6</number>
+           </property>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="reddit_client_id_editbox"/>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="reddit_client_id_label">
+             <property name="text">
+              <string>Client ID:</string>
+             </property>
+             <property name="buddy">
+              <cstring>reddit_client_id_editbox</cstring>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
@@ -566,6 +601,8 @@
   <tabstop>finish_incomplete_downloads_checkbox</tabstop>
   <tabstop>finish_incomplete_extractions_checkbox</tabstop>
   <tabstop>validate_names_before_download_checkbox</tabstop>
+  <tabstop>download_reddit_hosted_videos_checkbox</tabstop>
+  <tabstop>reddit_client_id_editbox</tabstop>
   <tabstop>extraction_thread_count_spinbox</tabstop>
   <tabstop>download_thread_count_spinbox</tabstop>
   <tabstop>multi_part_download_groupbox</tabstop>

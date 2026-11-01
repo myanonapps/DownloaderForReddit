@@ -16,6 +16,7 @@ from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapte
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.messaging.message import Message
+from DownloaderForReddit.utils import injector
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
@@ -31,8 +32,6 @@ class PRAWAdapter(RedditDataInterface):
     # Configuration values from reddit_utils.py
     TOKEN_SCOPES = ['identity', 'mysubreddits', 'subscribe', 'account', 'history', 'read']
     TOKEN_DURATION = 'permanent'
-
-    CLIENT_ID = 'frGEUVAuHGL2PQ'
 
     def __init__(self, token:RedditAdapterToken, download_session=None):
         """
@@ -55,14 +54,14 @@ class PRAWAdapter(RedditDataInterface):
 
         if self._token is not None:
             self._praw = praw.Reddit(
-                client_id=self.CLIENT_ID,
+                client_id=injector.get_settings_manager().reddit_client_id,
                 user_agent=self.get_user_agent(),
                 client_secret=None,
                 refresh_token=self._token.get_decrypted()
             )
         else:
             self._praw = praw.Reddit(
-                client_id=self.CLIENT_ID,
+                client_id=injector.get_settings_manager().reddit_client_id,
                 user_agent=self.get_user_agent(),
                 client_secret=None,
                 redirect_uri=self.get_redirect_url()

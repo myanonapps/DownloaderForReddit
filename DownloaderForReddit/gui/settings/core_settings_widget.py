@@ -45,6 +45,7 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
             self.settings.finish_incomplete_extractions_at_session_start)
         self.finish_incomplete_downloads_checkbox.setChecked(
             self.settings.finish_incomplete_downloads_at_session_start)
+        self.reddit_client_id_editbox.setText(self.settings.reddit_client_id)
         self.download_reddit_hosted_videos_checkbox.setChecked(self.settings.download_reddit_hosted_videos)
         self.multi_part_download_groupbox.setChecked(self.settings.use_multi_part_downloader)
         self.set_size_options(self.settings.multi_part_threshold, self.threshold_size_combo,
@@ -84,6 +85,7 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
             self.finish_incomplete_extractions_checkbox.isChecked()
         self.settings.finish_incomplete_downloads_at_session_start = \
             self.finish_incomplete_downloads_checkbox.isChecked()
+        self.settings.reddit_client_id = self.reddit_client_id_editbox.text()
         self.settings.download_reddit_hosted_videos = self.download_reddit_hosted_videos_checkbox.isChecked()
         self.settings.use_multi_part_downloader = self.multi_part_download_groupbox.isChecked()
         threshold_size = \

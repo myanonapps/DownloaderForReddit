@@ -50,7 +50,7 @@ class SettingsManager:
         self.finish_incomplete_downloads_at_session_start = \
             self.get('core', 'finish_incomplete_downloads_at_session_start', False)
         self.download_reddit_hosted_videos = self.get('download_defaults', 'download_reddit_hosted_videos', True)
-
+        self.reddit_client_id = self.get('core', 'reddit_client_id', 'frGEUVAuHGL2PQ')
         self.perpetual_download = self.get('core', 'perpetual_download', False)
         self.cascade_list_changes = self.get('core', 'cascade_list_changes', False)
         self.reddit_access_token = self.get('core', 'reddit_access_token', None)
