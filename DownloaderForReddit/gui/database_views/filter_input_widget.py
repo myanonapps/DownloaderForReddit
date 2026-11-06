@@ -100,11 +100,11 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
 
     def get_value(self):
         t = type(self.value_field)
-        if t == QComboBox:
+        if isinstance (t, QComboBox):
             return self.value_field.currentData(Qt.ItemDataRole.UserRole)
-        elif t == QLineEdit:
+        if  isinstance (t, QLineEdit):
             return self.value_field.text()
-        elif t == QSpinBox:
+        if  isinstance (t, QSpinBox):
             return self.value_field.value()
         return None
 
@@ -119,7 +119,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
             self.launch_quick_filter = True
 
     def add_filter(self, filters=None):
-        if isinstance(filters, list):
+        if not isinstance(filters, list):
             filters = [self.create_filter()]
         self.export_filter.emit(filters)
 
