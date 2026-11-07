@@ -52,7 +52,10 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
         filter_layout.addWidget(self.get_line())
         filter_layout.addWidget(QLabel(filter_item['operator']))
         filter_layout.addWidget(self.get_line())
-        filter_layout.addWidget(QLabel(str(filter_item['value'])))
+        if 'value' in filter_item and filter_item['value']:
+            filter_layout.addWidget(QLabel(str(filter_item['value'])))
+        else:
+            filter_layout.addWidget(QLabel(""))
 
         remove_button = QToolButton()
         remove_button.setText('X')

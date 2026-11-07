@@ -1,7 +1,8 @@
+import functools
 import logging
 from PyQt6.QtWidgets import (QMenu, QWidget, QInputDialog, QAbstractItemView, QWidgetAction, QCheckBox,
-                             QApplication)
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+                             QApplication, QSplitter)
+from PyQt6.QtCore import QByteArray, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor, QActionGroup, QClipboard
 from sqlalchemy import or_
 
@@ -21,22 +22,34 @@ def hold_setup(method):
     """
     Decorator method that sets a hold flag before the method is called and releases it after.  This is used to avoid
     infinite looping calls when a monitored attribute must be changed.
+
+    The previous value of the flag is restored (rather than blindly cleared) so holds can nest, and the flag is always
+    released, even if the wrapped method raises.  Otherwise a single exception would leave the hold set for the rest of
+    the session and every @check_hold method would silently do nothing.
     """
-    def set_hold(instance):
+    @functools.wraps(method)
+    def set_hold(instance, *args, **kwargs):
+        previous = instance.hold_setup
         instance.hold_setup = True
-        method(instance)
-        instance.hold_setup = False
+        try:
+            return method(instance, *args, **kwargs)
+        finally:
+            instance.hold_setup = previous
     return set_hold
 
 
 def check_hold(method):
     """
     Checks a hold flag before calling the supplied method.  This is used so that monitored attributes can be changed
-    without causing an infinite loop.
+    without causing an infinite loop.  Passing override_hold=True runs the method even while the hold is set.
+    The override_hold keyword is always consumed here, so the wrapped method never receives it.
     """
-    def check(instance, **kwargs):
-        if not instance.hold_setup or kwargs.pop('override_hold', False):
-            method(instance, **kwargs)
+    @functools.wraps(method)
+    def check(instance, *args, **kwargs):
+        override = kwargs.pop('override_hold', False)
+        if not instance.hold_setup or override:
+            return method(instance, *args, **kwargs)
+        return None
     return check
 
 
@@ -46,9 +59,10 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
     update_post_score_signal = pyqtSignal(list)
     update_post_comments_signal = pyqtSignal(list)
 
-    def __init__(self, save_settings=False, **setup_kwargs):
+    def __init__(self, save_settings=True, **setup_kwargs):
         """
-        save_settings: True if the dialog settings should be saved on close.
+        save_settings: True if the dialog settings should be saved on close.  Pass False for a specialty view (such
+            as failed downloads) whose layout must not overwrite the user's saved database view.
         setup_kwargs fields:
             visible_models: The models that will be visible on start
             <model_name>_sort: The sort attribute that will be used on start for the model name
@@ -71,7 +85,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
         geom = self.settings_manager.database_view_geom
         self.resize(geom['width'], geom['height'])
-        if geom['x'] != 0 and geom['y'] != 0:
+        if geom['x'] != 0 and geom['y'] != 0 and self.position_is_on_screen(geom['x'], geom['y']):
             self.move(geom['x'], geom['y'])
         self.download_session_widget.resize(self.settings_manager.database_view_download_session_widget_width, 0)
         self.reddit_object_widget.resize(self.settings_manager.database_view_reddit_object_widget_width, 0)
@@ -121,37 +135,31 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         for x in CommentFilter.get_order_fields():
             self.comment_sort_combo.addItem(x.replace('_', ' ').title(), x)
 
-        dl_session_default_sort = self.settings_manager.database_view_download_session_order
-        ro_default_sort = self.settings_manager.database_view_reddit_object_order
-        post_default_sort = self.settings_manager.database_view_post_order
-        content_default_sort = self.settings_manager.database_view_content_order
-        comment_default_sort = self.settings_manager.database_view_comment_order
+        # The setup_kwargs value wins, then the saved setting, then the first entry in the combo.  Falling back to the
+        # first entry keeps a stale saved field (renamed/removed) from leaving the combo blank and sorting by None.
+        sort_widgets = (
+            (self.download_session_sort_combo, 'download_session_sort',
+             self.settings_manager.database_view_download_session_order),
+            (self.reddit_object_sort_combo, 'reddit_object_sort',
+             self.settings_manager.database_view_reddit_object_order),
+            (self.post_sort_combo, 'post_sort', self.settings_manager.database_view_post_order),
+            (self.content_sort_combo, 'content_sort', self.settings_manager.database_view_content_order),
+            (self.comment_sort_combo, 'comment_sort', self.settings_manager.database_view_comment_order)
+        )
+        for combo, kwarg_key, saved_value in sort_widgets:
+            self.select_combo_data(combo, self.setup_kwargs.get(kwarg_key), saved_value)
 
-        dl_session_index = self.download_session_sort_combo.findData(
-            self.setup_kwargs.get('download_session_sort', dl_session_default_sort))
-        ro_index = self.reddit_object_sort_combo.findData(self.setup_kwargs.get('reddit_object_sort', ro_default_sort))
-        post_index = self.post_sort_combo.findData(self.setup_kwargs.get('post_sort', post_default_sort))
-        content_index = self.content_sort_combo.findData(self.setup_kwargs.get('content_sort', content_default_sort))
-        comment_index = self.comment_sort_combo.findData(self.setup_kwargs.get('comment_sort', comment_default_sort))
-
-        self.download_session_sort_combo.setCurrentIndex(dl_session_index)
-        self.reddit_object_sort_combo.setCurrentIndex(ro_index)
-        self.post_sort_combo.setCurrentIndex(post_index)
-        self.content_sort_combo.setCurrentIndex(content_index)
-        self.comment_sort_combo.setCurrentIndex(comment_index)
-
-        dl_session_default_desc = self.settings_manager.database_view_download_session_desc_order
-        ro_default_desc = self.settings_manager.database_view_reddit_object_desc_order
-        post_default_desc = self.settings_manager.database_view_post_desc_order
-        content_default_desc = self.settings_manager.database_view_content_desc_order
-        comment_default_desc = self.settings_manager.database_view_comment_desc_order
-
-        self.download_session_desc_sort_checkbox.setChecked(
-            self.setup_kwargs.get('download_session_desc', dl_session_default_desc))
-        self.reddit_object_desc_sort_checkbox.setChecked(self.setup_kwargs.get('reddit_object_desc', ro_default_desc))
-        self.post_desc_sort_checkbox.setChecked(self.setup_kwargs.get('post_desc', post_default_desc))
-        self.content_desc_sort_checkbox.setChecked(self.setup_kwargs.get('content_desc', content_default_desc))
-        self.comment_desc_sort_checkbox.setChecked(self.setup_kwargs.get('comment_desc', comment_default_desc))
+        desc_widgets = (
+            (self.download_session_desc_sort_checkbox, 'download_session_desc',
+             self.settings_manager.database_view_download_session_desc_order),
+            (self.reddit_object_desc_sort_checkbox, 'reddit_object_desc',
+             self.settings_manager.database_view_reddit_object_desc_order),
+            (self.post_desc_sort_checkbox, 'post_desc', self.settings_manager.database_view_post_desc_order),
+            (self.content_desc_sort_checkbox, 'content_desc', self.settings_manager.database_view_content_desc_order),
+            (self.comment_desc_sort_checkbox, 'comment_desc', self.settings_manager.database_view_comment_desc_order)
+        )
+        for checkbox, kwarg_key, saved_value in desc_widgets:
+            checkbox.setChecked(bool(self.setup_kwargs.get(kwarg_key, saved_value)))
 
         self.download_session_sort_combo.currentIndexChanged.connect(self.change_download_session_sort)
         self.reddit_object_sort_combo.currentIndexChanged.connect(self.change_reddit_object_sort)
@@ -192,9 +200,11 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         post_headers.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         post_headers.customContextMenuRequested.connect(self.post_headers_context_menu)
         post_headers.setSectionsMovable(True)
-        for key, value in self.settings_manager.database_view_post_table_headers.items():
-            index = self.post_model.headers.index(key)
-            post_headers.setSectionHidden(index, not value)
+        # State (column order/widths) is restored first; the visibility settings are applied after so they stay the
+        # authority on which columns are hidden.
+        self.restore_header_state(post_headers, 'database_view_post_table_header_state')
+        self.apply_header_visibility(post_headers, self.post_model.headers,
+                                     self.settings_manager.database_view_post_table_headers)
 
         self.set_content_icon_size()
         self.content_model = ContentListModel()
@@ -274,9 +284,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         comment_headers.setSectionsMovable(True)
         comment_headers.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         comment_headers.customContextMenuRequested.connect(self.comment_header_context_menu)
-        for key, value in self.settings_manager.database_view_comment_tree_headers.items():
-            index = self.comment_tree_model.headers.index(key)
-            comment_headers.setSectionHidden(index, not value)
+        self.restore_header_state(comment_headers, 'database_view_comment_tree_header_state')
+        self.apply_header_visibility(comment_headers, self.comment_tree_model.headers,
+                                     self.settings_manager.database_view_comment_tree_headers)
 
         self.download_session_focus_radio.toggled.connect(lambda x: self.focus_on('DOWNLOAD_SESSION') if x else None)
         self.reddit_object_focus_radio.toggled.connect(lambda x: self.focus_on('REDDIT_OBJECT') if x else None)
@@ -326,6 +336,8 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
         for model, button in self.model_button_link_map.items():
             button.setVisible(model.has_next_page)
+
+        self.restore_pane_widths()
 
     def toggle_filter(self):
         self.filter_widget.setVisible(not self.filter_widget.isVisible())
@@ -688,7 +700,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             name = value.replace('_', ' ').replace(' display', '')
             checkbox = QCheckBox(menu)
             checkbox.setText(name)
-            checkbox.setChecked(self.settings_manager.database_view_post_table_headers[value])
+            checkbox.setChecked(self.settings_manager.database_view_post_table_headers.get(value, True))
             checkbox.toggled.connect(lambda x, header=value: self.toggle_post_table_header(header))
             action = QWidgetAction(menu)
             action.setDefaultWidget(checkbox)
@@ -729,8 +741,10 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         :param header: The header that is to be toggled.
         """
         index = self.post_model.headers.index(header)
-        visible = self.settings_manager.database_view_post_table_headers[header]
-        self.settings_manager.database_view_post_table_headers[header] = not visible
+        headers = dict(self.settings_manager.database_view_post_table_headers)
+        visible = headers.get(header, True)
+        headers[header] = not visible
+        self.assign_setting('database_view_post_table_headers', headers)
         # sets the table header visibility to the opposite of what visible originally was
         self.post_table_view.horizontalHeader().setSectionHidden(index, visible)
 
@@ -852,14 +866,16 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             item = menu.addAction(value.replace('_', ' ').title())
             item.triggered.connect(lambda x, header=value: self.toggle_comment_tree_headers(header))
             item.setCheckable(True)
-            item.setChecked(self.settings_manager.database_view_comment_tree_headers[value])
+            item.setChecked(self.settings_manager.database_view_comment_tree_headers.get(value, True))
         menu.exec(QCursor.pos())
 
     def toggle_comment_tree_headers(self, header):
         """Toggles the visibility of the supplied comment table header."""
         index = self.comment_tree_model.headers.index(header)
-        visible = self.settings_manager.database_view_comment_tree_headers[header]
-        self.settings_manager.database_view_comment_tree_headers[header] = not visible
+        headers = dict(self.settings_manager.database_view_comment_tree_headers)
+        visible = headers.get(header, True)
+        headers[header] = not visible
+        self.assign_setting('database_view_comment_tree_headers', headers)
         # sets the header visibility to the opposite of what it originally was
         self.comment_tree_view.header().setSectionHidden(index, visible)
 
@@ -942,54 +958,67 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                     self.focus_map[model].toggle()
                     break
 
-    @hold_setup
-    def change_download_session_sort(self):
-        self.set_download_session_data(override_hold=True)
-        try:
-            self.download_session_list_view.setCurrentIndex(
-                self.download_session_model.get_item_index(self.current_download_session))
-        except TypeError:
-            pass
-        self.settings_manager.database_view_download_session_order = \
-            self.download_session_sort_combo.currentData(Qt.ItemDataRole.UserRole)
+    def sort_targets(self, model_name):
+        """
+        Returns (data_method, model, view, current_attribute_name, set_first_index_method) for the supplied model name.
+        """
+        return {
+            'DOWNLOAD_SESSION': (self.set_download_session_data, self.download_session_model,
+                                 self.download_session_list_view, 'current_download_session',
+                                 self.set_first_download_session_index),
+            'REDDIT_OBJECT': (self.set_reddit_object_data, self.reddit_object_model, self.reddit_object_list_view,
+                              'current_reddit_object', self.set_first_reddit_object_index),
+            'POST': (self.set_post_data, self.post_model, self.post_table_view, 'current_post',
+                     self.set_first_post_index),
+            'CONTENT': (self.set_content_data, self.content_model, self.content_list_view, 'current_content',
+                        self.set_first_content_index),
+            'COMMENT': (self.set_comment_data, self.comment_tree_model, self.comment_tree_view, 'current_comment',
+                        self.set_first_comment_index)
+        }[model_name]
 
     @hold_setup
-    def change_reddit_object_sort(self):
-        self.set_reddit_object_data(override_hold=True)
-        try:
-            self.reddit_object_list_view.setCurrentIndex(
-                self.reddit_object_model.get_item_index(self.current_reddit_object))
-        except TypeError:
-            pass
-        self.settings_manager.database_view_reddit_object_order = \
-            self.reddit_object_sort_combo.currentData(Qt.ItemDataRole.UserRole)
+    def reload_sorted_data(self, model_name):
+        """
+        Reloads the first page of the supplied model with the current sort settings and re-selects the item that was
+        selected before the reload.  Runs with the hold set so the model reset and the re-selection do not trigger
+        loads or cascades.
+        :return: True if there was a selection that is no longer in the loaded data (nothing could be re-selected).
+        """
+        set_data, model, view, current_attr, _ = self.sort_targets(model_name)
+        set_data(override_hold=True)
+        current = getattr(self, current_attr)
+        if not current:
+            return False
+        if model.contains(current):
+            view.setCurrentIndex(model.get_item_index(current))
+            return False
+        return True
 
-    @hold_setup
-    def change_post_sort(self):
-        self.set_post_data(override_hold=True)
-        try:
-            self.reddit_object_list_view.setCurrentIndex(self.post_model.get_item_index(self.current_post))
-        except TypeError:
-            pass
-        self.settings_manager.database_view_post_order = self.post_sort_combo.currentData(Qt.ItemDataRole.UserRole)
+    def apply_sort_change(self, model_name):
+        """
+        Applies a change to the sort field or sort direction of the supplied model.  If the previous selection is no
+        longer in the reloaded page, the first item is selected with the hold released so the downstream views are
+        refreshed for the new selection.
+        """
+        selection_lost = self.reload_sorted_data(model_name)
+        if selection_lost:
+            self.sort_targets(model_name)[4]()
+        self.save_sort_settings(model_name)
 
-    @hold_setup
-    def change_content_sort(self):
-        self.set_content_data(override_hold=True)
-        try:
-            self.content_list_view.setCurrentIndex(self.content_model.get_item_index(self.current_content))
-        except TypeError:
-            pass
-        self.settings_manager.database_view_content_order = self.content_sort_combo.currentData(Qt.ItemDataRole.UserRole)
+    def change_download_session_sort(self, *_args):
+        self.apply_sort_change('DOWNLOAD_SESSION')
 
-    @hold_setup
-    def change_comment_sort(self):
-        self.set_comment_data(override_hold=True)
-        try:
-            self.comment_tree_view.setCurrentIndex(self.comment_tree_model.get_item_index(self.current_comment))
-        except TypeError:
-            pass
-        self.settings_manager.database_view_comment_order = self.comment_sort_combo.currentData(Qt.ItemDataRole.UserRole)
+    def change_reddit_object_sort(self, *_args):
+        self.apply_sort_change('REDDIT_OBJECT')
+
+    def change_post_sort(self, *_args):
+        self.apply_sort_change('POST')
+
+    def change_content_sort(self, *_args):
+        self.apply_sort_change('CONTENT')
+
+    def change_comment_sort(self, *_args):
+        self.apply_sort_change('COMMENT')
 
     def set_content_icon_size(self, size=None):
         """Sets the content icon size to the supplied size which is supplied by the user."""
@@ -1547,6 +1576,168 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         visible_label.setText(str(visible))
         count_label.setText(str(total))
 
+    @staticmethod
+    def select_combo_data(combo, *candidates):
+        """
+        Selects the first candidate value that exists in the combo's item data.  If none exist the first entry is
+        selected so the combo is never left blank (a blank combo reports None as its sort field).
+        """
+        for candidate in candidates:
+            if candidate is None:
+                continue
+            index = combo.findData(candidate)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+                return
+        if combo.count() > 0:
+            combo.setCurrentIndex(0)
+
+    @staticmethod
+    def apply_header_visibility(header, model_headers, visibility):
+        """
+        Hides or shows header sections from a {header_name: visible} dict.  Names that are no longer headers of the
+        model are ignored, and headers missing from the dict are left visible.
+        """
+        for key, visible in visibility.items():
+            if key in model_headers:
+                header.setSectionHidden(model_headers.index(key), not visible)
+
+    def restore_header_state(self, header, setting_name):
+        """Restores a header's saved state (column order, widths).  The state is stored as a hex string."""
+        state = getattr(self.settings_manager, setting_name, None)
+        if not state:
+            return
+        try:
+            header.restoreState(QByteArray.fromHex(state.encode()))
+        except (AttributeError, TypeError, ValueError):
+            self.logger.warning(f'Unable to restore header state for {setting_name}', exc_info=True)
+
+    def save_header_state(self, header, setting_name):
+        setattr(self.settings_manager, setting_name, header.saveState().toHex().data().decode())
+
+    @staticmethod
+    def position_is_on_screen(x, y):
+        """True if the supplied window position is on one of the currently connected screens."""
+        return QApplication.screenAt(QPoint(x + 20, y + 20)) is not None
+
+    def assign_setting(self, name, value):
+        """
+        Assigns a dict setting through the settings manager rather than editing the dict that the manager returns in
+        place.  If the manager hands back a copy, in place edits are silently lost.
+        """
+        try:
+            setattr(self.settings_manager, name, value)
+        except AttributeError:
+            getattr(self.settings_manager, name).update(value)
+
+    def flush_settings(self):
+        """
+        Asks the settings manager to write its settings to disk so the window settings survive even if the application
+        is not closed cleanly.  Does nothing if the manager has no such method.
+        """
+        for method_name in ('save_all', 'save_settings'):
+            save = getattr(self.settings_manager, method_name, None)
+            if callable(save):
+                try:
+                    save()
+                except Exception: # pylint: disable=broad-except
+                    self.logger.warning('Unable to write the settings to disk', exc_info=True)
+                return
+
+    def save_geometry_settings(self):
+        """Saves the window size and position.  A minimized or maximized window saves its normal geometry."""
+        if self.isMinimized() or self.isMaximized():
+            rect = self.normalGeometry()
+            x, y, width, height = rect.x(), rect.y(), rect.width(), rect.height()
+        else:
+            x, y, width, height = self.x(), self.y(), self.width(), self.height()
+        geom = dict(self.settings_manager.database_view_geom)
+        geom.update({'width': width, 'height': height, 'x': x, 'y': y})
+        self.assign_setting('database_view_geom', geom)
+
+    def pane_width_settings(self):
+        """Returns (pane widget, settings name) pairs for the width of each pane in the split view."""
+        return (
+            (self.download_session_widget, 'database_view_download_session_widget_width'),
+            (self.reddit_object_widget, 'database_view_reddit_object_widget_width'),
+            (self.post_widget, 'database_view_post_widget_width'),
+            (self.content_widget, 'database_view_content_widget_width'),
+            (self.comment_widget, 'database_view_comment_widget_width')
+        )
+
+    def find_pane_splitter(self):
+        """Returns the QSplitter that holds the panes, or None if the panes are not in a splitter."""
+        widget = self.download_session_widget.parentWidget()
+        while widget is not None and not isinstance(widget, QSplitter):
+            widget = widget.parentWidget()
+        return widget
+
+    @staticmethod
+    def splitter_child(splitter, widget):
+        """Returns the direct child of the splitter that is, or contains, the supplied widget."""
+        while widget is not None and widget.parentWidget() is not splitter:
+            widget = widget.parentWidget()
+        return widget
+
+    def restore_pane_widths(self):
+        """
+        Applies the saved pane widths to the splitter.  A splitter overrides the size of its children when it is first
+        shown, so resizing the panes themselves does not stick; the sizes have to be given to the splitter.
+        """
+        splitter = self.find_pane_splitter()
+        if splitter is None:
+            return
+        saved = {}
+        for pane, setting_name in self.pane_width_settings():
+            child = self.splitter_child(splitter, pane)
+            width = getattr(self.settings_manager, setting_name, None)
+            if child is not None and width and width > 0:
+                saved[child] = width
+        if not saved:
+            return
+        sizes = []
+        for index in range(splitter.count()):
+            child = splitter.widget(index)
+            sizes.append(saved.get(child) or max(child.sizeHint().width(), 1))
+        splitter.setSizes(sizes)
+
+    def save_pane_widths(self):
+        """Saves the width of each visible pane.  Hidden panes keep their previously saved width."""
+        for pane, setting_name in self.pane_width_settings():
+            if pane.isVisibleTo(self) and pane.width() > 0:
+                setattr(self.settings_manager, setting_name, pane.width())
+
+    def save_sort_settings(self, model_name):
+        """
+        Saves the sort field and sort direction of the supplied model together so they can never be out of step.  Does
+        nothing unless the dialog was set up to save its settings (specialty dialogs must not overwrite them).
+        """
+        if not self.save_settings:
+            return
+        name = model_name.lower()
+        order = getattr(self, f'{name}_order')
+        if order is not None:
+            setattr(self.settings_manager, f'database_view_{name}_order', order)
+        setattr(self.settings_manager, f'database_view_{name}_desc_order', getattr(self, f'{name}_desc'))
+
+    def save_header_states(self):
+        """
+        Saves the column order/widths of the post table and comment tree.  A state is only saved if the settings manager
+        defines the attribute for it, so nothing new is written to the settings unless it was added there.  Failures
+        are logged and never interfere with saving the rest of the window settings.
+        """
+        headers = (
+            (self.post_table_view.horizontalHeader(), 'database_view_post_table_header_state'),
+            (self.comment_tree_view.header(), 'database_view_comment_tree_header_state')
+        )
+        for header, setting_name in headers:
+            if not hasattr(self.settings_manager, setting_name):
+                continue
+            try:
+                self.save_header_state(header, setting_name)
+            except Exception: # pylint: disable=broad-except
+                self.logger.warning(f'Unable to save header state for {setting_name}', exc_info=True)
+
     def closeEvent(self, event): # pylint: disable=invalid-name
         """
         Overrides the default close event in order to save the window settings.  The settings will only be saved if the
@@ -1554,17 +1745,10 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         downloads) the settings should not be saved so that the database view dialog displays correctly the next time
         the user opens the dialog.
         """
-        self.settings_manager.database_view_geom['width'] = self.width()
-        self.settings_manager.database_view_geom['height'] = self.height()
-        self.settings_manager.database_view_geom['x'] = self.x()
-        self.settings_manager.database_view_geom['y'] = self.y()
+        self.save_geometry_settings()
         self.settings_manager.database_view_icon_size = self.icon_size
         if self.save_settings:
-            self.settings_manager.database_view_download_session_widget_width = self.download_session_widget.width()
-            self.settings_manager.database_view_reddit_object_widget_width = self.reddit_object_widget.width()
-            self.settings_manager.database_view_post_widget_width = self.post_widget.width()
-            self.settings_manager.database_view_content_widget_width = self.content_widget.width()
-            self.settings_manager.database_view_comment_widget_width = self.comment_widget.width()
+            self.save_pane_widths()
 
             for key, value in self.focus_map.items():
                 if value.isChecked():
@@ -1575,14 +1759,8 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             self.settings_manager.database_view_show_posts = self.show_posts
             self.settings_manager.database_view_show_content = self.show_content
             self.settings_manager.database_view_show_comments = self.show_comments
-            self.settings_manager.database_view_download_session_order = self.download_session_order
-            self.settings_manager.database_view_reddit_object_order = self.reddit_object_order
-            self.settings_manager.database_view_post_order = self.post_order
-            self.settings_manager.database_view_content_order = self.content_order
-            self.settings_manager.database_view_comment_order = self.comment_order
-            self.settings_manager.database_view_download_session_desc_order = self.download_session_desc
-            self.settings_manager.database_view_reddit_object_desc_order = self.reddit_object_desc
-            self.settings_manager.database_view_post_desc_order = self.post_desc
-            self.settings_manager.database_view_content_desc_order = self.content_desc
-            self.settings_manager.database_view_comment_desc_order = self.comment_desc
+            for model_name in ('DOWNLOAD_SESSION', 'REDDIT_OBJECT', 'POST', 'CONTENT', 'COMMENT'):
+                self.save_sort_settings(model_name)
+            self.save_header_states()
+        self.flush_settings()
         super().closeEvent(event)

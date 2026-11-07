@@ -346,6 +346,8 @@ class Ui_MainWindow(object):
         self.actionbogus_3.setObjectName("actionbogus_3")
         self.actionbogus_4 = QtGui.QAction(parent=MainWindow)
         self.actionbogus_4.setObjectName("actionbogus_4")
+        self.database_browser_menu_item = QtGui.QAction(parent=MainWindow)
+        self.database_browser_menu_item.setObjectName("database_browser_menu_item")
         self.file_menu.addAction(self.open_settings_menu_item)
         self.file_menu.addSeparator()
         self.file_menu.addSeparator()
@@ -388,6 +390,8 @@ class Ui_MainWindow(object):
         self.menuActions.addAction(self.menuDownload_2.menuAction())
         self.menuActions.addAction(self.menuRun.menuAction())
         self.menuActions.addAction(self.menuConnect.menuAction())
+        self.menuDatabase.addAction(self.database_browser_menu_item)
+        self.menuDatabase.addSeparator()
         self.menuDatabase.addAction(self.database_view_menu_item)
         self.menuDatabase.addSeparator()
         self.menuDatabase.addAction(self.download_sessions_view_menu_item)
@@ -507,4 +511,5 @@ class Ui_MainWindow(object):
         self.actionbogus_2.setText(_translate("MainWindow", "bogus"))
         self.actionbogus_3.setText(_translate("MainWindow", "bogus"))
         self.actionbogus_4.setText(_translate("MainWindow", "bogus"))
+        self.database_browser_menu_item.setText(_translate("MainWindow", "Database Browser"))
 from DownloaderForReddit.gui.stats_history_widget import StatsHistoryWidget

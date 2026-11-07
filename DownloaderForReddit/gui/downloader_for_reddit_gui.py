@@ -39,6 +39,7 @@ from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
+from DownloaderForReddit.gui.database_views.database_viewer import DatabaseViewer
 from DownloaderForReddit.persistence.settings_manager import DownloadScope, SettingsManager
 
 from ..core.user_auth import UserAuth
@@ -195,6 +196,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # endregion
 
         # region Database Menu
+        self.database_browser_menu_item.triggered.connect(self.display_database_browser)
         self.database_view_menu_item.triggered.connect(self.open_database_view_dialog)
         self.download_sessions_view_menu_item.triggered.connect(self.open_download_sessions_dialog)
         self.reddit_objects_view_menu_item.triggered.connect(self.open_reddit_objects_dialog)
@@ -1196,6 +1198,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 index = self.subreddit_list_model.createIndex(index, 0)
             view.scrollTo(index)
 
+    def display_database_browser(self):
+        DatabaseViewer().show()
+
+        
     def display_database_dialog(self, **kwargs):
         """
         Creates the database dialog instance with the supplied kwargs, connects the appropriate signals, and returns the

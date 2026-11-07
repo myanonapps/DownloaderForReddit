@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DatabaseViewer</class>
+ <widget class="QWidget" name="DatabaseViewer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Database Viewer</string>
+  </property>
+  <layout class="QVBoxLayout" name="main_layout">
+   <item>
+    <layout class="QHBoxLayout" name="toolbar_layout">
+     <item>
+      <widget class="QLabel" name="session_label">
+       <property name="text">
+        <string>Session</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="session_combo">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>240</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Only show reddit objects, posts and content from this download session</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="toolbar_spacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="filter_button">
+       <property name="text">
+        <string>Filters</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>Show or hide the filter panel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="refresh_button">
+       <property name="text">
+        <string>Refresh</string>
+       </property>
+       <property name="toolTip">
+        <string>Reload everything from the database</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="FilterWidget" name="filter_widget" native="true">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="childrenCollapsible">
+      <bool>false</bool>
+     </property>
+     <widget class="QWidget" name="reddit_object_widget" native="true">
+      <layout class="QVBoxLayout" name="reddit_object_layout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <layout class="QHBoxLayout" name="reddit_object_header_layout">
+         <item>
+          <widget class="QLabel" name="reddit_object_title_label">
+           <property name="text">
+            <string>Reddit objects</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="reddit_object_header_spacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="show_all_button">
+           <property name="text">
+            <string>Show all</string>
+           </property>
+           <property name="toolTip">
+            <string>Clear the selection to show results for every reddit object</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="reddit_object_sort_layout">
+         <item>
+          <widget class="QLabel" name="reddit_object_sort_label">
+           <property name="text">
+            <string>Sort</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="reddit_object_sort_combo">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="reddit_object_desc_button">
+           <property name="toolTip">
+            <string>Toggle ascending / descending</string>
+           </property>
+           <property name="text">
+            <string>↑</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QListView" name="reddit_object_view">
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::ExtendedSelection</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="reddit_object_footer_layout">
+         <item>
+          <widget class="QLabel" name="reddit_object_count_label">
+           <property name="text">
+            <string>Showing 0 of 0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="reddit_object_footer_spacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="reddit_object_more_button">
+           <property name="text">
+            <string>Load more</string>
+           </property>
+           <property name="visible">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QTabWidget" name="results_tabs">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="content_tab">
+       <attribute name="title">
+        <string>Content</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="content_layout">
+        <item>
+         <layout class="QHBoxLayout" name="content_sort_layout">
+          <item>
+           <widget class="QLabel" name="content_sort_label">
+            <property name="text">
+             <string>Sort</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="content_sort_combo">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="content_desc_button">
+            <property name="toolTip">
+             <string>Toggle ascending / descending</string>
+            </property>
+            <property name="text">
+             <string>↑</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="content_sort_spacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="icon_size_label">
+            <property name="text">
+             <string>Size</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSlider" name="icon_slider">
+            <property name="minimum">
+             <number>64</number>
+            </property>
+            <property name="maximum">
+             <number>320</number>
+            </property>
+            <property name="value">
+             <number>150</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>140</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QListView" name="content_view">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+          <property name="verticalScrollMode">
+           <enum>QAbstractItemView::ScrollPerPixel</enum>
+          </property>
+          <property name="contextMenuPolicy">
+           <enum>Qt::CustomContextMenu</enum>
+          </property>
+          <property name="flow">
+           <enum>QListView::LeftToRight</enum>
+          </property>
+          <property name="resizeMode">
+           <enum>QListView::Adjust</enum>
+          </property>
+          <property name="layoutMode">
+           <enum>QListView::Batched</enum>
+          </property>
+          <property name="movement">
+           <enum>QListView::Static</enum>
+          </property>
+          <property name="spacing">
+           <number>5</number>
+          </property>
+          <property name="viewMode">
+           <enum>QListView::IconMode</enum>
+          </property>
+          <property name="batchSize">
+           <number>1</number>
+          </property>
+          <property name="uniformItemSizes">
+           <bool>true</bool>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="selectionRectVisible">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="content_footer_layout">
+          <item>
+           <widget class="QLabel" name="content_count_label">
+            <property name="text">
+             <string>Showing 0 of 0</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="content_footer_spacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="content_more_button">
+            <property name="text">
+             <string>Load more</string>
+            </property>
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="post_tab">
+       <attribute name="title">
+        <string>Posts</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="post_layout">
+        <item>
+         <layout class="QHBoxLayout" name="post_sort_layout">
+          <item>
+           <widget class="QLabel" name="post_sort_label">
+            <property name="text">
+             <string>Sort</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="post_sort_combo">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="post_desc_button">
+            <property name="toolTip">
+             <string>Toggle ascending / descending</string>
+            </property>
+            <property name="text">
+             <string>↑</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableView" name="post_view">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="contextMenuPolicy">
+           <enum>Qt::CustomContextMenu</enum>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <property name="showGrid">
+           <bool>false</bool>
+          </property>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="post_footer_layout">
+          <item>
+           <widget class="QLabel" name="post_count_label">
+            <property name="text">
+             <string>Showing 0 of 0</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="post_footer_spacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="post_more_button">
+            <property name="text">
+             <string>Load more</string>
+            </property>
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+     <widget class="QTabWidget" name="details_tabs">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="post_details_tab">
+       <attribute name="title">
+        <string>Post</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="post_details_layout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QTextBrowser" name="post_browser">
+          <property name="openExternalLinks">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="comments_tab">
+       <attribute name="title">
+        <string>Comments</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="comments_layout">
+        <item>
+         <layout class="QHBoxLayout" name="comment_sort_layout">
+          <item>
+           <widget class="QLabel" name="comment_sort_label">
+            <property name="text">
+             <string>Sort</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="comment_sort_combo">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="comment_desc_button">
+            <property name="toolTip">
+             <string>Toggle ascending / descending</string>
+            </property>
+            <property name="text">
+             <string>↑</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QSplitter" name="comment_splitter">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="childrenCollapsible">
+           <bool>false</bool>
+          </property>
+          <widget class="QTreeView" name="comment_view">
+           <property name="editTriggers">
+            <set>QAbstractItemView::NoEditTriggers</set>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::ExtendedSelection</enum>
+           </property>
+          </widget>
+          <widget class="QTextBrowser" name="comment_browser">
+           <property name="openExternalLinks">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="comment_footer_layout">
+          <item>
+           <widget class="QLabel" name="comment_count_label">
+            <property name="text">
+             <string>Showing 0 of 0</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="comment_footer_spacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="comment_more_button">
+            <property name="text">
+             <string>Load more</string>
+            </property>
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>FilterWidget</class>
+   <extends>QWidget</extends>
+   <header>DownloaderForReddit/gui/database_views/filter_widget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

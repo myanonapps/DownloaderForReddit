@@ -99,14 +99,16 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
                 self.value_layout.addWidget(self.value_field)
 
     def get_value(self):
-        t = type(self.value_field)
-        if isinstance (t, QComboBox):
-            return self.value_field.currentData(Qt.ItemDataRole.UserRole)
-        if  isinstance (t, QLineEdit):
-            return self.value_field.text()
-        if  isinstance (t, QSpinBox):
-            return self.value_field.value()
-        return None
+        field = self.value_field
+        if isinstance(field, QComboBox):
+            return field.currentData(Qt.ItemDataRole.UserRole)
+        if isinstance(field, QLineEdit):
+            return field.text()
+        if isinstance(field, QSpinBox):
+            return field.value()
+        if isinstance(field, QDateTimeEdit):
+            return field.dateTime().toUTC().toString(Qt.DateFormat.ISODate)
+        raise AttributeError(f'Unhandled value field type: {type(field).__name__}')
 
     def handle_quick_filter(self):
         if self.launch_quick_filter and self.quick_filter_combo.currentIndex() != 0:

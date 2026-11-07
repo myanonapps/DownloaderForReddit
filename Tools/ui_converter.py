@@ -36,6 +36,7 @@ class Converter:
             'update_dialog',
             'invalid_dialog',
             'existing_names_dialog',
+            'database_viewer',
         ]
 
     def run(self):
@@ -103,6 +104,10 @@ class Converter:
 
     def database_dialog(self):
         name = 'database_dialog'
+        self.convert(name, 'database_views')
+
+    def database_viewer(self):
+        name = 'database_viewer'
         self.convert(name, 'database_views')
 
     def filter_input(self):
