@@ -1,3 +1,5 @@
+import logging
+
 from PyQt6.QtWidgets import QWidget, QLabel, QToolButton, QHBoxLayout, QVBoxLayout, QListWidgetItem, QFrame, QListView
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor
@@ -14,6 +16,7 @@ class FilterWidget(QWidget, Ui_FilterWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent=parent)
         self.setupUi(self)
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.settings_manager = injector.get_settings_manager()
         self.active = False
         self.filters = {}
@@ -33,7 +36,7 @@ class FilterWidget(QWidget, Ui_FilterWidget):
     def filter_download_filters(self, filter_name):
         return [x.filter_tuple for x in filter(lambda x: x.model == filter_name, self.filters.values())]
 
-    def add_filters(self, filters):
+    def add_filters(self, filters:list=None):
         models = []
         for filter_item in filters:
             widget = self.create_widget(**filter_item.widget_dict)

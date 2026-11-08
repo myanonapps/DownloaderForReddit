@@ -613,7 +613,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
     def save_filters(self):
         try:
             filters = self.filter_widget.filters
-            self.qsettings.setValue('filters', json.dumps(filters))
+            #self.qsettings.setValue('filters', json.dumps(filters))
         except TypeError:
             self.logger.warning('The database viewer filters contain values that cannot be saved', exc_info=True)
 

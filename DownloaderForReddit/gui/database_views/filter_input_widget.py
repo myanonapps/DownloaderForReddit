@@ -1,3 +1,5 @@
+import logging
+
 from PyQt6.QtWidgets import QWidget, QLineEdit, QSpinBox, QComboBox, QDateTimeEdit, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal
 from sqlalchemy import Integer, String, DateTime, Enum, Boolean
@@ -17,6 +19,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         QWidget.__init__(self, parent=parent)
         self.setupUi(self)
         self.settings_manager = injector.get_settings_manager()
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.launch_quick_filter = True
         self.filter_model_map = {
             'DOWNLOAD_SESSION': DownloadSessionFilter,
@@ -34,6 +37,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         }
 
         self.value_field = None
+        self.value_field_type = None
 
         self.add_filter_button.clicked.connect(self.add_filter)
         self.model_combo.currentIndexChanged.connect(self.set_fields)
@@ -70,7 +74,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
     def set_model_combo(self, model):
         try:
             self.model_combo.setCurrentIndex(self.model_list.index(model))
-        except IndexError:
+        except (ValueError,IndexError):
             pass
 
     def set_fields(self):
@@ -80,23 +84,38 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
             self.field_combo.addItem(field.replace('_', ' ').title(), field)
 
     def set_value_field(self):
+        """Replaces the value input so that it matches the type of the selected field."""
         current_field = self.current_field
-        if current_field is not None:
-            f = self.filter_model_map[self.current_model]()
-            filed_type = f.get_type(current_field)
-            if filed_type == Enum:
-                field = self.get_choice_field(choices=f.get_choices(current_field))
-            else:
-                field = self.field_type_map[filed_type]()
-            if not isinstance(field, type(self.value_field)):
-                try:
-                    if self.value_field is not None:
-                        self.value_layout.removeWidget(self.value_field)
-                        self.value_field.deleteLater()
-                except AttributeError:
-                    pass
-                self.value_field = field
-                self.value_layout.addWidget(self.value_field)
+        if current_field is None:
+            return
+        f = self.filter_model_map[self.current_model]()
+        field_type = f.get_type(current_field)
+
+        # Enum fields always get a new input because their choices depend on the field.  Other types keep the existing
+        # input (and whatever the user typed into it) as long as the field type is the same.
+        if field_type != Enum and field_type == self.value_field_type and self.value_field is not None:
+            return
+
+        if field_type == Enum:
+            widget = self.get_choice_field(choices=f.get_choices(current_field))
+        else:
+            factory = self.field_type_map.get(field_type)
+            if factory is None:
+                self.logger.warning("No value input for field type '%s', using a text box", field_type)
+                factory = self.get_string_field
+            widget = factory()
+
+        self.replace_value_field(widget)
+        self.value_field_type = field_type
+
+    def replace_value_field(self, widget):
+        old = self.value_field
+        if old is not None:
+            self.value_layout.removeWidget(old)
+            old.setParent(None)  # hides it right away; deleteLater alone leaves it visible until the event loop runs
+            old.deleteLater()
+        self.value_field = widget
+        self.value_layout.addWidget(widget)
 
     def get_value(self):
         field = self.value_field
@@ -113,12 +132,12 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
     def handle_quick_filter(self):
         if self.launch_quick_filter and self.quick_filter_combo.currentIndex() != 0:
             self.launch_quick_filter = False
-            filter_name = self.quick_filter_combo.currentText()
-            filters = [FilterItem(**filter_dict) for filter_dict in
-                       self.settings_manager.database_view_quick_filters[filter_name]]
-            self.add_filter(filters)
-            self.quick_filter_combo.setCurrentIndex(0)
-            self.launch_quick_filter = True
+            try:
+                filters = [FilterItem(**filter_dict) for filter_dict in self.settings_manager.database_view_quick_filters[self.quick_filter_combo.currentText()]]
+                self.add_filter(filters)
+                self.quick_filter_combo.setCurrentIndex(0)
+            finally:                
+                self.launch_quick_filter = True
 
     def add_filter(self, filters=None):
         if not isinstance(filters, list):
