@@ -17,43 +17,20 @@
    <item>
     <layout class="QHBoxLayout" name="toolbar_layout">
      <item>
-      <widget class="QLabel" name="session_label">
-       <property name="text">
-        <string>Session</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="session_combo">
+      <widget class="QLabel" name="scope_label">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="minimumSize">
-        <size>
-         <width>240</width>
-         <height>0</height>
-        </size>
-       </property>
        <property name="toolTip">
-        <string>Only show reddit objects, posts and content from this download session</string>
+        <string>What the results currently show</string>
+       </property>
+       <property name="text">
+        <string/>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer name="toolbar_spacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
      <item>
       <widget class="QPushButton" name="filter_button">
@@ -101,8 +78,8 @@
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
-     <widget class="QWidget" name="reddit_object_widget" native="true">
-      <layout class="QVBoxLayout" name="reddit_object_layout">
+     <widget class="QWidget" name="browse_widget" native="true">
+      <layout class="QVBoxLayout" name="browse_layout">
        <property name="leftMargin">
         <number>0</number>
        </property>
@@ -116,116 +93,238 @@
         <number>0</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="reddit_object_header_layout">
+        <layout class="QHBoxLayout" name="mode_layout">
          <item>
-          <widget class="QLabel" name="reddit_object_title_label">
+          <widget class="QPushButton" name="reddit_object_mode_button">
            <property name="text">
             <string>Reddit objects</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="reddit_object_header_spacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="show_all_button">
-           <property name="text">
-            <string>Show all</string>
-           </property>
-           <property name="toolTip">
-            <string>Clear the selection to show results for every reddit object</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="reddit_object_sort_layout">
-         <item>
-          <widget class="QLabel" name="reddit_object_sort_label">
-           <property name="text">
-            <string>Sort</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QComboBox" name="reddit_object_sort_combo">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="reddit_object_desc_button">
-           <property name="toolTip">
-            <string>Toggle ascending / descending</string>
-           </property>
-           <property name="text">
-            <string>↑</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
            </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+           <property name="toolTip">
+            <string>Browse by reddit object</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="session_mode_button">
+           <property name="text">
+            <string>Sessions</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+           <property name="toolTip">
+            <string>Browse by download session</string>
+           </property>
           </widget>
          </item>
         </layout>
        </item>
        <item>
-        <widget class="QListView" name="reddit_object_view">
-         <property name="editTriggers">
-          <set>QAbstractItemView::NoEditTriggers</set>
+        <widget class="QStackedWidget" name="browse_stack">
+         <property name="currentIndex">
+          <number>0</number>
          </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::ExtendedSelection</enum>
-         </property>
+         <widget class="QWidget" name="reddit_object_page">
+          <layout class="QVBoxLayout" name="reddit_object_layout">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <layout class="QHBoxLayout" name="reddit_object_sort_layout">
+             <item>
+              <widget class="QLabel" name="reddit_object_sort_label">
+               <property name="text">
+                <string>Sort</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="reddit_object_sort_combo">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="reddit_object_desc_button">
+               <property name="toolTip">
+                <string>Toggle ascending / descending</string>
+               </property>
+               <property name="text">
+                <string>↑</string>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QListView" name="reddit_object_view">
+             <property name="editTriggers">
+              <set>QAbstractItemView::NoEditTriggers</set>
+             </property>
+             <property name="selectionMode">
+              <enum>QAbstractItemView::SingleSelection</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="reddit_object_footer_layout">
+             <item>
+              <widget class="QLabel" name="reddit_object_count_label">
+               <property name="text">
+                <string>Showing 0 of 0</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="reddit_object_footer_spacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="reddit_object_more_button">
+               <property name="text">
+                <string>Load more</string>
+               </property>
+               <property name="visible">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="session_page">
+          <layout class="QVBoxLayout" name="session_layout">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <layout class="QHBoxLayout" name="session_sort_layout">
+             <item>
+              <widget class="QLabel" name="session_sort_label">
+               <property name="text">
+                <string>Sort</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="session_sort_combo">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="session_desc_button">
+               <property name="toolTip">
+                <string>Toggle ascending / descending</string>
+               </property>
+               <property name="text">
+                <string>↑</string>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QListView" name="session_view">
+             <property name="editTriggers">
+              <set>QAbstractItemView::NoEditTriggers</set>
+             </property>
+             <property name="selectionMode">
+              <enum>QAbstractItemView::SingleSelection</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="session_footer_layout">
+             <item>
+              <widget class="QLabel" name="session_count_label">
+               <property name="text">
+                <string>Showing 0 of 0</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="session_footer_spacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="session_more_button">
+               <property name="text">
+                <string>Load more</string>
+               </property>
+               <property name="visible">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
         </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="reddit_object_footer_layout">
-         <item>
-          <widget class="QLabel" name="reddit_object_count_label">
-           <property name="text">
-            <string>Showing 0 of 0</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="reddit_object_footer_spacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="reddit_object_more_button">
-           <property name="text">
-            <string>Load more</string>
-           </property>
-           <property name="visible">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </item>
       </layout>
      </widget>

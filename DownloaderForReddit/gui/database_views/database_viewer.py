@@ -1,21 +1,20 @@
 """
 A simpler database viewer that lives alongside the legacy DatabaseDialog.
 
-There are no focus modes and no show/hide checkboxes, just one rule that flows left to right:
+There are no focus modes and no show/hide checkboxes, just one rule that flows in one direction:
 
-    scope (session + selected reddit objects)  ->  results (Content | Posts)  ->  details (Post | Comments)
+    list (Reddit objects OR Sessions)  ->  results (Content | Posts)  ->  details (Post | Comments)
 
-* Scope: the session dropdown and the reddit object list.  Nothing selected in the reddit object list means every
-  reddit object.  The reddit object list is never narrowed by what is selected further to the right.
-* Results: the items in the current scope, narrowed by the filters, shown in the Content or Posts tab.
+* Browse by: either reddit objects or download sessions, chosen with the two buttons above the list.  The modes are
+  mutually exclusive and the two lists do not affect each other.
+* The list: shows the items that match its own filters (REDDIT_OBJECT filters in the reddit object list, DOWNLOAD_SESSION
+  filters in the session list) and exactly one of them is selected.  The previous selection of the mode is selected
+  again if it is still listed, otherwise the first entry is.
+* Results: the content or posts of the selected reddit object or session that match the CONTENT or POST filters.
 * Details: the post (and its comments) for the selected item.  Comments are only loaded while the Comments tab is open.
-* Filters: the viewer owns its filter state, a list of filter tuples per model name (REDDIT_OBJECT, POST, CONTENT,
-  COMMENT).  On first run it is taken from settings_manager.database_view_default_filters.  Changes made in the filter
-  panel are saved to QSettings and restored on the next run.
-
-The layout is in database_viewer.ui (open it in Qt Designer).  Generate the python from it with:
-
-    pyuic6 -o database_viewer_auto.py database_viewer.ui
+* Filters: the filter panel is the one place filters live.  On first run it is seeded from
+  settings_manager.database_view_default_filters['Database View']; after that from the filters saved in QSettings, which
+  are updated every time the panel changes.
 
 Window geometry, splitter sizes, sort choices, the selected tabs, the post table columns and the thumbnail size are saved
 in their own ini file (via QSettings) so this viewer does not depend on the settings manager.
@@ -25,6 +24,7 @@ To open it:
     self.database_viewer = DatabaseViewer()
     self.database_viewer.show()
 """
+import datetime
 import html
 import json
 import logging
@@ -32,60 +32,51 @@ import logging
 from PyQt6.QtCore import QItemSelectionModel, QSettings, QSize, Qt, QTimer
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
+from sqlalchemy import or_
 
 from DownloaderForReddit.guiresources.database_views.database_viewer_auto import Ui_DatabaseViewer
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
-from DownloaderForReddit.database.filters import RedditObjectFilter, PostFilter, ContentFilter, CommentFilter
+from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, ContentFilter,
+                                                  CommentFilter)
 from DownloaderForReddit.utils import injector, system_util, general_utils
-from DownloaderForReddit.viewmodels.database_view_models import (RedditObjectModel, PostTableModel, ContentListModel,
-                                                                 CommentTreeModel)
+from DownloaderForReddit.viewmodels.database_view_models import (DownloadSessionModel, RedditObjectModel,
+                                                                 PostTableModel, ContentListModel, CommentTreeModel)
 
-SESSION_LIMIT = 200
 DEFAULT_ICON_SIZE = 150
-FILTER_MODELS = ('REDDIT_OBJECT', 'POST', 'CONTENT', 'COMMENT')
+MODES = ('REDDIT_OBJECT', 'DOWNLOAD_SESSION')  # what the list on the left browses by
+MAX_PAGES_TO_FIND = 50  # how many pages are loaded to find the remembered selection of a list
+NO_ITEMS_TEXT = {'REDDIT_OBJECT': 'No reddit objects match the filters', 'DOWNLOAD_SESSION': 'No sessions match the filters'}
+MODE_NOUN = {'REDDIT_OBJECT': 'Reddit object', 'DOWNLOAD_SESSION': 'Session'}
 DEFAULT_POST_COLUMNS = ('title', 'date_posted', 'score', 'author', 'subreddit')
 # Columns of the comment tree model: author, id, subreddit, body, body_html, score, date_posted, reddit_id
 HIDDEN_COMMENT_COLUMNS = (1, 2, 4, 7)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Queries.  The whole scope rule lives here: a session narrows by download_session_id, selected reddit objects narrow by
-# the post's significant reddit object.  These use the same constructs as the legacy dialog.
+# Queries.  The results are the posts or content of the selected reddit object or the selected session.  A reddit object
+# matches by being the post's significant reddit object, its author or its subreddit, so a reddit object that was only
+# created because something was downloaded still has results.  With nothing selected (nothing is listed) nothing matches.
 # ---------------------------------------------------------------------------------------------------------------------
 
-def session_query(db_session):
-    """The most recent download sessions, newest first."""
-    return db_session.query(DownloadSession).order_by(DownloadSession.id.desc()).limit(SESSION_LIMIT)
-
-
-def reddit_object_query(db_session, session_id):
-    """Reddit objects, limited to the ones that have posts or content in the session if a session is selected."""
-    query = db_session.query(RedditObject)
-    if session_id is not None:
-        subquery = db_session.query(Post.significant_reddit_object_id).join(Content) \
-            .filter(Content.download_session_id == session_id) \
-            .union(db_session.query(Post.significant_reddit_object_id).filter(Post.download_session_id == session_id))
-        query = query.filter(RedditObject.id.in_(subquery))
-    return query
-
-
-def post_query(db_session, session_id, reddit_object_ids):
+def post_query(db_session, mode, scope_id):
     query = db_session.query(Post)
-    if session_id is not None:
-        query = query.filter(Post.download_session_id == session_id)
-    if reddit_object_ids:
-        query = query.filter(Post.significant_reddit_object_id.in_(reddit_object_ids))
-    return query
+    if scope_id is None:
+        return query.filter(Post.id.in_([]))
+    if mode == 'DOWNLOAD_SESSION':
+        return query.filter(Post.download_session_id == scope_id)
+    return query.filter(or_(Post.significant_reddit_object_id == scope_id, Post.author_id == scope_id,
+                            Post.subreddit_id == scope_id))
 
 
-def content_query(db_session, session_id, reddit_object_ids):
+def content_query(db_session, mode, scope_id):
     query = db_session.query(Content)
-    if session_id is not None:
-        query = query.filter(Content.download_session_id == session_id)
-    if reddit_object_ids:
-        posts = db_session.query(Post.id).filter(Post.significant_reddit_object_id.in_(reddit_object_ids))
-        query = query.filter(Content.post_id.in_(posts))
-    return query
+    if scope_id is None:
+        return query.filter(Content.id.in_([]))
+    if mode == 'DOWNLOAD_SESSION':
+        return query.filter(Content.download_session_id == scope_id)
+    posts = db_session.query(Post.id).filter(Post.significant_reddit_object_id == scope_id)
+    return query.filter(or_(Content.post_id.in_(posts), Content.user_id == scope_id,
+                            Content.subreddit_id == scope_id))
 
 
 def comment_query(db_session, post_ids):
@@ -95,6 +86,43 @@ def comment_query(db_session, post_ids):
 # ---------------------------------------------------------------------------------------------------------------------
 # Widgets
 # ---------------------------------------------------------------------------------------------------------------------
+
+def encode_filters(filter_items):
+    """
+    JSON text for FilterItems (their widget dicts, the form FilterWidget.set_default_filters takes).  Dates are kept
+    as tagged ISO strings.  Raises TypeError if a value cannot be saved.
+    """
+    def encode_value(value):
+        if isinstance(value, datetime.datetime):
+            return {'__type__': 'datetime', 'value': value.isoformat()}
+        if isinstance(value, datetime.date):
+            return {'__type__': 'date', 'value': value.isoformat()}
+        raise TypeError(f'Cannot save a filter value of type {type(value).__name__}')
+
+    return json.dumps([item.widget_dict for item in filter_items], default=encode_value)
+
+
+def decode_filters(text):
+    """
+    The list of filter dicts held in text that encode_filters made.  Raises ValueError if the text is not that.
+    """
+    def decode_value(obj):
+        kind = obj.get('__type__')
+        if kind == 'datetime':
+            return datetime.datetime.fromisoformat(obj['value'])
+        if kind == 'date':
+            return datetime.date.fromisoformat(obj['value'])
+        return obj
+
+    loaded = json.loads(text, object_hook=decode_value)
+    if not isinstance(loaded, list):
+        raise ValueError('Saved filters are not a list')
+    try:
+        return [{'model': f['model'], 'field': f['field'], 'operator': f['operator'], 'value': f['value']}
+                for f in loaded]
+    except (KeyError, TypeError) as e:
+        raise ValueError('Saved filter is missing a field') from e
+
 
 class SortBinding:
     """
@@ -131,15 +159,15 @@ class SortBinding:
             self.button.setText('\u2191')
             self.button.setToolTip('Ascending')
 
-    def load(self, settings, name, default_field=None):
-        """Loads the saved sort without notifying.  Falls back to default_field, then to the first field."""
+    def load(self, settings, name, default_field=None, default_desc=False):
+        """Loads the saved sort without notifying.  Falls back to the defaults, then to the first field."""
         self.combo.blockSignals(True)
         self.button.blockSignals(True)
         index = self.combo.findData(settings.value(f'sort/{name}/field', default_field))
         if index < 0:
             index = self.combo.findData(default_field)
         self.combo.setCurrentIndex(index if index >= 0 else 0)
-        self.button.setChecked(settings.value(f'sort/{name}/desc', False, type=bool))
+        self.button.setChecked(settings.value(f'sort/{name}/desc', default_desc, type=bool))
         self.update_button()
         self.combo.blockSignals(False)
         self.button.blockSignals(False)
@@ -160,34 +188,43 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.db_session = self.db.get_session()
         self.qsettings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, 'DownloaderForReddit',
                                    'DatabaseViewer')
-        print(self.qsettings.fileName())
 
         self.current_content = []
         self.current_posts = []
         self.comment_key = None  # the post ids the comment tree currently shows, so it is not reloaded needlessly
         self.dirty_tabs = set()  # result tabs whose data is out of date and is reloaded when the tab is shown
-        self.loading_scope = False
+        self.loading_scope = False  # True while the list selection is being set by the code, not the user
         self.icon_size = DEFAULT_ICON_SIZE
-        self.filters = {name: [] for name in FILTER_MODELS}
+        self.mode = 'REDDIT_OBJECT'
+        self.selected_ids = {mode: None for mode in MODES}  # the selection each mode remembers
+        self.dirty_lists = set()  # lists whose data is out of date and is reloaded when their mode is shown
 
         self.reddit_object_model = RedditObjectModel()
+        self.download_session_model = DownloadSessionModel()
         self.content_model = ContentListModel()
         self.post_model = PostTableModel()
         self.comment_model = CommentTreeModel()
         self.models = {
             'REDDIT_OBJECT': self.reddit_object_model,
+            'DOWNLOAD_SESSION': self.download_session_model,
             'CONTENT': self.content_model,
             'POST': self.post_model,
             'COMMENT': self.comment_model
         }
+        self.views = {
+            'REDDIT_OBJECT': self.reddit_object_view,
+            'DOWNLOAD_SESSION': self.session_view
+        }
         self.count_labels = {
             'REDDIT_OBJECT': self.reddit_object_count_label,
+            'DOWNLOAD_SESSION': self.session_count_label,
             'CONTENT': self.content_count_label,
             'POST': self.post_count_label,
             'COMMENT': self.comment_count_label
         }
         self.more_buttons = {
             'REDDIT_OBJECT': self.reddit_object_more_button,
+            'DOWNLOAD_SESSION': self.session_more_button,
             'CONTENT': self.content_more_button,
             'POST': self.post_more_button,
             'COMMENT': self.comment_more_button
@@ -205,8 +242,8 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.configure_views()
         self.connect_signals()
         self.load_settings()
-        self.load_sessions()
-        self.reload_scope()
+        self.dirty_lists = set(MODES) - {self.mode}
+        self.reload_list(self.mode)
 
     # -----------------------------------------------------------------------------------------------------------------
     # View setup (the layout itself is in database_viewer.ui)
@@ -219,6 +256,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             button.setVisible(False)
 
         self.reddit_object_view.setModel(self.reddit_object_model)
+        self.session_view.setModel(self.download_session_model)
         self.content_view.setModel(self.content_model)
         self.content_view.verticalScrollBar().setSingleStep(20)
 
@@ -240,6 +278,8 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
 
         self.reddit_object_sort = SortBinding(self.reddit_object_sort_combo, self.reddit_object_desc_button,
                                               RedditObjectFilter.get_order_fields())
+        self.session_sort = SortBinding(self.session_sort_combo, self.session_desc_button,
+                                        DownloadSessionFilter.get_order_fields())
         self.content_sort = SortBinding(self.content_sort_combo, self.content_desc_button,
                                         ContentFilter.get_order_fields())
         self.post_sort = SortBinding(self.post_sort_combo, self.post_desc_button, PostFilter.get_order_fields())
@@ -247,18 +287,20 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
                                         CommentFilter.get_order_fields())
 
     def connect_signals(self):
-        self.session_combo.currentIndexChanged.connect(self.session_changed)
+        self.reddit_object_mode_button.toggled.connect(lambda checked: self.mode_toggled('REDDIT_OBJECT', checked))
+        self.session_mode_button.toggled.connect(lambda checked: self.mode_toggled('DOWNLOAD_SESSION', checked))
         self.refresh_button.clicked.connect(self.refresh)
         self.filter_button.toggled.connect(self.filter_widget.setVisible)
         self.filter_widget.filter_changed.connect(self.filter_changed)
-        self.show_all_button.clicked.connect(self.reddit_object_view.clearSelection)
 
-        self.reddit_object_sort.connect(lambda: self.reload_scope(keep_selection=True))
+        self.reddit_object_sort.connect(lambda: self.reload_list('REDDIT_OBJECT'))
+        self.session_sort.connect(lambda: self.reload_list('DOWNLOAD_SESSION'))
         self.content_sort.connect(lambda: self.reload_tab('CONTENT'))
         self.post_sort.connect(lambda: self.reload_tab('POST'))
         self.comment_sort.connect(self.reload_comments)
 
-        self.reddit_object_view.selectionModel().selectionChanged.connect(self.reddit_object_selection_changed)
+        self.reddit_object_view.selectionModel().selectionChanged.connect(self.scope_selection_changed)
+        self.session_view.selectionModel().selectionChanged.connect(self.scope_selection_changed)
         self.content_view.selectionModel().selectionChanged.connect(self.content_selection_changed)
         self.post_view.selectionModel().selectionChanged.connect(self.post_selection_changed)
         self.comment_view.selectionModel().selectionChanged.connect(self.comment_selection_changed)
@@ -272,10 +314,12 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.post_view.horizontalHeader().customContextMenuRequested.connect(self.post_header_context_menu)
 
         self.more_buttons['REDDIT_OBJECT'].clicked.connect(lambda: self.load_reddit_objects(extend=True))
+        self.more_buttons['DOWNLOAD_SESSION'].clicked.connect(lambda: self.load_download_sessions(extend=True))
         self.more_buttons['CONTENT'].clicked.connect(lambda: self.load_content(extend=True))
         self.more_buttons['POST'].clicked.connect(lambda: self.load_posts(extend=True))
         self.more_buttons['COMMENT'].clicked.connect(lambda: self.load_comments(extend=True))
         self.watch_scrollbar(self.reddit_object_view, 'REDDIT_OBJECT', self.load_reddit_objects)
+        self.watch_scrollbar(self.session_view, 'DOWNLOAD_SESSION', self.load_download_sessions)
         self.watch_scrollbar(self.content_view, 'CONTENT', self.load_content, 80)
         self.watch_scrollbar(self.post_view, 'POST', self.load_posts)
         self.watch_scrollbar(self.comment_view, 'COMMENT', self.load_comments)
@@ -303,79 +347,136 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         return 'CONTENT' if self.results_tabs.currentIndex() == 0 else 'POST'
 
     @property
-    def session_id(self):
-        return self.session_combo.currentData()
-
-    def selected_reddit_objects(self):
-        return self.reddit_object_model.get_items(self.reddit_object_view.selectedIndexes())
-
-    def selected_reddit_object_ids(self):
-        return [x.id for x in self.selected_reddit_objects()]
+    def scope_id(self):
+        """The id of the selected reddit object or session (depending on the mode), None if nothing is listed."""
+        items = self.models[self.mode].get_items(self.views[self.mode].selectedIndexes()) or []
+        return items[0].id if items else None
 
     def default_sort(self, attribute):
         """The sort the legacy dialog last saved, used the first time this viewer runs."""
         return getattr(self.settings_manager, attribute, None)
 
+    def default_desc(self, attribute, fallback=False):
+        value = getattr(self.settings_manager, attribute, None)
+        return fallback if value is None else bool(value)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Loading data
     # -----------------------------------------------------------------------------------------------------------------
 
-    def load_sessions(self):
-        """Fills the session dropdown, keeping the current session selected if it is still there."""
-        current = self.session_id
-        self.session_combo.blockSignals(True)
-        self.session_combo.clear()
-        self.session_combo.addItem('All sessions', None)
-        for dl_session in session_query(self.db_session).all():
-            self.session_combo.addItem(dl_session.name or f'Session {dl_session.id}', dl_session.id)
-        index = self.session_combo.findData(current)
-        self.session_combo.setCurrentIndex(index if index >= 0 else 0)
-        self.session_combo.blockSignals(False)
-
     def refresh(self):
         """Reloads everything from the database."""
         self.db_session.expire_all()
-        self.load_sessions()
-        self.reload_scope(keep_selection=True)
-
-    def session_changed(self, _index):
-        self.reload_scope()
+        self.dirty_lists = set(MODES) - {self.mode}
+        self.reload_list(self.mode)
 
     def filter_changed(self, model_names):
-        for name in model_names:
-            if name in self.filters:
-                self.filters[name] = [tuple(item) for item in self.filter_widget.filter(name)]
         self.save_filters()
-        if 'REDDIT_OBJECT' in model_names:
-            self.reload_scope(keep_selection=True)
-            return
-        if 'POST' in model_names or 'CONTENT' in model_names:
+        list_reloaded = False
+        for mode in MODES:
+            if mode in model_names:
+                self.reload_list(mode)
+                list_reloaded = list_reloaded or mode == self.mode
+        if not list_reloaded and ('POST' in model_names or 'CONTENT' in model_names):
             self.dirty_tabs.update(name for name in model_names if name in ('POST', 'CONTENT'))
             self.load_dirty_tab()
         if 'COMMENT' in model_names:
             self.reload_comments()
 
-    def reload_scope(self, keep_selection=False):
+    def mode_toggled(self, mode, checked):
+        if checked:
+            self.set_mode(mode)
+
+    def set_mode(self, mode):
+        """Switches the list on the left.  Its list is reloaded first if its filters changed while it was hidden."""
+        self.mode = mode
+        self.browse_stack.setCurrentIndex(MODES.index(mode))
+        if mode in self.dirty_lists:
+            self.reload_list(mode)
+        else:
+            self.update_scope_label()
+            self.reload_results()
+
+    def reload_list(self, mode):
         """
-        Reloads the reddit object list, then the results for the new scope.  Reloading clears the list's selection, so
-        keep_selection re-selects the reddit objects that were selected (the ones still in the loaded page).
+        Reloads the first page of the mode's list (the items that pass its filters) and selects the remembered item,
+        or the first one, then reloads the results.  A list that is not showing is only marked out of date.
         """
-        selected_ids = self.selected_reddit_object_ids() if keep_selection else []
+        if mode != self.mode:
+            self.dirty_lists.add(mode)
+            return
+        self.dirty_lists.discard(mode)
         self.loading_scope = True
         try:
-            self.load_reddit_objects()
-            self.select_reddit_objects(selected_ids)
+            self.load_list(mode)
+            self.select_remembered(mode)
         finally:
             self.loading_scope = False
+        self.update_scope_label()
         self.reload_results()
 
-    def select_reddit_objects(self, ids):
-        if not ids:
+    def load_list(self, mode, extend=False):
+        if mode == 'REDDIT_OBJECT':
+            self.load_reddit_objects(extend)
+        else:
+            self.load_download_sessions(extend)
+
+    @staticmethod
+    def row_of(model, item_id):
+        if item_id is not None:
+            for row, item in enumerate(model.items):
+                if item.id == item_id:
+                    return row
+        return None
+
+    def select_remembered(self, mode):
+        """
+        Selects the item the mode remembers.  It may be on a page that is not loaded yet, so pages are loaded until it
+        turns up.  If it is no longer listed (the filters changed) the first item is selected instead.
+        """
+        model, view = self.models[mode], self.views[mode]
+        wanted = self.selected_ids[mode]
+        row = self.row_of(model, wanted)
+        pages = 0
+        while row is None and wanted is not None and model.has_next_page and pages < MAX_PAGES_TO_FIND:
+            self.load_list(mode, extend=True)
+            pages += 1
+            row = self.row_of(model, wanted)
+        if row is None and model.items:
+            row = 0
+        if row is None:
+            self.selected_ids[mode] = None
+            view.clearSelection()
             return
-        selection = self.reddit_object_view.selectionModel()
-        for row, item in enumerate(self.reddit_object_model.items):
-            if item.id in ids:
-                selection.select(self.reddit_object_model.index(row, 0), QItemSelectionModel.SelectionFlag.Select)
+        index = model.index(row, 0)
+        view.selectionModel().setCurrentIndex(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        view.scrollTo(index)
+        self.selected_ids[mode] = model.items[row].id
+
+    def scope_selection_changed(self, *_args):
+        """The user selected something in the list on the left."""
+        if self.loading_scope:
+            return
+        if self.scope_id is None and self.models[self.mode].items:
+            # clicking cannot leave the list without a selection
+            self.loading_scope = True
+            try:
+                self.select_remembered(self.mode)
+            finally:
+                self.loading_scope = False
+            return
+        self.selected_ids[self.mode] = self.scope_id
+        self.update_scope_label()
+        self.result_timer.start()
+
+    def update_scope_label(self):
+        """Says what the results show."""
+        items = self.models[self.mode].get_items(self.views[self.mode].selectedIndexes()) or []
+        if items:
+            name = getattr(items[0], 'name', None) or f'{MODE_NOUN[self.mode]} {items[0].id}'
+            self.scope_label.setText(f'{MODE_NOUN[self.mode]}: {name}')
+        else:
+            self.scope_label.setText(NO_ITEMS_TEXT[self.mode])
 
     def reload_results(self):
         """Marks both result tabs as out of date and loads the visible one."""
@@ -407,22 +508,29 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.more_buttons[name].setVisible(model.has_next_page)
 
     def load_reddit_objects(self, extend=False):
-        query = reddit_object_query(self.db_session, self.session_id)
-        query = RedditObjectFilter().filter(self.db_session, *self.filters['REDDIT_OBJECT'], query=query,
+        query = self.db_session.query(RedditObject)
+        query = RedditObjectFilter().filter(self.db_session, *self.filter_widget.filter('REDDIT_OBJECT'), query=query,
                                             order_by=self.reddit_object_sort.field, desc=self.reddit_object_sort.desc)
         self.apply_query('REDDIT_OBJECT', query, extend)
 
+    def load_download_sessions(self, extend=False):
+        query = self.db_session.query(DownloadSession)
+        query = DownloadSessionFilter().filter(self.db_session, *self.filter_widget.filter('DOWNLOAD_SESSION'),
+                                               query=query, order_by=self.session_sort.field,
+                                               desc=self.session_sort.desc)
+        self.apply_query('DOWNLOAD_SESSION', query, extend)
+
     def load_content(self, extend=False):
-        query = content_query(self.db_session, self.session_id, self.selected_reddit_object_ids())
-        query = ContentFilter().filter(self.db_session, *self.filters['CONTENT'], query=query,
+        query = content_query(self.db_session, self.mode, self.scope_id)
+        query = ContentFilter().filter(self.db_session, *self.filter_widget.filter('CONTENT'), query=query,
                                        order_by=self.content_sort.field, desc=self.content_sort.desc)
         self.apply_query('CONTENT', query, extend)
         if not extend:
             self.content_selection_changed()
 
     def load_posts(self, extend=False):
-        query = post_query(self.db_session, self.session_id, self.selected_reddit_object_ids())
-        query = PostFilter().filter(self.db_session, *self.filters['POST'], query=query,
+        query = post_query(self.db_session, self.mode, self.scope_id)
+        query = PostFilter().filter(self.db_session, *self.filter_widget.filter('POST'), query=query,
                                     order_by=self.post_sort.field, desc=self.post_sort.desc)
         self.apply_query('POST', query, extend)
         if not extend:
@@ -430,7 +538,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
 
     def load_comments(self, extend=False):
         query = comment_query(self.db_session, list(self.comment_key or ()))
-        query = CommentFilter().filter(self.db_session, *self.filters['COMMENT'], query=query,
+        query = CommentFilter().filter(self.db_session, *self.filter_widget.filter('COMMENT'), query=query,
                                        order_by=self.comment_sort.field, desc=self.comment_sort.desc)
         self.apply_query('COMMENT', query, extend)
         if not extend:
@@ -445,10 +553,6 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
     # -----------------------------------------------------------------------------------------------------------------
     # Selection and details
     # -----------------------------------------------------------------------------------------------------------------
-
-    def reddit_object_selection_changed(self, *_args):
-        if not self.loading_scope:
-            self.result_timer.start()
 
     def results_tab_changed(self, _index):
         try:
@@ -593,27 +697,41 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
     # -----------------------------------------------------------------------------------------------------------------
 
     def default_filters(self):
-        """The filters from settings_manager.database_view_default_filters, as a fresh {model name: [tuples]} dict."""
+        """The filter dicts in settings_manager.database_view_default_filters['Database View']."""
         defaults = getattr(self.settings_manager, 'database_view_default_filters', None)
-        if isinstance(defaults, dict) and 'Database View' in defaults:
-            self.filter_widget.set_default_filters(*defaults['Database View'])
+        if isinstance(defaults, dict):
+            return [dict(item) for item in defaults.get('Database View') or []]
+        return []
 
     def load_filters(self):
-        """Loads the filters saved by this viewer, or the settings_manager defaults if none have been saved."""
-        self.default_filters()
+        """
+        Seeds the filter panel with the filters saved by this viewer, or with the settings_manager defaults if none have
+        been saved yet.  The panel's signals are blocked while it is seeded: nothing is loaded until setup is complete.
+        """
+        filters = None
         saved = self.qsettings.value('filters')
+        if isinstance(saved, (list, tuple)):  # an ini file may hand back text that contains commas as a list
+            saved = ','.join(saved)
         if saved:
             try:
-                loaded = json.loads(saved)
-                self.filter_widget.set_default_filters(loaded)
-            except (TypeError, ValueError, AttributeError):
+                filters = decode_filters(saved)
+            except ValueError:
                 self.logger.warning('Unable to read the saved database viewer filters, using the defaults',
                                     exc_info=True)
+        if filters is None:
+            filters = self.default_filters()
+        self.filter_widget.blockSignals(True)
+        try:
+            self.filter_widget.set_default_filters(*filters)
+        except Exception: # pylint: disable=broad-except
+            self.logger.warning('Unable to set the filters on the filter widget', exc_info=True)
+        finally:
+            self.filter_widget.blockSignals(False)
 
     def save_filters(self):
+        """Saves the filters that are currently in the filter panel."""
         try:
-            filters = self.filter_widget.filters
-            #self.qsettings.setValue('filters', json.dumps(filters))
+            self.qsettings.setValue('filters', encode_filters(self.filter_widget.filters.values()))
         except TypeError:
             self.logger.warning('The database viewer filters contain values that cannot be saved', exc_info=True)
 
@@ -634,10 +752,26 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         if header_state:
             self.post_view.horizontalHeader().restoreState(header_state)
 
-        self.reddit_object_sort.load(qs, 'reddit_object', self.default_sort('database_view_reddit_object_order'))
-        self.content_sort.load(qs, 'content', self.default_sort('database_view_content_order'))
-        self.post_sort.load(qs, 'post', self.default_sort('database_view_post_order'))
-        self.comment_sort.load(qs, 'comment', self.default_sort('database_view_comment_order'))
+        sorts = (('reddit_object', self.reddit_object_sort), ('download_session', self.session_sort),
+                 ('content', self.content_sort), ('post', self.post_sort), ('comment', self.comment_sort))
+        for name, sort in sorts:
+            # the legacy dialog's saved sort is the default; sessions are newest first if the legacy has no setting
+            sort.load(qs, name, self.default_sort(f'database_view_{name}_order'),
+                      self.default_desc(f'database_view_{name}_desc_order', fallback=name == 'download_session'))
+
+        mode = qs.value('mode')
+        self.mode = mode if mode in MODES else 'REDDIT_OBJECT'
+        for mode_name in MODES:
+            try:
+                self.selected_ids[mode_name] = int(qs.value(f'selected/{mode_name}'))
+            except (TypeError, ValueError):
+                self.selected_ids[mode_name] = None
+        for button, mode_name in ((self.reddit_object_mode_button, 'REDDIT_OBJECT'),
+                                  (self.session_mode_button, 'DOWNLOAD_SESSION')):
+            button.blockSignals(True)
+            button.setChecked(self.mode == mode_name)
+            button.blockSignals(False)
+        self.browse_stack.setCurrentIndex(MODES.index(self.mode))
 
         self.icon_slider.blockSignals(True)
         size = qs.value('icon_size', self.default_sort('database_view_icon_size') or DEFAULT_ICON_SIZE, type=int)
@@ -666,6 +800,13 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         qs.setValue('comment_splitter', self.comment_splitter.saveState())
         qs.setValue('post_header', self.post_view.horizontalHeader().saveState())
         self.reddit_object_sort.save(qs, 'reddit_object')
+        self.session_sort.save(qs, 'download_session')
+        qs.setValue('mode', self.mode)
+        for mode_name in MODES:
+            if self.selected_ids[mode_name] is not None:
+                qs.setValue(f'selected/{mode_name}', self.selected_ids[mode_name])
+            else:
+                qs.remove(f'selected/{mode_name}')
         self.content_sort.save(qs, 'content')
         self.post_sort.save(qs, 'post')
         self.comment_sort.save(qs, 'comment')
