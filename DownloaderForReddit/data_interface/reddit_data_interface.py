@@ -20,7 +20,7 @@ from PyQt6.QtCore import QUrl
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
 from DownloaderForReddit.database.models import DownloadSession, RedditObject
 from DownloaderForReddit.messaging.message import Message
-from DownloaderForReddit.utils import system_util
+from DownloaderForReddit.utils import injector, system_util
 from ..version import __version__
 
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid reddit_id')
@@ -49,6 +49,7 @@ class RedditDataInterface(ABC):
         self._http_session = None
         self._token = token
         self._reddit_object = None
+        self.settings_manager = injector.get_settings_manager()
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self._download_session:DownloadSession = download_session
 
@@ -357,7 +358,8 @@ class RedditDataInterface(ABC):
                 self.increment_rate_limit_count()
                 wait_time = self.get_rate_limit_seconds(response)
                 self.add_rate_limit_duration(wait_time)
-                Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit: {endpoint}", self._download_session.id)
+                if self.settings_manager.include_ratelimit_details:
+                    Message.send_warning(f"Sleeping {wait_time} seconds due to rate limit: {endpoint}", self._download_session.id)
                 self.logger.warning("Sleeping %d seconds due to rate limit on: %s", wait_time, endpoint)
                 time.sleep(wait_time)
             else:

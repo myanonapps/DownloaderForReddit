@@ -168,6 +168,7 @@ class SettingsManager:
         self.show_session_id = self.get('output', 'show_session_id', False)
         self.clear_messages_on_run = self.get('output', 'clear_messages_on_run', True)
         self.output_saved_content = self.get('output', 'output_saved_content', False)
+        self.include_ratelimit_details = self.get('output', 'include_ratelimit_details', False)
         self.output_saved_content_format = self.get('output', 'output_saved_content_format', ContentOutput.FULL_PATH.name)
         # endregion
 

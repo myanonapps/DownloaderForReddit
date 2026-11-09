@@ -41,7 +41,7 @@
         <item row="0" column="0">
          <widget class="QCheckBox" name="clear_on_run_checkbox">
           <property name="text">
-           <string>Clear each run</string>
+           <string>Clear before each run</string>
           </property>
          </widget>
         </item>
@@ -54,6 +54,13 @@
         </item>
         <item row="2" column="1">
          <widget class="QComboBox" name="output_saved_content_combo"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="include_ratelimit_details_checkbox">
+          <property name="text">
+           <string>Include rate limit details</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>

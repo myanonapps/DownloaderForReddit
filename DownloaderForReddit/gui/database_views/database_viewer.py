@@ -10,11 +10,17 @@ There are no focus modes and no show/hide checkboxes, just one rule that flows i
 * The list: shows the items that match its own filters (REDDIT_OBJECT filters in the reddit object list, DOWNLOAD_SESSION
   filters in the session list) and exactly one of them is selected.  The previous selection of the mode is selected
   again if it is still listed, otherwise the first entry is.
-* Results: the content or posts of the selected reddit object or session that match the CONTENT or POST filters.
+* Results: the content or posts of the selected reddit object or session.  Posts are narrowed by the POST filters.
+  Content is narrowed by the CONTENT filters and also by the POST filters (it is the content of the posts that pass
+  them), so each filter narrows its own items and everything below them, in one direction.
 * Details: the post (and its comments) for the selected item.  Comments are only loaded while the Comments tab is open.
 * Filters: the filter panel is the one place filters live.  On first run it is seeded from
   settings_manager.database_view_default_filters['Database View']; after that from the filters saved in QSettings, which
   are updated every time the panel changes.
+
+The layout is in database_viewer.ui (open it in Qt Designer).  Generate the python from it with:
+
+    pyuic6 -o database_viewer_auto.py database_viewer.ui
 
 Window geometry, splitter sizes, sort choices, the selected tabs, the post table columns and the thumbnail size are saved
 in their own ini file (via QSettings) so this viewer does not depend on the settings manager.
@@ -68,15 +74,20 @@ def post_query(db_session, mode, scope_id):
                             Post.subreddit_id == scope_id))
 
 
-def content_query(db_session, mode, scope_id):
+def content_query(db_session, mode, scope_id, post_ids=None):
+    """post_ids is an optional query for the ids of the posts that the content must belong to (the POST filters)."""
     query = db_session.query(Content)
     if scope_id is None:
         return query.filter(Content.id.in_([]))
     if mode == 'DOWNLOAD_SESSION':
-        return query.filter(Content.download_session_id == scope_id)
-    posts = db_session.query(Post.id).filter(Post.significant_reddit_object_id == scope_id)
-    return query.filter(or_(Content.post_id.in_(posts), Content.user_id == scope_id,
-                            Content.subreddit_id == scope_id))
+        query = query.filter(Content.download_session_id == scope_id)
+    else:
+        posts = db_session.query(Post.id).filter(Post.significant_reddit_object_id == scope_id)
+        query = query.filter(or_(Content.post_id.in_(posts), Content.user_id == scope_id,
+                                 Content.subreddit_id == scope_id))
+    if post_ids is not None:
+        query = query.filter(Content.post_id.in_(post_ids))
+    return query
 
 
 def comment_query(db_session, post_ids):
@@ -328,15 +339,15 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
 
     def watch_scrollbar(self, view, name, loader, percent=90):
         """Loads the next page when the view is scrolled to percent of the way down."""
-        bar = view.verticalScrollBar()
+        vert_bar = view.verticalScrollBar()
         model = self.models[name]
 
         def check(_value):
-            maximum = bar.maximum()
-            if maximum > 0 and bar.value() / maximum * 100 >= percent and model.has_next_page and not model.loading:
+            maximum = vert_bar.maximum()
+            if maximum > 0 and vert_bar.value() / maximum * 100 >= percent and model.has_next_page and not model.loading:
                 loader(extend=True)
 
-        bar.valueChanged.connect(check)
+        vert_bar.valueChanged.connect(check)
 
     # -----------------------------------------------------------------------------------------------------------------
     # State
@@ -378,7 +389,10 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
                 self.reload_list(mode)
                 list_reloaded = list_reloaded or mode == self.mode
         if not list_reloaded and ('POST' in model_names or 'CONTENT' in model_names):
-            self.dirty_tabs.update(name for name in model_names if name in ('POST', 'CONTENT'))
+            if 'POST' in model_names:
+                self.dirty_tabs.update(('POST', 'CONTENT'))  # POST filters narrow the content as well
+            if 'CONTENT' in model_names:
+                self.dirty_tabs.add('CONTENT')
             self.load_dirty_tab()
         if 'COMMENT' in model_names:
             self.reload_comments()
@@ -520,8 +534,17 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
                                                desc=self.session_sort.desc)
         self.apply_query('DOWNLOAD_SESSION', query, extend)
 
+    def filtered_post_ids(self):
+        """A query for the ids of the posts that pass the POST filters, or None if there are no POST filters."""
+        filters = self.filter_widget.filter('POST')
+        if not filters:
+            return None
+        query = PostFilter().filter(self.db_session, *filters, query=self.db_session.query(Post),
+                                    order_by=self.post_sort.field, desc=self.post_sort.desc)
+        return query.with_entities(Post.id).order_by(None)
+
     def load_content(self, extend=False):
-        query = content_query(self.db_session, self.mode, self.scope_id)
+        query = content_query(self.db_session, self.mode, self.scope_id, self.filtered_post_ids())
         query = ContentFilter().filter(self.db_session, *self.filter_widget.filter('CONTENT'), query=query,
                                        order_by=self.content_sort.field, desc=self.content_sort.desc)
         self.apply_query('CONTENT', query, extend)

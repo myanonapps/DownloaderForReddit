@@ -32,6 +32,7 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         self.show_session_id_checkbox.setChecked(self.settings.show_session_id)
         self.clear_on_run_checkbox.setChecked(self.settings.clear_messages_on_run)
         self.output_saved_content_checkbox.setChecked(self.settings.output_saved_content)
+        self.include_ratelimit_details_checkbox.setChecked(self.settings.include_ratelimit_details)
         for x in ContentOutput:
             if self.settings.output_saved_content_format == x.name:
                 self.output_saved_content_combo.setCurrentText(x.value)
@@ -74,6 +75,7 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         self.settings.show_session_id = self.show_session_id_checkbox.isChecked()
         self.settings.clear_messages_on_run = self.clear_on_run_checkbox.isChecked()
         self.settings.output_saved_content = self.output_saved_content_checkbox.isChecked()
+        self.settings.include_ratelimit_details = self.include_ratelimit_details_checkbox.isChecked()
         self.settings.output_saved_content_format = self.output_saved_content_combo.currentData(Qt.ItemDataRole.UserRole).name
         self.settings.use_color_output = self.color_groupbox.isChecked()
         for key, value in self.colors.items():
