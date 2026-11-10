@@ -217,6 +217,19 @@
               </spacer>
              </item>
              <item>
+              <widget class="QCheckBox" name="reddit_object_auto_check">
+               <property name="text">
+                <string>Auto-load</string>
+               </property>
+               <property name="toolTip">
+                <string>Load the next page automatically when you scroll near the end</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="QPushButton" name="reddit_object_more_button">
                <property name="text">
                 <string>Load more</string>
@@ -309,6 +322,19 @@
                 </size>
                </property>
               </spacer>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="session_auto_check">
+               <property name="text">
+                <string>Auto-load</string>
+               </property>
+               <property name="toolTip">
+                <string>Load the next page automatically when you scroll near the end</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QPushButton" name="session_more_button">
@@ -482,6 +508,19 @@
            </spacer>
           </item>
           <item>
+           <widget class="QCheckBox" name="content_auto_check">
+            <property name="text">
+             <string>Auto-load</string>
+            </property>
+            <property name="toolTip">
+             <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="content_more_button">
             <property name="text">
              <string>Load more</string>
@@ -580,6 +619,19 @@
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="post_auto_check">
+            <property name="text">
+             <string>Auto-load</string>
+            </property>
+            <property name="toolTip">
+             <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QPushButton" name="post_more_button">
@@ -709,6 +761,19 @@
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="comment_auto_check">
+            <property name="text">
+             <string>Auto-load</string>
+            </property>
+            <property name="toolTip">
+             <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QPushButton" name="comment_more_button">

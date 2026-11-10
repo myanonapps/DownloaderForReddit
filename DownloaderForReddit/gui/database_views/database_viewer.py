@@ -14,6 +14,9 @@ There are no focus modes and no show/hide checkboxes, just one rule that flows i
   Content is narrowed by the CONTENT filters and also by the POST filters (it is the content of the posts that pass
   them), so each filter narrows its own items and everything below them, in one direction.
 * Details: the post (and its comments) for the selected item.  Comments are only loaded while the Comments tab is open.
+* Paging: every list loads one page at a time (the page size is the model's, from settings_manager).  Each list has a
+  'Load more' button and an 'Auto-load' checkbox that loads the next page when you scroll near the end.  Auto-load
+  starts from settings_manager.database_view_<list>_infinite_scroll and your changes are saved in QSettings.
 * Filters: the filter panel is the one place filters live.  On first run it is seeded from
   settings_manager.database_view_default_filters['Database View']; after that from the filters saved in QSettings, which
   are updated every time the panel changes.
@@ -240,6 +243,14 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             'POST': self.post_more_button,
             'COMMENT': self.comment_more_button
         }
+        self.auto_checks = {
+            'REDDIT_OBJECT': self.reddit_object_auto_check,
+            'DOWNLOAD_SESSION': self.session_auto_check,
+            'CONTENT': self.content_auto_check,
+            'POST': self.post_auto_check,
+            'COMMENT': self.comment_auto_check
+        }
+        self.auto_load = {name: True for name in self.auto_checks}  # loaded from the settings by load_settings
 
         self.result_timer = QTimer(self)
         self.result_timer.setSingleShot(True)
@@ -334,20 +345,26 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.watch_scrollbar(self.content_view, 'CONTENT', self.load_content, 80)
         self.watch_scrollbar(self.post_view, 'POST', self.load_posts)
         self.watch_scrollbar(self.comment_view, 'COMMENT', self.load_comments)
+        for name, check in self.auto_checks.items():
+            check.toggled.connect(lambda checked, n=name: self.auto_load_toggled(n, checked))
 
         QApplication.instance().aboutToQuit.connect(self.save_settings)
 
     def watch_scrollbar(self, view, name, loader, percent=90):
         """Loads the next page when the view is scrolled to percent of the way down."""
-        vert_bar = view.verticalScrollBar()
+        bar = view.verticalScrollBar()
         model = self.models[name]
 
         def check(_value):
-            maximum = vert_bar.maximum()
-            if maximum > 0 and vert_bar.value() / maximum * 100 >= percent and model.has_next_page and not model.loading:
+            maximum = bar.maximum()
+            if (self.auto_load[name] and maximum > 0 and bar.value() / maximum * 100 >= percent
+                    and model.has_next_page and not model.loading):
                 loader(extend=True)
 
-        vert_bar.valueChanged.connect(check)
+        bar.valueChanged.connect(check)
+
+    def auto_load_toggled(self, name, checked):
+        self.auto_load[name] = checked
 
     # -----------------------------------------------------------------------------------------------------------------
     # State
@@ -796,6 +813,13 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             button.blockSignals(False)
         self.browse_stack.setCurrentIndex(MODES.index(self.mode))
 
+        for name, check in self.auto_checks.items():
+            default = getattr(self.settings_manager, f'database_view_{name.lower()}_infinite_scroll', True)
+            self.auto_load[name] = qs.value(f'auto_load/{name}', bool(default), type=bool)
+            check.blockSignals(True)
+            check.setChecked(self.auto_load[name])
+            check.blockSignals(False)
+
         self.icon_slider.blockSignals(True)
         size = qs.value('icon_size', self.default_sort('database_view_icon_size') or DEFAULT_ICON_SIZE, type=int)
         self.icon_slider.setValue(size)
@@ -825,6 +849,8 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         self.reddit_object_sort.save(qs, 'reddit_object')
         self.session_sort.save(qs, 'download_session')
         qs.setValue('mode', self.mode)
+        for name, enabled in self.auto_load.items():
+            qs.setValue(f'auto_load/{name}', enabled)
         for mode_name in MODES:
             if self.selected_ids[mode_name] is not None:
                 qs.setValue(f'selected/{mode_name}', self.selected_ids[mode_name])
