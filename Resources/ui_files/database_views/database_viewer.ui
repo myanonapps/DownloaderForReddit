@@ -34,24 +34,24 @@
      </item>
      <item>
       <widget class="QPushButton" name="filter_button">
+       <property name="toolTip">
+        <string>Show or hide the filter panel</string>
+       </property>
        <property name="text">
         <string>Filters</string>
        </property>
        <property name="checkable">
         <bool>true</bool>
        </property>
-       <property name="toolTip">
-        <string>Show or hide the filter panel</string>
-       </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="refresh_button">
-       <property name="text">
-        <string>Refresh</string>
-       </property>
        <property name="toolTip">
         <string>Reload everything from the database</string>
+       </property>
+       <property name="text">
+        <string>Refresh</string>
        </property>
       </widget>
      </item>
@@ -96,6 +96,9 @@
         <layout class="QHBoxLayout" name="mode_layout">
          <item>
           <widget class="QPushButton" name="reddit_object_mode_button">
+           <property name="toolTip">
+            <string>Browse by reddit object</string>
+           </property>
            <property name="text">
             <string>Reddit objects</string>
            </property>
@@ -108,13 +111,13 @@
            <property name="autoExclusive">
             <bool>true</bool>
            </property>
-           <property name="toolTip">
-            <string>Browse by reddit object</string>
-           </property>
           </widget>
          </item>
          <item>
           <widget class="QPushButton" name="session_mode_button">
+           <property name="toolTip">
+            <string>Browse by download session</string>
+           </property>
            <property name="text">
             <string>Sessions</string>
            </property>
@@ -123,9 +126,6 @@
            </property>
            <property name="autoExclusive">
             <bool>true</bool>
-           </property>
-           <property name="toolTip">
-            <string>Browse by download session</string>
            </property>
           </widget>
          </item>
@@ -189,6 +189,9 @@
              <property name="editTriggers">
               <set>QAbstractItemView::NoEditTriggers</set>
              </property>
+             <property name="alternatingRowColors">
+              <bool>true</bool>
+             </property>
              <property name="selectionMode">
               <enum>QAbstractItemView::SingleSelection</enum>
              </property>
@@ -218,11 +221,11 @@
              </item>
              <item>
               <widget class="QCheckBox" name="reddit_object_auto_check">
-               <property name="text">
-                <string>Auto-load</string>
-               </property>
                <property name="toolTip">
                 <string>Load the next page automatically when you scroll near the end</string>
+               </property>
+               <property name="text">
+                <string>Auto-load</string>
                </property>
                <property name="checked">
                 <bool>true</bool>
@@ -231,11 +234,11 @@
              </item>
              <item>
               <widget class="QPushButton" name="reddit_object_more_button">
-               <property name="text">
-                <string>Load more</string>
-               </property>
                <property name="visible">
                 <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Load more</string>
                </property>
               </widget>
              </item>
@@ -325,11 +328,11 @@
              </item>
              <item>
               <widget class="QCheckBox" name="session_auto_check">
-               <property name="text">
-                <string>Auto-load</string>
-               </property>
                <property name="toolTip">
                 <string>Load the next page automatically when you scroll near the end</string>
+               </property>
+               <property name="text">
+                <string>Auto-load</string>
                </property>
                <property name="checked">
                 <bool>true</bool>
@@ -338,11 +341,11 @@
              </item>
              <item>
               <widget class="QPushButton" name="session_more_button">
-               <property name="text">
-                <string>Load more</string>
-               </property>
                <property name="visible">
                 <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Load more</string>
                </property>
               </widget>
              </item>
@@ -356,7 +359,7 @@
      </widget>
      <widget class="QTabWidget" name="results_tabs">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="content_tab">
        <attribute name="title">
@@ -417,6 +420,12 @@
           </item>
           <item>
            <widget class="QSlider" name="icon_slider">
+            <property name="maximumSize">
+             <size>
+              <width>140</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="minimum">
              <number>64</number>
             </property>
@@ -429,20 +438,20 @@
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
-            <property name="maximumSize">
-             <size>
-              <width>140</width>
-              <height>16777215</height>
-             </size>
-            </property>
            </widget>
           </item>
          </layout>
         </item>
         <item>
          <widget class="QListView" name="content_view">
+          <property name="contextMenuPolicy">
+           <enum>Qt::CustomContextMenu</enum>
+          </property>
           <property name="editTriggers">
            <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="alternatingRowColors">
+           <bool>true</bool>
           </property>
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
@@ -450,8 +459,8 @@
           <property name="verticalScrollMode">
            <enum>QAbstractItemView::ScrollPerPixel</enum>
           </property>
-          <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+          <property name="movement">
+           <enum>QListView::Static</enum>
           </property>
           <property name="flow">
            <enum>QListView::LeftToRight</enum>
@@ -462,20 +471,17 @@
           <property name="layoutMode">
            <enum>QListView::Batched</enum>
           </property>
-          <property name="movement">
-           <enum>QListView::Static</enum>
-          </property>
           <property name="spacing">
            <number>5</number>
           </property>
           <property name="viewMode">
            <enum>QListView::IconMode</enum>
           </property>
-          <property name="batchSize">
-           <number>1</number>
-          </property>
           <property name="uniformItemSizes">
            <bool>true</bool>
+          </property>
+          <property name="batchSize">
+           <number>1</number>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -509,11 +515,11 @@
           </item>
           <item>
            <widget class="QCheckBox" name="content_auto_check">
-            <property name="text">
-             <string>Auto-load</string>
-            </property>
             <property name="toolTip">
              <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="text">
+             <string>Auto-load</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -522,11 +528,11 @@
           </item>
           <item>
            <widget class="QPushButton" name="content_more_button">
-            <property name="text">
-             <string>Load more</string>
-            </property>
             <property name="visible">
              <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Load more</string>
             </property>
            </widget>
           </item>
@@ -575,11 +581,14 @@
         </item>
         <item>
          <widget class="QTableView" name="post_view">
+          <property name="contextMenuPolicy">
+           <enum>Qt::CustomContextMenu</enum>
+          </property>
           <property name="editTriggers">
            <set>QAbstractItemView::NoEditTriggers</set>
           </property>
-          <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+          <property name="alternatingRowColors">
+           <bool>true</bool>
           </property>
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
@@ -622,11 +631,11 @@
           </item>
           <item>
            <widget class="QCheckBox" name="post_auto_check">
-            <property name="text">
-             <string>Auto-load</string>
-            </property>
             <property name="toolTip">
              <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="text">
+             <string>Auto-load</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -635,11 +644,11 @@
           </item>
           <item>
            <widget class="QPushButton" name="post_more_button">
-            <property name="text">
-             <string>Load more</string>
-            </property>
             <property name="visible">
              <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Load more</string>
             </property>
            </widget>
           </item>
@@ -650,7 +659,7 @@
      </widget>
      <widget class="QTabWidget" name="details_tabs">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="post_details_tab">
        <attribute name="title">
@@ -729,6 +738,9 @@
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>
+           <property name="alternatingRowColors">
+            <bool>true</bool>
+           </property>
            <property name="selectionMode">
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
@@ -764,11 +776,11 @@
           </item>
           <item>
            <widget class="QCheckBox" name="comment_auto_check">
-            <property name="text">
-             <string>Auto-load</string>
-            </property>
             <property name="toolTip">
              <string>Load the next page automatically when you scroll near the end</string>
+            </property>
+            <property name="text">
+             <string>Auto-load</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -777,11 +789,11 @@
           </item>
           <item>
            <widget class="QPushButton" name="comment_more_button">
-            <property name="text">
-             <string>Load more</string>
-            </property>
             <property name="visible">
              <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Load more</string>
             </property>
            </widget>
           </item>
