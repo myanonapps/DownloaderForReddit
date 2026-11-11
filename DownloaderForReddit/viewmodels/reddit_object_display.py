@@ -9,12 +9,6 @@ STATES = (DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT)  # in priority order: th
 
 ACTIVE_OBJECT = "active"
 
-DEFAULT_COLORS = {
-    DISABLED_OBJECT: (200, 60, 60),
-    INACTIVE_OBJECT: (140, 140, 140),
-    NEW_OBJECT: (60, 160, 60)
-}
-
 ICONS = {
     USER_OBJECT: {
         DISABLED_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_disabled.svg")),

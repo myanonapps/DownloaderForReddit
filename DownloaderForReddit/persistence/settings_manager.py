@@ -201,13 +201,14 @@ class SettingsManager:
         self.show_schedule_countdown = self.get('display', 'show_schedule_countdown', const.SHOW_ACTIVE_SCHEDULE)
         self.scroll_to_last_added = self.get('display', 'scroll_to_last_added', True)
         self.colorize_new_reddit_objects = self.get('display', 'colorize_new_reddit_objects', True)
-        self.new_reddit_object_display_color = self.get('display', 'new_reddit_object_display_color', [0, 175, 0])
+        self.new_reddit_object_display_color = self.get('display', 'new_reddit_object_display_color',
+                                                        list(const.DEFAULT_REDDIT_OBJECT_COLORS[const.NEW_OBJECT]))
         self.colorize_disabled_reddit_objects = self.get('display', 'colorize_disabled_reddit_objects', True)
         self.disabled_reddit_object_display_color = self.get('display', 'disabled_reddit_object_display_color',
-                                                             [220, 0, 0])
+                                                             list(const.DEFAULT_REDDIT_OBJECT_COLORS[const.DISABLED_OBJECT]))
         self.colorize_inactive_reddit_objects = self.get('display', 'colorize_inactive_reddit_objects', True)
         self.inactive_reddit_object_display_color = self.get('display', 'inactive_reddit_object_display_color',
-                                                             [140, 140, 140])
+                                                             list(const.DEFAULT_REDDIT_OBJECT_COLORS[const.INACTIVE_OBJECT]))
         self.iconize_reddit_objects = self.get('display', 'iconize_reddit_objects', True)
 
         self.datetime_display_format = self.get('display', 'datetime_display_format', '%m/%d/%Y %I:%M %p')
