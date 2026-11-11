@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy import func
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.data_interface.name_checker import NameChecker
 from DownloaderForReddit.database.models import Subreddit, User
 from DownloaderForReddit.utils import injector
@@ -32,7 +33,7 @@ def migrate_reddit_ids():
             try:
                 # Get the Reddit ID by validating the username
                 # Use USER source for User objects
-                name_checker = NameChecker(user.post_download_source, 'USER')
+                name_checker = NameChecker(user.post_download_source, USER_OBJECT)
                 validation_set = name_checker.check_user_name(user.name)
                 
                 if validation_set.valid:
@@ -68,7 +69,7 @@ def migrate_reddit_ids():
             try:
                 # Get the Reddit ID by validating the subreddit name
                 # Use SUBREDDIT source for Subreddit objects
-                name_checker = NameChecker(subreddit.post_download_source, 'SUBREDDIT')
+                name_checker = NameChecker(subreddit.post_download_source, SUBREDDIT_OBJECT)
                 validation_set = name_checker.check_subreddit_name(subreddit.name)
                 
                 if validation_set.valid:

@@ -319,7 +319,7 @@ class DownloadRunner(QObject):
         """
         with self.db.get_scoped_session() as session:
             object_type = session.query(RedditObject.object_type).filter(RedditObject.id == reddit_object_id).first()
-            if object_type[0] == 'USER':
+            if object_type[0] == const.USER_OBJECT:
                 self.get_user_submissions(reddit_object_id, session=session)
             else:
                 self.get_subreddit_submissions(reddit_object_id, session=session)

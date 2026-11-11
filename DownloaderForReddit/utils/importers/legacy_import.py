@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from DownloaderForReddit.core.const import USER_OBJECT
 from DownloaderForReddit.database.models import User, Subreddit
 from DownloaderForReddit.database.model_enums import NsfwFilter
 
@@ -20,7 +21,7 @@ def import_legacy(json_element):
 
 def make_reddit_object(data):
     try:
-        model = User if data['object_type'] == 'USER' else Subreddit
+        model = User if data['object_type'] == USER_OBJECT else Subreddit
         kwargs = get_ro_kwargs(data)
         return model(**kwargs)
     except KeyError:

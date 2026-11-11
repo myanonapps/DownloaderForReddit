@@ -1,3 +1,4 @@
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.guiresources.settings.download_settings_widget_auto import Ui_DownloadSettingsWidget
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.database.models import RedditObjectList
@@ -41,9 +42,9 @@ class DownloadSettingsWidget(AbstractSettingsWidget, Ui_DownloadSettingsWidget):
                'These special lists contain no users/subreddits.'
 
     def make_master_lists(self):
-        creator = RedditObjectCreator('USER')
+        creator = RedditObjectCreator(USER_OBJECT)
         self.master_user_list = creator.create_reddit_object_list('Master User List', commit=False)
-        creator.list_type = 'SUBREDDIT'
+        creator.list_type = SUBREDDIT_OBJECT
         self.master_subreddit_list = creator.create_reddit_object_list('Master Subreddit List', commit=False)
 
     def add_list(self, ro_list: RedditObjectList, is_master=False):

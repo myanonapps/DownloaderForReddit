@@ -36,6 +36,7 @@ from PyQt6.QtGui import QColor
 
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
@@ -229,20 +230,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         # endregion
 
-        self.user_list_model = RedditObjectListModel('USER')
+        self.user_list_model = RedditObjectListModel(USER_OBJECT)
         self.user_list_model.starting_add.connect(self.start_spinner)
         self.user_list_model.finished_add.connect(self.stop_spinner)
         self.user_list_model.reddit_object_added.connect(self.check_new_object_for_download)
         self.user_list_model.existing_object_added.connect(self.check_existing_object_for_download)
-        self.user_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, 'USER'))
+        self.user_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, USER_OBJECT))
         self.user_list_model.count_change.connect(lambda x: self.user_count_label.setText(str(x)))
         self.user_list_view.setModel(self.user_list_model)
-        self.subreddit_list_model = RedditObjectListModel('SUBREDDIT')
+        self.subreddit_list_model = RedditObjectListModel(SUBREDDIT_OBJECT)
         self.subreddit_list_model.starting_add.connect(self.start_spinner)
         self.subreddit_list_model.finished_add.connect(self.stop_spinner)
         self.subreddit_list_model.reddit_object_added.connect(self.check_new_object_for_download)
         self.subreddit_list_model.existing_object_added.connect(self.check_existing_object_for_download)
-        self.subreddit_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, 'SUBREDDIT'))
+        self.subreddit_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, SUBREDDIT_OBJECT))
         self.subreddit_list_model.count_change.connect(lambda x: self.subreddit_count_label.setText(str(x)))
         self.subreddit_list_view.setModel(self.subreddit_list_model)
 
@@ -267,7 +268,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_combo.activated.connect(self.change_subreddit_list)
 
         self.user_list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.user_list_view.customContextMenuRequested.connect(lambda: self.reddit_object_list_context_menu('USER'))
+        self.user_list_view.customContextMenuRequested.connect(lambda: self.reddit_object_list_context_menu(USER_OBJECT))
 
         self.user_list_view.doubleClicked.connect(lambda: self.user_settings(self.get_selected_users()))
         self.user_list_view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -277,7 +278,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.subreddit_list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.subreddit_list_view.customContextMenuRequested.connect(
-            lambda: self.reddit_object_list_context_menu('SUBREDDIT'))
+            lambda: self.reddit_object_list_context_menu(SUBREDDIT_OBJECT))
 
         self.subreddit_list_view.doubleClicked.connect(
             lambda: self.subreddit_settings(self.get_selected_subreddits()))
@@ -443,14 +444,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def reddit_object_list_context_menu(self, object_type):
         menu = QMenu()
         try:
-            if object_type == 'USER':
+            if object_type == USER_OBJECT:
                 ros = self.get_selected_users()
             else:
                 ros = self.get_selected_subreddits()
         except AttributeError:
             ros = []
 
-        if object_type == 'USER':
+        if object_type == USER_OBJECT:
             ros = self.get_selected_users()
             open_settings_command = self.user_settings
             add_command = self.add_user
@@ -518,7 +519,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             else:
                 text = f'{action_type.title()} {reddit_objects[0].name if len(reddit_objects) else ""} to:'
             menu = main_menu.addMenu(text)
-            current_list_model = self.user_list_model if ro_type == 'USER' else self.subreddit_list_model
+            current_list_model = self.user_list_model if ro_type == USER_OBJECT else self.subreddit_list_model
             current_list_id = current_list_model.list.id  # Throws attribute error when no list is available
             with self.db_handler.get_scoped_session() as session:
                 lists = session.query(RedditObjectList) \
@@ -678,7 +679,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if users is None:
             users = [self.user_list_model.reddit_objects[0]]
         id_list = [x.id for x in users]
-        dialog = RedditObjectSettingsDialog('USER', self.user_list_model.list.name, selected_object_ids=id_list,
+        dialog = RedditObjectSettingsDialog(USER_OBJECT, self.user_list_model.list.name, selected_object_ids=id_list,
                                             parent=self)
         dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
         dialog.show()
@@ -689,7 +690,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if subreddits is None:
             subreddits = [self.subreddit_list_model.reddit_objects[0]]
         id_list = [x.id for x in subreddits]
-        dialog = RedditObjectSettingsDialog('SUBREDDIT', self.subreddit_list_model.list.name,
+        dialog = RedditObjectSettingsDialog(SUBREDDIT_OBJECT, self.subreddit_list_model.list.name,
                                             selected_object_ids=id_list, parent=self)
         dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
         dialog.show()
@@ -936,10 +937,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def add_user_list(self, *, list_name=None):
         if list_name is None:
-            list_name = self.get_list_name('USER')
+            list_name = self.get_list_name(USER_OBJECT)
         if list_name is not None:
             if list_name != '':
-                added = self.user_list_model.add_new_list(list_name, 'USER')
+                added = self.user_list_model.add_new_list(list_name, USER_OBJECT)
                 if added:
                     self.user_lists_combo.addItem(list_name)
                     self.user_lists_combo.setCurrentText(list_name)
@@ -996,10 +997,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def add_subreddit_list(self, *, list_name=None):
         if list_name is None:
-            list_name = self.get_list_name('SUBREDDIT')
+            list_name = self.get_list_name(SUBREDDIT_OBJECT)
         if list_name is not None:
             if list_name != '':
-                added = self.subreddit_list_model.add_new_list(list_name, 'SUBREDDIT')
+                added = self.subreddit_list_model.add_new_list(list_name, SUBREDDIT_OBJECT)
                 if added:
                     self.subreddit_list_combo.addItem(list_name)
                     self.subreddit_list_combo.setCurrentText(list_name)
@@ -1138,7 +1139,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                f'This action cannot be undone.'
         remove = message_dialogs.warning_question_dialog(self, f'Delete {count_text}?', text)
         if remove:
-            list_model = self.user_list_model if reddit_objects[0].object_type == 'USER' else self.subreddit_list_model
+            list_model = self.user_list_model if reddit_objects[0].object_type == USER_OBJECT else self.subreddit_list_model
             list_name = list_model.close_session()
             for reddit_object in reddit_objects:
                 try:
@@ -1190,7 +1191,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         :param list_type: The type of list to which a reddit object was added.  Used to decide which view should scroll.
         """
         if self.settings_manager.scroll_to_last_added:
-            if list_type == 'USER':
+            if list_type == USER_OBJECT:
                 view = self.user_list_view
                 index = self.user_list_model.createIndex(index, 0)
             else:
@@ -1499,9 +1500,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.load_subreddit_list(session)
 
     def load_list_combos(self, session):
-        user_lists = [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'USER')]
+        user_lists = [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == USER_OBJECT)]
         sub_lists = \
-            [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'SUBREDDIT')]
+            [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == SUBREDDIT_OBJECT)]
         self.user_lists_combo.addItems(user_lists)
         self.subreddit_list_combo.addItems(sub_lists)
 
@@ -1509,7 +1510,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         try:
             list_name = self.settings_manager.current_user_list
             if list_name == '':
-                row = session.query(RedditObjectList.name).filter(RedditObjectList.list_type == 'USER').first()
+                row = session.query(RedditObjectList.name).filter(RedditObjectList.list_type == USER_OBJECT).first()
                 if row is not None:
                     list_name = row.name
             if list_name != '':
@@ -1525,7 +1526,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             list_name = self.settings_manager.current_subreddit_list
             if list_name == '':
                 row = session.query(RedditObjectList.name)\
-                    .filter(RedditObjectList.list_type == 'SUBREDDIT').first()
+                    .filter(RedditObjectList.list_type == SUBREDDIT_OBJECT).first()
                 if row is not None:
                     list_name = row.name
             if list_name != '':

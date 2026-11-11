@@ -65,7 +65,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
 
     def sync_sort_methods(self, object_type):
         pos = self.post_sort_combo.findData(PostSortMethod.RISING, Qt.ItemDataRole.UserRole)
-        if object_type == 'SUBREDDIT':
+        if object_type == const.SUBREDDIT_OBJECT:
             if pos < 0:
                 self.post_sort_combo.insertItem(2, 'RISING', PostSortMethod.RISING)
         else:
@@ -327,7 +327,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         if self.custom_post_save_path_line_edit.text() != '':
             base = self.custom_post_save_path_line_edit.text()
         else:
-            if self.object_type == 'USER':
+            if self.object_type == const.USER_OBJECT:
                 base = self.settings_manager.user_save_directory
             else:
                 base = self.settings_manager.subreddit_save_directory
@@ -337,7 +337,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         if self.custom_comment_save_path_line_edit.text() != '':
             base = self.custom_comment_save_path_line_edit.text()
         else:
-            if self.object_type == 'USER':
+            if self.object_type == USER_OBJECT:
                 base = self.settings_manager.user_save_directory
             else:
                 base = self.settings_manager.subreddit_save_directory

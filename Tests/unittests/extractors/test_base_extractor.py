@@ -1,6 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.extractors.base_extractor import BaseExtractor
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.database.models import Comment
@@ -171,7 +172,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test User One'
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.custom_post_save_path = None
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         post = MagicMock()
         post.significant_reddit_object = sig_ro
         post.author = sig_ro
@@ -187,7 +188,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test User One'
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.custom_post_save_path = None
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = 'custom_path/to/user_save_directory'
         post = MagicMock()
         post.significant_reddit_object = sig_ro
@@ -205,7 +206,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test User One'
         sig_ro.comment_save_structure = '%[post_author_name]/Comments/%[post_title]'
         sig_ro.custom_comment_save_path = None
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         user = MagicMock()
         user.name = 'Test User One'
         post = MagicMock()
@@ -228,7 +229,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test User One'
         sig_ro.comment_save_structure = '%[post_author_name]/Comments/%[post_title]'
         sig_ro.custom_comment_save_path = None
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_comment_save_path = 'custom_comment_path/to/user_save_directory'
         user = MagicMock()
         user.name = 'Test User One'
@@ -253,7 +254,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test Subreddit One'
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.custom_post_save_path = None
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         user = MagicMock()
         user.name = 'Test User One'
         post = MagicMock()
@@ -271,7 +272,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test Subreddit One'
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.custom_post_save_path = None
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         user = MagicMock()
         user.name = 'Test User One'
         sig_ro.custom_post_save_path = 'custom_path/to/subreddit_save_directory'
@@ -291,7 +292,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test subreddit One'
         sig_ro.comment_save_structure = '%[post_author_name]/Comments/%[post_title]'
         sig_ro.custom_comment_save_path = None
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         user = MagicMock()
         user.name = 'Test User One'
         post = MagicMock()
@@ -314,7 +315,7 @@ class TestDownloadRunner(TestCase):
         sig_ro.name = 'Test subreddit One'
         sig_ro.comment_save_structure = '%[post_author_name]/Comments/%[post_title]'
         sig_ro.custom_comment_save_path = None
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_comment_save_path = 'custom_comment_path/to/subreddit_save_directory'
         user = MagicMock()
         user.name = 'Test User One'

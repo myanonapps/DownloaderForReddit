@@ -1,5 +1,7 @@
 from typing import Optional, Union
 
+from DownloaderForReddit.core.const import USER_OBJECT
+
 from . import injector, TokenParser, system_util
 from ..database.models import Post, Content, Comment
 
@@ -138,7 +140,7 @@ class FilenameGenerator:
         if custom_path is not None and custom_path != '':
             return custom_path
         else:
-            if self.reddit_object.object_type == 'USER':
+            if self.reddit_object.object_type == USER_OBJECT:
                 return self.settings_manager.user_save_directory
             else:
                 return self.settings_manager.subreddit_save_directory

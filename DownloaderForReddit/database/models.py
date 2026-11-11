@@ -436,7 +436,7 @@ class User(RedditObject):
     reddit_id = Column(String(collation='NOCASE'), nullable=True)
 
     __mapper_args__ = {
-        'polymorphic_identity': 'USER',
+        'polymorphic_identity': const.USER_OBJECT,
     }
 
 
@@ -448,7 +448,7 @@ class Subreddit(RedditObject):
     reddit_id = Column(String(collation='NOCASE'), nullable=True)
 
     __mapper_args__ = {
-        'polymorphic_identity': 'SUBREDDIT',
+        'polymorphic_identity': const.SUBREDDIT_OBJECT,
     }
 
 

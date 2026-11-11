@@ -26,6 +26,8 @@ import json
 import logging
 from datetime import datetime
 
+from DownloaderForReddit.core.const import USER_OBJECT
+
 from . import legacy_import
 from DownloaderForReddit.database.models import User, Subreddit
 from DownloaderForReddit.database.model_enums import (LimitOperator, PostDownloadSource, PostSortMethod, NsfwFilter, CommentDownload,
@@ -83,7 +85,7 @@ def import_reddit_objects(json_element):
 def _get_reddit_objects(ro_data):
     reddit_objects = []
     for ro in ro_data:
-        model = User if ro['object_type'] == 'USER' else Subreddit
+        model = User if ro['object_type'] == USER_OBJECT else Subreddit
         _clean_ro_element(ro)
         reddit_object = model(**ro)
         reddit_objects.append(reddit_object)

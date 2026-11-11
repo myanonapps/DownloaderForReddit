@@ -1,3 +1,4 @@
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.data_interface.reddit_data_interface import ValidationSet
 from DownloaderForReddit.database.model_enums import PostDownloadSource
@@ -22,16 +23,16 @@ class NameChecker:
     def check_reddit_object_name(self, name:str) -> ValidationSet:
         manager = RedditAdapterManager()
         adapter = manager.get_adapter(self._source)
-        if self._object_type == 'USER':
+        if self._object_type == USER_OBJECT:
             return adapter.check_user_name(name)
-        elif self._object_type == 'SUBREDDIT':
+        elif self._object_type == SUBREDDIT_OBJECT:
             return adapter.check_subreddit_name(name)
         return ValidationSet(name=name, date_created=None, reddit_id="", valid=False)
 
     def check_user_name(self, name:str) -> ValidationSet:
-        self._object_type = 'USER'
+        self._object_type = USER_OBJECT
         return self.check_reddit_object_name(name)
 
     def check_subreddit_name(self, name:str) -> ValidationSet:
-        self._object_type = 'SUBREDDIT'
+        self._object_type = SUBREDDIT_OBJECT
         return self.check_reddit_object_name(name)

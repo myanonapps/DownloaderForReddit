@@ -2,6 +2,8 @@ import os
 import logging
 from datetime import datetime, date
 from PyQt6.QtCore import QByteArray
+
+from DownloaderForReddit.core.const import USER_OBJECT
 from . import injector
 from . import system_util
 from .token_parser import TokenParser
@@ -37,7 +39,7 @@ def reformat_invalid_name(path, formatting):
 
 def get_reddit_object_download_folder(reddit_object):
     sub_path = TokenParser.parse_tokens(reddit_object, reddit_object.post_save_structure)
-    if reddit_object.object_type == 'USER':
+    if reddit_object.object_type == USER_OBJECT:
         base_path = injector.get_settings_manager().user_save_directory
     else:
         base_path = injector.get_settings_manager().subreddit_save_directory

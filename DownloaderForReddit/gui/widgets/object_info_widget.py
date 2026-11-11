@@ -2,6 +2,8 @@ from threading import Thread
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import pyqtSignal, QMetaObject, Qt, Q_ARG
 
+from DownloaderForReddit.core.const import USER_OBJECT
+
 from ...guiresources.widgets.object_info_widget_auto import Ui_ObjectInfoWidget
 from ...database.models import Post, Comment, Content, RedditObject, RedditObjectList, ListAssociation, User, Subreddit
 from ...utils import injector
@@ -60,7 +62,7 @@ class ObjectInfoWidget(QWidget, Ui_ObjectInfoWidget):
             selected_ids = [x.id for x in self.selected_objects]
             is_list = False
 
-        is_user = self.object_type == 'USER'
+        is_user = self.object_type == USER_OBJECT
 
         with self.db.get_scoped_session() as session:
             if is_list:

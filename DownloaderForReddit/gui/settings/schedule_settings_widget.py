@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QListWidgetItem, QCheckBox, QWidget, QLabel, QVBoxLa
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.guiresources.settings.schedule_settings_widget_auto import Ui_ScheduleSettingsWidget
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.scheduling.tasks import DownloadTask, Interval
@@ -38,9 +39,9 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         self.user_list_combo.addItem('None', None)
         self.subreddit_list_combo.addItem('None', None)
         with self.db.get_scoped_session() as session:
-            for user_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'USER'):
+            for user_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == USER_OBJECT):
                 self.user_list_combo.addItem(user_list.name, user_list)
-            for sub_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'SUBREDDIT'):
+            for sub_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == SUBREDDIT_OBJECT):
                 self.subreddit_list_combo.addItem(sub_list.name, sub_list)
 
     @property

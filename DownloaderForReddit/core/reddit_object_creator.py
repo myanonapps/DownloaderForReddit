@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy import func
 
+from DownloaderForReddit.core.const import USER_OBJECT
 from DownloaderForReddit.data_interface.name_checker import NameChecker
 from DownloaderForReddit.data_interface.reddit_data_interface import ValidationSet
 from DownloaderForReddit.database.model_enums import PostDownloadSource
@@ -25,7 +26,7 @@ class RedditObjectCreator:
         return NameChecker(source, self.list_type)
 
     def create_reddit_object(self, name, list_defaults):
-        if self.list_type == 'USER':
+        if self.list_type == USER_OBJECT:
             return self.create_user(name, list_defaults)
         else:
             return self.create_subreddit(name, list_defaults)
@@ -96,7 +97,7 @@ class RedditObjectCreator:
         return None
 
     def get_default_setup(self, object_type):
-        if object_type == 'USER':
+        if object_type == USER_OBJECT:
             return self.settings_manager.user_download_defaults
         else:
             return self.settings_manager.subreddit_download_defaults

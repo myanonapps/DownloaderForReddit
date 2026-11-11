@@ -228,8 +228,8 @@ class DatabaseStatisticsDialog(QDialog):
                 ]
 
                 total_lists = session.query(RedditObjectList.id).count()
-                user_lists = session.query(RedditObjectList.id).filter(RedditObjectList.list_type == 'USER').count()
-                sub_lists = session.query(RedditObjectList.id).filter(RedditObjectList.list_type == 'SUBREDDIT').count()
+                user_lists = session.query(RedditObjectList.id).filter(RedditObjectList.list_type == const.USER_OBJECT).count()
+                sub_lists = session.query(RedditObjectList.id).filter(RedditObjectList.list_type == const.SUBREDDIT_OBJECT).count()
                 oldest_list = session.query(RedditObjectList).order_by(RedditObjectList.date_created).first()
                 newest_list = session.query(RedditObjectList).order_by(desc(RedditObjectList.date_created)).first()
 

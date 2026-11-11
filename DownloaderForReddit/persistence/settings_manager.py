@@ -251,7 +251,7 @@ class SettingsManager:
         self.main_window_state = self.get('main_window_gui', 'main_window_state', None)
         self.list_order_method = self.get('main_window_gui', 'list_order_method', 'name')
         self.order_list_desc = self.get('main_window_gui', 'order_list_desc', False)
-        self.download_radio_state = self.get('main_window_gui', 'download_radio_state', 'USER')
+        self.download_radio_state = self.get('main_window_gui', 'download_radio_state', const.USER_OBJECT)
         # endregion
 
         # region Reddit Object Settings Dialog

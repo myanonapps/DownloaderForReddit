@@ -5,6 +5,8 @@ from sqlalchemy import or_
 from sqlalchemy import desc as descending
 from sqlalchemy import Integer, String, DateTime, Enum
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
+
 from .models import (RedditObjectList, RedditObject, User, Subreddit, DownloadSession, Post, Content, Comment,
                      ListAssociation)
 from .model_enums import NsfwFilter
@@ -150,7 +152,7 @@ class RedditObjectListFilter(Filter):
     filter_include = ['all', 'reddit_object_count', 'total_score']
     filter_exclude = ['post_score_limit_operator', 'comment_score_limit_operator']
     order_by_include = ['name', 'date_created', 'list_type', 'reddit_object_count', 'total_score', 'date_limit']
-    choices = {'list_type': ['USER', 'SUBREDDIT']}
+    choices = {'list_type': [USER_OBJECT, SUBREDDIT_OBJECT]}
 
     def __init__(self):
         super().__init__()
@@ -224,7 +226,7 @@ class RedditObjectFilter(Filter):
     order_by_include = ['id', 'name', 'last_download', 'date_added', 'absolute_date_limit', 'date_created',
                         'post_score', 'post_count', 'content_count', 'comment_count', 'download_count',
                         'last_post_date', 'list_count']
-    choices = {'object_type': ['USER', 'SUBREDDIT']}
+    choices = {'object_type': [USER_OBJECT, SUBREDDIT_OBJECT]}
 
     def __init__(self):
         super().__init__()

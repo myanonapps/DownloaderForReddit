@@ -1,6 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.database.models import Comment, Post, Content, User, Subreddit
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.utils.filename_generator import FilenameGenerator
@@ -141,7 +142,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_post_using_authors_name(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = None
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.name = 'Test Author'
@@ -155,7 +156,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_post_using_authors_name_subreddit(self):
         sig_ro = MagicMock(spec=Subreddit)
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_post_save_path = None
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.name = 'Test Subreddit'
@@ -171,7 +172,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_post_using_authors_name_and_post_score(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = None
         sig_ro.post_save_structure = '%[author_name]-%[post_score]'
         sig_ro.name = 'Test Author'
@@ -186,7 +187,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_post_using_authors_name_and_post_score_subreddit(self):
         sig_ro = MagicMock(spec=Subreddit)
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_post_save_path = None
         sig_ro.post_save_structure = '%[author_name]-%[post_score]'
         sig_ro.name = 'Test Subreddit'
@@ -203,7 +204,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_post_using_custom_save_path(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = 'custom_post_save_path'
         sig_ro.post_save_structure = '%[author_name]'
         sig_ro.name = 'Test Author'
@@ -217,7 +218,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_comment_using_authors_name(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_comment_save_path = None
         sig_ro.comment_save_structure = '%[author_name]/comments'
         sig_ro.name = 'Test Author'
@@ -234,7 +235,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_comment_using_custom_save_path_and_authors_name(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_comment_save_path = 'custom_comment_save_path'
         sig_ro.comment_save_structure = '%[author_name]/comments'
         sig_ro.name = 'Test Author'
@@ -251,7 +252,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_comment_from_subreddit(self):
         sig_ro = MagicMock(spec=Subreddit)
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_comment_save_path = None
         sig_ro.comment_save_structure = '%[author_name]/comments'
         sig_ro.name = 'Test Subreddit'
@@ -270,7 +271,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_comment_from_subreddit_using_custom_save_path(self):
         sig_ro = MagicMock(spec=Subreddit)
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_comment_save_path = 'custom_comment_save_path_sub'
         sig_ro.comment_save_structure = '%[author_name]/comments'
         sig_ro.name = 'Test Subreddit'
@@ -288,7 +289,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_duplicate_user_post(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = None
         sig_ro.duplicate_save_structure = '%[author_name]/Duplicates'
         sig_ro.name = 'Test Author'
@@ -302,7 +303,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_duplicate_user_post_with_custom_save_path(self):
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_post_save_path = 'custom_post_save_path'
         sig_ro.duplicate_save_structure = '%[author_name]/Duplicates'
         sig_ro.name = 'Test Author'
@@ -319,7 +320,7 @@ class TestFilenameGenerator(TestCase):
         Comment save structure will be ignored if the content is a duplicate.
         """
         sig_ro = MagicMock(spec=User)
-        sig_ro.object_type = 'USER'
+        sig_ro.object_type = USER_OBJECT
         sig_ro.custom_comment_save_path = None
         sig_ro.comment_save_structure = '%[post_title]/comments'
         sig_ro.duplicate_save_structure = '%[author_name]/Duplicates'
@@ -338,7 +339,7 @@ class TestFilenameGenerator(TestCase):
 
     def test_make_dir_path_for_duplicate_subreddit_comment(self):
         sig_ro = MagicMock(spec=Subreddit)
-        sig_ro.object_type = 'SUBREDDIT'
+        sig_ro.object_type = SUBREDDIT_OBJECT
         sig_ro.custom_comment_save_path = None
         sig_ro.comment_save_structure = '%[post_title]/comments'
         sig_ro.duplicate_save_structure = '%[author_name]/Duplicates'

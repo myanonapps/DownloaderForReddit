@@ -6,6 +6,7 @@ from PyQt6.QtCore import QByteArray, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor, QActionGroup, QClipboard
 from sqlalchemy import or_
 
+from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.guiresources.database_views.database_dialog_auto import Ui_DatabaseDialog
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
 from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, CommentFilter,
@@ -515,11 +516,11 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def current_user_id(self):
-        return [x.id for x in self.current_reddit_object if x.object_type == 'USER']
+        return [x.id for x in self.current_reddit_object if x.object_type == USER_OBJECT]
 
     @property
     def current_subreddit_id(self):
-        return [x.id for x in self.current_reddit_object if x.object_type == 'SUBREDDIT']
+        return [x.id for x in self.current_reddit_object if x.object_type == SUBREDDIT_OBJECT]
 
     @property
     def current_reddit_object_significant(self):
@@ -1250,10 +1251,10 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                     .filter(Post.significant_reddit_object_id.in_(self.current_reddit_object_id))
             else:
                 current_reddit_object_type = self.current_reddit_object_type
-                if current_reddit_object_type == 'USER':
+                if current_reddit_object_type == USER_OBJECT:
                     dl_ids = self.session.query(Post.download_session_id)\
                         .filter(Post.author_id.in_(self.current_user_id))
-                elif current_reddit_object_type == 'SUBREDDIT':
+                elif current_reddit_object_type == SUBREDDIT_OBJECT:
                     dl_ids = self.session.query(Post.download_session_id)\
                         .filter(Post.subreddit_id.in_(self.current_subreddit_id))
                 else:
@@ -1348,9 +1349,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                     query = query.filter(Post.significant_reddit_object_id.in_(self.current_reddit_object_id))
                 else:
                     current_type = self.current_reddit_object_type
-                    if current_type == 'USER':
+                    if current_type == USER_OBJECT:
                         query = query.filter(Post.author_id.in_(self.current_user_id))
-                    elif current_type == 'SUBREDDIT':
+                    elif current_type == SUBREDDIT_OBJECT:
                         query = query.filter(Post.subreddit_id.in_(self.current_subreddit_id))
                     else:
                         query = query.filter(or_(Post.author_id.in_(self.current_user_id),
@@ -1378,9 +1379,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                     query = query.filter(Content.post_id.in_(posts))
                 else:
                     current_type = self.current_reddit_object_type
-                    if current_type == 'USER':
+                    if current_type == USER_OBJECT:
                         query = query.filter(Content.user_id.in_(self.current_user_id))
-                    elif current_type == 'SUBREDDIT':
+                    elif current_type == SUBREDDIT_OBJECT:
                         query = query.filter(Content.subreddit_id.in_(self.current_subreddit_id))
                     else:
                         query = query.filter(or_(Content.user_id.in_(self.current_user_id),
@@ -1392,9 +1393,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                 query = query.filter(Content.post_id.in_(posts))
             else:
                 current_type = self.current_reddit_object_type
-                if current_type == 'USER':
+                if current_type == USER_OBJECT:
                     query = query.filter(Content.user_id.in_(self.current_user_id))
-                elif current_type == 'SUBREDDIT':
+                elif current_type == SUBREDDIT_OBJECT:
                     query = query.filter(Content.subreddit_id.in_(self.current_subreddit_id))
                 else:
                     query = query.filter(or_(Content.user_id.in_(self.current_user_id),
