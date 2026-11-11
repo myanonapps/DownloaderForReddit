@@ -70,9 +70,6 @@ class RedditObjectStateDisplay:
     def colorized(self, state):
         return bool(self.setting(f'colorize_{state}_reddit_objects', False))
 
-    def iconized(self, state):
-        return bool(self.setting('iconize_reddit_objects', True))
-
     def state_rgb(self, state):
         rgb = self.setting(f'{state}_reddit_object_display_color')
         return tuple(rgb) if rgb else DEFAULT_COLORS[state]
