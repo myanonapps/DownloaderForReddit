@@ -36,7 +36,7 @@ from PyQt6.QtGui import QColor
 
 from pyqtwaitingspinner import SpinnerParameters, WaitingSpinner
 
-from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
+from DownloaderForReddit.core.const import SHOW_SCHEDULE, SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
@@ -594,7 +594,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def output_context_menu(self):
         menu = QMenu()
         menu.addAction('Settings', lambda: self.open_settings_dialog(open_display='Output'))
-       
+
         # Create and add the submenu
         # 1. Create the Submenu for Log Levels
         log_level_menu = QMenu("Log Level", self)
@@ -606,7 +606,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         # 3. Define your log levels
         levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        
+
         # Default level to check
         default_level = "INFO"
 
@@ -614,7 +614,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             # Create a checkable action
             action = QAction(x.name, self)
             action.setCheckable(True)
-            
+
             # Check the default level
             if x.name == self.settings_manager.output_priority_level.name:
                 action.setChecked(True)
@@ -628,7 +628,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
 
         menu.addSeparator()
-        
 
         # Add copy functionality - only enable if items are selected
         selected_items = self.output_list_view.selectedIndexes()
@@ -658,7 +657,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         selected_items = self.output_list_view.selectedIndexes()
         if selected_items:
             clipboard = QApplication.clipboard()
-            text = '\n'.join([self.output_view_model.data(index, Qt.ItemDataRole.DisplayRole) 
+            text = '\n'.join([self.output_view_model.data(index, Qt.ItemDataRole.DisplayRole)
                             for index in selected_items])
             clipboard.setText(text)
 
@@ -928,8 +927,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setValue(self.progress)
 
     def update_scheduled_download(self, countdown):
-        self.schedule_label.setVisible(self.settings_manager.show_schedule_countdown == 'SHOW')
-        self.schedule_countdown_label.setVisible(self.settings_manager.show_schedule_countdown == 'SHOW')
+        self.schedule_label.setVisible(self.settings_manager.show_schedule_countdown == SHOW_SCHEDULE)
+        self.schedule_countdown_label.setVisible(self.settings_manager.show_schedule_countdown == SHOW_SCHEDULE)
         if countdown is None:
             self.schedule_countdown_label.setText("No Download Scheduled")
         else:
@@ -1201,8 +1200,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def display_database_browser(self):
         DatabaseViewer().show()
-
-        
+    
     def display_database_dialog(self, **kwargs):
         """
         Creates the database dialog instance with the supplied kwargs, connects the appropriate signals, and returns the

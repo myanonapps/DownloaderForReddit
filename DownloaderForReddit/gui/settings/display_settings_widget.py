@@ -83,9 +83,9 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.schedule_countdown_combo.setCurrentIndex(
             self.settings.countdown_view_choices.index(self.settings.show_schedule_countdown))
         self.scroll_to_last_added_checkbox.setChecked(self.settings.scroll_to_last_added)
-        self.colors['new'] = self.settings.new_reddit_object_display_color
-        self.colors['disabled'] = self.settings.disabled_reddit_object_display_color
-        self.colors['inactive'] = self.settings.inactive_reddit_object_display_color
+        self.colors[const.NEW_OBJECT] = self.settings.new_reddit_object_display_color
+        self.colors[const.DISABLED_OBJECT] = self.settings.disabled_reddit_object_display_color
+        self.colors[const.INACTIVE_OBJECT] = self.settings.inactive_reddit_object_display_color
         self.colorize_new_checkbox.setChecked(self.settings.colorize_new_reddit_objects)
         self.colorize_disabled_checkbox.setChecked(self.settings.colorize_disabled_reddit_objects)
         self.colorize_inactive_checkbox.setChecked(self.settings.colorize_inactive_reddit_objects)
@@ -98,42 +98,42 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
             self.add_tooltip_setting_checkbox(key, value)
 
     def set_new_color_label(self):
-        r, g, b = self.colors['new']
+        r, g, b = self.colors[const.NEW_OBJECT]
         self.new_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def set_disabled_color_label(self):
-        r, g, b = self.colors['disabled']
+        r, g, b = self.colors[const.DISABLED_OBJECT]
         self.disabled_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def set_inactive_color_label(self):
-        r, g, b = self.colors['inactive']
+        r, g, b = self.colors[const.INACTIVE_OBJECT]
         self.inactive_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def choose_new_color(self):
-        color = self.choose_color('new')
+        color = self.choose_color(const.NEW_OBJECT)
         if color is not None:
-            self.colors['new'] = [color.red(), color.green(), color.blue()]
+            self.colors[const.NEW_OBJECT] = [color.red(), color.green(), color.blue()]
             self.set_new_color_label()
 
     def choose_disabled_color(self):
-        color = self.choose_color('disabled')
+        color = self.choose_color(const.DISABLED_OBJECT)
         if color is not None:
-            self.colors['disabled'] = [color.red(), color.green(), color.blue()]
+            self.colors[const.DISABLED_OBJECT] = [color.red(), color.green(), color.blue()]
             self.set_disabled_color_label()
 
     def choose_inactive_color(self):
-        color = self.choose_color('inactive')
+        color = self.choose_color(const.INACTIVE_OBJECT)
         if color is not None:
-            self.colors['inactive'] = [color.red(), color.green(), color.blue()]
+            self.colors[const.INACTIVE_OBJECT] = [color.red(), color.green(), color.blue()]
             self.set_inactive_color_label()
 
     def choose_color(self, key):
@@ -183,15 +183,15 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.settings.short_title_char_length = self.short_title_length_spin_box.value()
         show_countdown = self.schedule_countdown_combo.currentData(Qt.ItemDataRole.UserRole)
         self.settings.show_schedule_countdown = show_countdown
-        self.main_window.schedule_label.setVisible(show_countdown == 'SHOW')
-        self.main_window.schedule_countdown_label.setVisible(show_countdown == 'SHOW')        
+        self.main_window.schedule_label.setVisible(show_countdown == const.SHOW_SCHEDULE)
+        self.main_window.schedule_countdown_label.setVisible(show_countdown == const.SHOW_SCHEDULE)
         self.settings.scroll_to_last_added = self.scroll_to_last_added_checkbox.isChecked()
         self.settings.colorize_new_reddit_objects = self.colorize_new_checkbox.isChecked()
         self.settings.colorize_disabled_reddit_objects = self.colorize_disabled_checkbox.isChecked()
         self.settings.colorize_inactive_reddit_objects = self.colorize_inactive_checkbox.isChecked()
-        self.settings.new_reddit_object_display_color = self.colors['new']
-        self.settings.disabled_reddit_object_display_color = self.colors['disabled']
-        self.settings.inactive_reddit_object_display_color = self.colors['inactive']
+        self.settings.new_reddit_object_display_color = self.colors[const.NEW_OBJECT]
+        self.settings.disabled_reddit_object_display_color = self.colors[const.DISABLED_OBJECT]
+        self.settings.inactive_reddit_object_display_color = self.colors[const.INACTIVE_OBJECT]
         if self.test_date_format(self.datetime_format_line_edit.text()):
             self.settings.datetime_display_format = self.datetime_format_line_edit.text()
         if self.test_date_format(self.date_format_line_edit.text()):

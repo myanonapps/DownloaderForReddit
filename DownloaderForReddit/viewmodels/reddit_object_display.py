@@ -1,12 +1,14 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QIcon, QPixmap, QPainter, QPen
 
-STATES = ('disabled', 'inactive', 'new')  # in priority order: the first state that applies wins
+from DownloaderForReddit.core.const import DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT
+
+STATES = (DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT)  # in priority order: the first state that applies wins
 
 DEFAULT_COLORS = {
-    'disabled': (200, 60, 60),
-    'inactive': (140, 140, 140),
-    'new': (60, 160, 60)
+    DISABLED_OBJECT: (200, 60, 60),
+    INACTIVE_OBJECT: (140, 140, 140),
+    NEW_OBJECT: (60, 160, 60)
 }
 
 
@@ -41,9 +43,9 @@ class RedditObjectStateDisplay:
 
     @staticmethod
     def has_state(reddit_object, state):
-        if state == 'disabled':
+        if state == DISABLED_OBJECT:
             return not reddit_object.download_enabled
-        if state == 'inactive':
+        if state == INACTIVE_OBJECT:
             return not reddit_object.active
         return bool(reddit_object.new)
 
@@ -118,10 +120,10 @@ class RedditObjectStateDisplay:
         pen = QPen(color)
         pen.setWidth(max(size // 8, 1))
         painter.setPen(pen)
-        if state == 'new':
+        if state == NEW_OBJECT:
             painter.setBrush(color)
         painter.drawEllipse(margin, margin, diameter, diameter)
-        if state == 'disabled':
+        if state == DISABLED_OBJECT:
             painter.drawLine(margin + diameter // 5, margin + diameter - diameter // 5,
                              margin + diameter - diameter // 5, margin + diameter // 5)
         painter.end()

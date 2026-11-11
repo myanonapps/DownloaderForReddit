@@ -427,6 +427,11 @@ class RedditObject(BaseModel):
             'comments': self.comment_count
         }
 
+    def is_user(self) -> bool:
+        return self.object_type == const.USER_OBJECT
+
+    def is_subreddit(self) -> bool:
+        return self.object_type == const.SUBREDDIT_OBJECT
 
 class User(RedditObject):
 

@@ -197,8 +197,8 @@ class SettingsManager:
         }
         self.main_window_tooltip_display_dict = self.get('display', 'main_window_tooltip_display_dict',
                                                          default_tooltip_display_dict)
-        self.countdown_view_choices = ['DO_NOT_SHOW', 'ONLY_WHEN_ACTIVE', 'SHOW']
-        self.show_schedule_countdown = self.get('display', 'show_schedule_countdown', 'ONLY_WHEN_ACTIVE')
+        self.countdown_view_choices = [const.DONT_SHOW_SCHEDULE, const.SHOW_ACTIVE_SCHEDULE, const.SHOW_SCHEDULE]
+        self.show_schedule_countdown = self.get('display', 'show_schedule_countdown', const.SHOW_ACTIVE_SCHEDULE)
         self.scroll_to_last_added = self.get('display', 'scroll_to_last_added', True)
         self.colorize_new_reddit_objects = self.get('display', 'colorize_new_reddit_objects', True)
         self.new_reddit_object_display_color = self.get('display', 'new_reddit_object_display_color', [0, 175, 0])
