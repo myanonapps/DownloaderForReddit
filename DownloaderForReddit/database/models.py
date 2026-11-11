@@ -433,6 +433,15 @@ class RedditObject(BaseModel):
     def is_subreddit(self) -> bool:
         return self.object_type == const.SUBREDDIT_OBJECT
 
+    def is_active(self) -> bool:
+        return bool(self.active)
+
+    def is_new(self) -> bool:
+        return bool(self.new)
+
+    def is_downloading(self) -> bool:
+        return bool(self.download_enabled)
+   
 class User(RedditObject):
 
     __tablename__ = 'user'

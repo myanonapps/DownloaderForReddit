@@ -1,9 +1,13 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QIcon, QPixmap, QPainter, QPen
+import os
 
-from DownloaderForReddit.core.const import DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QIcon, QPixmap
+
+from DownloaderForReddit.core.const import DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT, RESOURCES, SUBREDDIT_OBJECT, USER_OBJECT
 
 STATES = (DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT)  # in priority order: the first state that applies wins
+
+ACTIVE_OBJECT = "active"
 
 DEFAULT_COLORS = {
     DISABLED_OBJECT: (200, 60, 60),
@@ -11,6 +15,20 @@ DEFAULT_COLORS = {
     NEW_OBJECT: (60, 160, 60)
 }
 
+ICONS = {
+    USER_OBJECT: {
+        DISABLED_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_disabled.svg")),
+        INACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_nonactive.svg")),
+        NEW_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_new.svg")),
+        ACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_active.svg")),
+    },
+    SUBREDDIT_OBJECT: {
+        DISABLED_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_disabled.svg")),
+        INACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_nonactive.svg")),
+        NEW_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_new.svg")),
+        ACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_active.svg")),
+    }
+}
 
 class RedditObjectStateDisplay:
     """
@@ -53,7 +71,7 @@ class RedditObjectStateDisplay:
         return bool(self.setting(f'colorize_{state}_reddit_objects', False))
 
     def iconized(self, state):
-        return bool(self.setting(f'iconize_{state}_reddit_objects', False))
+        return bool(self.setting('iconize_reddit_objects', True))
 
     def state_rgb(self, state):
         rgb = self.setting(f'{state}_reddit_object_display_color')
@@ -72,26 +90,15 @@ class RedditObjectStateDisplay:
         The QIcon to show next to the reddit object, or None if no state is shown as an icon.  When some state is shown
         as an icon, reddit objects that are in none of those states get a blank icon so that all the names line up.
         """
-        shown = [state for state in STATES if self.iconized(state)]
-        if not shown:
-            return None
-        for state in shown:
-            if self.has_state(reddit_object, state):
-                return self.state_icon(state)
-        return self.blank()
-
-    def reset(self):
-        """Forgets the icons that were made.  Call this after the settings that affect them have changed."""
-        self._icons.clear()
-        self._blank_icon = None
-
-    def state_icon(self, state):
-        icon = self._icons.get(state)
-        if icon is None:
-            path = self.setting(f'{state}_reddit_object_icon')
-            icon = QIcon(path) if path else self.draw_icon(state)
-            self._icons[state] = icon
-        return icon
+        if not bool(self.setting('iconize_reddit_objects', True)):
+            return self.blank()
+        if not reddit_object.download_enabled:
+            return ICONS[reddit_object.object_type][DISABLED_OBJECT]
+        if not reddit_object.active:
+            return ICONS[reddit_object.object_type][INACTIVE_OBJECT]
+        if reddit_object.new:
+            return ICONS[reddit_object.object_type][NEW_OBJECT]
+        return ICONS[reddit_object.object_type][ACTIVE_OBJECT]
 
     def blank(self):
         if self._blank_icon is None:
@@ -102,29 +109,3 @@ class RedditObjectStateDisplay:
         pixmap = QPixmap(self.ICON_SIZE, self.ICON_SIZE)
         pixmap.fill(Qt.GlobalColor.transparent)
         return pixmap
-
-    def draw_icon(self, state):
-        """
-        Draws the default icon of the state in its display color:  a ring with a slash for disabled, a plain ring for
-        inactive and a solid dot for new.
-        """
-        size = self.ICON_SIZE
-        margin = size // 5
-        diameter = size - 2 * margin
-        r, g, b = self.state_rgb(state)
-        color = QColor(r, g, b, 255)
-
-        pixmap = self.new_pixmap()
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(color)
-        pen.setWidth(max(size // 8, 1))
-        painter.setPen(pen)
-        if state == NEW_OBJECT:
-            painter.setBrush(color)
-        painter.drawEllipse(margin, margin, diameter, diameter)
-        if state == DISABLED_OBJECT:
-            painter.drawLine(margin + diameter // 5, margin + diameter - diameter // 5,
-                             margin + diameter - diameter // 5, margin + diameter // 5)
-        painter.end()
-        return QIcon(pixmap)

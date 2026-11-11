@@ -207,10 +207,8 @@ class SettingsManager:
                                                              [220, 0, 0])
         self.colorize_inactive_reddit_objects = self.get('display', 'colorize_inactive_reddit_objects', True)
         self.inactive_reddit_object_display_color = self.get('display', 'inactive_reddit_object_display_color',
-                                                             [0, 0, 200])
-        self.iconize_inactive_reddit_objects = self.get('display', 'colorize_inactive_reddit_objects', True)
-        self.iconize_new_reddit_objects = self.get('display', 'colorize_new_reddit_objects', True)
-        self.iconize_disabled_reddit_objects = self.get('display', 'colorize_disabled_reddit_objects', True)
+                                                             [140, 140, 140])
+        self.iconize_reddit_objects = self.get('display', 'iconize_reddit_objects', True)
 
         self.datetime_display_format = self.get('display', 'datetime_display_format', '%m/%d/%Y %I:%M %p')
         self.date_display_format = self.get('display', 'date_display_format', '%m/%d/%Y')

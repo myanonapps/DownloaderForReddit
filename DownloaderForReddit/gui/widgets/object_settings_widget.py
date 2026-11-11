@@ -337,7 +337,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         if self.custom_comment_save_path_line_edit.text() != '':
             base = self.custom_comment_save_path_line_edit.text()
         else:
-            if self.object_type == USER_OBJECT:
+            if self.object_type == const.USER_OBJECT:
                 base = self.settings_manager.user_save_directory
             else:
                 base = self.settings_manager.subreddit_save_directory
