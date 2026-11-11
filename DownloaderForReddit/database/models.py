@@ -441,7 +441,7 @@ class RedditObject(BaseModel):
 
     def is_downloading(self) -> bool:
         return bool(self.download_enabled)
-   
+
 class User(RedditObject):
 
     __tablename__ = 'user'

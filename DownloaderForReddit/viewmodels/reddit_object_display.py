@@ -54,7 +54,7 @@ class RedditObjectStateDisplay:
     def __init__(self, settings_manager):
         self.settings_manager = settings_manager
         self._icons = {}
-        self._blank_icon = None
+        self._blank_icon = QIcon(self.new_pixmap())
 
     def setting(self, name, default=None):
         return getattr(self.settings_manager, name, default)
@@ -98,8 +98,6 @@ class RedditObjectStateDisplay:
         return ICONS[reddit_object.object_type][ACTIVE_OBJECT]
 
     def blank(self):
-        if self._blank_icon is None:
-            self._blank_icon = QIcon(self.new_pixmap())
         return self._blank_icon
 
     def new_pixmap(self):
