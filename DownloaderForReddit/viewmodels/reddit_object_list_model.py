@@ -1,6 +1,5 @@
 import logging
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QObject, pyqtSignal, QThread
-from PyQt6.QtGui import QColor
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 
@@ -9,6 +8,7 @@ from ..utils import injector
 from ..database.models import RedditObject, RedditObjectList, ListAssociation
 from ..database.filters import RedditObjectFilter
 from ..messaging.message import Message
+from .reddit_object_display import RedditObjectStateDisplay
 
 
 class RedditObjectListModel(QAbstractListModel):
@@ -33,6 +33,7 @@ class RedditObjectListModel(QAbstractListModel):
         self.list_type = list_type
         self.list = None
         self.reddit_objects = None
+        self.state_display = RedditObjectStateDisplay(self.settings_manager)
 
         self.validator = None
         self.validation_thread = None
@@ -264,18 +265,9 @@ class RedditObjectListModel(QAbstractListModel):
                 if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
                     return self.reddit_objects[row].name
                 elif role == Qt.ItemDataRole.ForegroundRole:
-                    if not self.reddit_objects[row].download_enabled and \
-                            self.settings_manager.colorize_disabled_reddit_objects:
-                        r, g, b = self.settings_manager.disabled_reddit_object_display_color
-                        return QColor(r, g, b, 255)
-                    elif not self.reddit_objects[row].active and self.settings_manager.colorize_inactive_reddit_objects:
-                        r, g, b = self.settings_manager.inactive_reddit_object_display_color
-                        return QColor(r, g, b, 255)
-                    elif self.reddit_objects[row].new and self.settings_manager.colorize_new_reddit_objects:
-                        r, g, b = self.settings_manager.new_reddit_object_display_color
-                        return QColor(r, g, b, 255)
-                    else:
-                        return None
+                    return self.state_display.color(self.reddit_objects[row])
+                elif role == Qt.ItemDataRole.DecorationRole:
+                    return self.state_display.icon(self.reddit_objects[row])
                 elif role == Qt.ItemDataRole.ToolTipRole:
                     return self.set_tooltips(self.reddit_objects[row])
                 elif role == Qt.ItemDataRole.UserRole:

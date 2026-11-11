@@ -6,6 +6,7 @@ from PyQt6.QtGui import QPixmap, QIcon, QColor, QImage, QPainter
 from ..core import const
 from ..core.errors import NON_DOWNLOADABLE, Error
 from ..utils import injector
+from .reddit_object_display import RedditObjectStateDisplay
 
 
 class CustomItemModel:
@@ -129,24 +130,15 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.reddit_object_query_limit
+        self.state_display = RedditObjectStateDisplay(self.settings_manager)
 
     def data(self, index, role=None):
         if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
             return self.items[index.row()].name
         elif role == Qt.ItemDataRole.ForegroundRole:
-            ro = self.items[index.row()]
-            if not ro.download_enabled and \
-                    self.settings_manager.colorize_disabled_reddit_objects:
-                r, g, b = self.settings_manager.disabled_reddit_object_display_color
-                return QColor(r, g, b, 255)
-            elif not ro.active and self.settings_manager.colorize_inactive_reddit_objects:
-                r, g, b = self.settings_manager.inactive_reddit_object_display_color
-                return QColor(r, g, b, 255)
-            elif ro.new and self.settings_manager.colorize_new_reddit_objects:
-                r, g, b = self.settings_manager.new_reddit_object_display_color
-                return QColor(r, g, b, 255)
-            else:
-                return None
+            return self.state_display.color(self.items[index.row()])
+        elif role == Qt.ItemDataRole.DecorationRole:
+            return self.state_display.icon(self.items[index.row()])
         return None
 
 
