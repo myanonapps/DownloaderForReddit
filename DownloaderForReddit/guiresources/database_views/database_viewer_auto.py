@@ -92,6 +92,19 @@ class Ui_DatabaseViewer(object):
         self.reddit_object_sort_layout.addWidget(self.reddit_object_desc_button)
         self.reddit_object_layout.addLayout(self.reddit_object_sort_layout)
         self.reddit_object_view = QtWidgets.QListView(parent=self.reddit_object_page)
+        self.reddit_object_view.setStyleSheet("QListView {\n"
+"    outline: 0;\n"
+"}\n"
+"\n"
+"QListView::item:hover {\n"
+"    background: white;\n"
+"}\n"
+"\n"
+"QListView::item:selected {\n"
+"    border: 2px solid #007ACC;\n"
+"    background: transparent;\n"
+"    color: inherit !important;\n"
+"}")
         self.reddit_object_view.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.reddit_object_view.setAlternatingRowColors(True)
         self.reddit_object_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)

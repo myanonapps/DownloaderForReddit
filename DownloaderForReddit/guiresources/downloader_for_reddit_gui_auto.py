@@ -152,6 +152,19 @@ class Ui_MainWindow(object):
         self.user_list_search_edit.setObjectName("user_list_search_edit")
         self.verticalLayout.addWidget(self.user_list_search_edit)
         self.user_list_view = QtWidgets.QListView(parent=self.user_dock_contents)
+        self.user_list_view.setStyleSheet("QListView {\n"
+"    outline: 0;\n"
+"}\n"
+"\n"
+"QListView::item:hover {\n"
+"    background: white;\n"
+"}\n"
+"\n"
+"QListView::item:selected {\n"
+"    border: 2px solid #007ACC;\n"
+"    background: transparent;\n"
+"    color: inherit !important;\n"
+"}")
         self.user_list_view.setAlternatingRowColors(True)
         self.user_list_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self.user_list_view.setObjectName("user_list_view")
@@ -198,6 +211,19 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(10)
         self.subreddit_list_view.setFont(font)
+        self.subreddit_list_view.setStyleSheet("QListView {\n"
+"    outline: 0;\n"
+"}\n"
+"\n"
+"QListView::item:hover {\n"
+"    background: white;\n"
+"}\n"
+"\n"
+"QListView::item:selected {\n"
+"    border: 2px solid #007ACC;\n"
+"    background: transparent;\n"
+"    color: inherit !important;\n"
+"}")
         self.subreddit_list_view.setAlternatingRowColors(True)
         self.subreddit_list_view.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self.subreddit_list_view.setObjectName("subreddit_list_view")

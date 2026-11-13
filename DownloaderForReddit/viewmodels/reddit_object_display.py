@@ -3,7 +3,7 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QIcon, QPixmap
 
-from DownloaderForReddit.core.const import DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT, RESOURCES, SUBREDDIT_OBJECT, USER_OBJECT
+from DownloaderForReddit.core.const import DEFAULT_REDDIT_OBJECT_COLORS, DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT, RESOURCES, SUBREDDIT_OBJECT, USER_OBJECT
 
 STATES = (DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT)  # in priority order: the first state that applies wins
 
@@ -66,7 +66,7 @@ class RedditObjectStateDisplay:
 
     def state_rgb(self, state):
         rgb = self.setting(f'{state}_reddit_object_display_color')
-        return tuple(rgb) if rgb else DEFAULT_COLORS[state]
+        return tuple(rgb) if rgb else DEFAULT_REDDIT_OBJECT_COLORS[state]
 
     def color(self, reddit_object):
         """The QColor for the text of the reddit object, or None for the default text color."""

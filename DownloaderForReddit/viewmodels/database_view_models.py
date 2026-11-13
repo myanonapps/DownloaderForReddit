@@ -207,14 +207,22 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
         super().set_data(query)
 
     def data(self, index, role=None):
+        if not index.isValid():
+            return None
+
+        row = index.row()
+
+        if row < 0 or row >= len(self.items):
+            return None
+
         if index.isValid():
-            content = self.items[index.row()]
+            content = self.items[row]
             if role == Qt.ItemDataRole.DisplayRole:
                 return content.title
-            elif role == Qt.ItemDataRole.DecorationRole:
+            if role == Qt.ItemDataRole.DecorationRole:
                 icon = self.get_icon(content)
                 return icon
-            elif role == Qt.ItemDataRole.ToolTipRole:
+            if role == Qt.ItemDataRole.ToolTipRole:
                 tip = f'Title: {content.title}\n' \
                        f'Posted: {content.post.date_posted_display}\n' \
                        f'Author: {content.user.name}\n' \
@@ -222,6 +230,8 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
                 if content.error_message is not None:
                     tip += f'\nError: {content.error_message}'
                 return tip
+            if role == Qt.ItemDataRole.TextAlignmentRole:
+                return Qt.AlignmentFlag.AlignHCenter            
         return None
 
     def get_icon(self, content):

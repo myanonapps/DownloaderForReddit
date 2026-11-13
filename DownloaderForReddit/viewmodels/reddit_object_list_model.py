@@ -259,23 +259,32 @@ class RedditObjectListModel(QAbstractListModel):
             return 0
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+
         row = index.row()
-        if index.isValid():
-            try:
-                if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
-                    return self.reddit_objects[row].name
-                elif role == Qt.ItemDataRole.ForegroundRole:
-                    return self.state_display.color(self.reddit_objects[row])
-                elif role == Qt.ItemDataRole.DecorationRole:
-                    return self.state_display.icon(self.reddit_objects[row])
-                elif role == Qt.ItemDataRole.ToolTipRole:
-                    return self.set_tooltips(self.reddit_objects[row])
-                elif role == Qt.ItemDataRole.UserRole:
-                    return self.reddit_objects[row]
-                else:
-                    return None
-            except IndexError:
-                pass
+
+        if row < 0 or row >= len(self.reddit_objects):
+            return None
+
+        obj = self.reddit_objects[row]
+
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            return obj.name
+
+        if role == Qt.ItemDataRole.ForegroundRole:
+            return self.state_display.color(obj)
+
+        if role == Qt.ItemDataRole.DecorationRole:
+            return self.state_display.icon(obj)
+
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return self.set_tooltips(obj)
+
+        if role == Qt.ItemDataRole.UserRole:
+            return obj
+
+        return None
 
     def raw_data(self, row):
         try:

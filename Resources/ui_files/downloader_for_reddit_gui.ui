@@ -319,6 +319,21 @@ QToolBar QLabel {
      </item>
      <item>
       <widget class="QListView" name="user_list_view">
+       <property name="styleSheet">
+        <string notr="true">QListView {
+    outline: 0;
+}
+
+QListView::item:hover {
+    background: white;
+}
+
+QListView::item:selected {
+    border: 2px solid #007ACC;
+    background: transparent;
+    color: inherit !important;
+}</string>
+       </property>
        <property name="alternatingRowColors">
         <bool>true</bool>
        </property>
@@ -404,6 +419,21 @@ QToolBar QLabel {
         <font>
          <pointsize>10</pointsize>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QListView {
+    outline: 0;
+}
+
+QListView::item:hover {
+    background: white;
+}
+
+QListView::item:selected {
+    border: 2px solid #007ACC;
+    background: transparent;
+    color: inherit !important;
+}</string>
        </property>
        <property name="alternatingRowColors">
         <bool>true</bool>

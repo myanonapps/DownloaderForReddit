@@ -186,6 +186,21 @@
            </item>
            <item>
             <widget class="QListView" name="reddit_object_view">
+             <property name="styleSheet">
+              <string notr="true">QListView {
+    outline: 0;
+}
+
+QListView::item:hover {
+    background: white;
+}
+
+QListView::item:selected {
+    border: 2px solid #007ACC;
+    background: transparent;
+    color: inherit !important;
+}</string>
+             </property>
              <property name="editTriggers">
               <set>QAbstractItemView::NoEditTriggers</set>
              </property>

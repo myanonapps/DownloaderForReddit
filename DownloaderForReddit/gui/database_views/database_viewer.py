@@ -352,16 +352,16 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
 
     def watch_scrollbar(self, view, name, loader, percent=90):
         """Loads the next page when the view is scrolled to percent of the way down."""
-        bar = view.verticalScrollBar()
+        scroll_bar = view.verticalScrollBar()
         model = self.models[name]
 
         def check(_value):
-            maximum = bar.maximum()
-            if (self.auto_load[name] and maximum > 0 and bar.value() / maximum * 100 >= percent
+            maximum = scroll_bar.maximum()
+            if (self.auto_load[name] and maximum > 0 and scroll_bar.value() / maximum * 100 >= percent
                     and model.has_next_page and not model.loading):
                 loader(extend=True)
 
-        bar.valueChanged.connect(check)
+        scroll_bar.valueChanged.connect(check)
 
     def auto_load_toggled(self, name, checked):
         self.auto_load[name] = checked
@@ -694,7 +694,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
     def set_icon_size(self, size):
         self.icon_size = size
         self.content_view.setIconSize(QSize(size, size))
-        self.content_view.setGridSize(QSize(size + 2, size + 45))
+        self.content_view.setGridSize(QSize(size + 24, size + 36))
 
     def open_selected_content(self, *_args):
         if self.current_content:
