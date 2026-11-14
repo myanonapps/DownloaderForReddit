@@ -40,10 +40,11 @@ import json
 import logging
 
 from PyQt6.QtCore import QItemSelectionModel, QSettings, QSize, Qt, QTimer
-from PyQt6.QtGui import QCursor
+from PyQt6.QtGui import QColor, QCursor, QPalette
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 from sqlalchemy import or_
 
+from DownloaderForReddit.core.const import ERROR_COLOR_HTML
 from DownloaderForReddit.database.model_enums import NsfwFilter
 from DownloaderForReddit.guiresources.database_views.database_viewer_auto import Ui_DatabaseViewer
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
@@ -64,6 +65,9 @@ DEFAULT_POST_COLUMNS = ('title', 'date_posted', 'score', 'author', 'subreddit')
 # Columns of the comment tree model: author, id, subreddit, body, body_html, score, date_posted, reddit_id
 HIDDEN_COMMENT_COLUMNS = (1, 2, 4, 7)
 
+def error_text(error):
+    """'FORBIDDEN' (an Error member or its name) as 'Forbidden'."""
+    return str(getattr(error, 'name', error)).replace('_', ' ').title()
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Queries.  The results are the posts or content of the selected reddit object or the selected session.  A reddit object
@@ -116,7 +120,7 @@ def encode_filters(filter_items):
         if isinstance(value, datetime.date):
             return {'__type__': 'date', 'value': value.isoformat()}
         if isinstance(value, enum.Enum) and type(value).__name__ in SAVEABLE_ENUMS:
-            return {'__type__': 'enum', 'enum': type(value).__name__, 'name': value.name}        
+            return {'__type__': 'enum', 'enum': type(value).__name__, 'name': value.name}
         raise TypeError(f'Cannot save a filter value of type {type(value).__name__}')
 
     return json.dumps([item.widget_dict for item in filter_items], default=encode_value)
@@ -136,7 +140,7 @@ def decode_filters(text):
             try:
                 return SAVEABLE_ENUMS[obj['enum']][obj['name']]
             except KeyError as e:
-                raise ValueError('Unknown saved enum value') from e        
+                raise ValueError('Unknown saved enum value') from e
         return obj
 
     loaded = json.loads(text, object_hook=decode_value)
@@ -667,37 +671,122 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             parts.append(f'<p><b>{author}</b></p>{body}')
         self.comment_browser.setHtml('<hr>'.join(parts))
 
+    def detail_colors(self):
+        """Text colors taken from the browser's palette so the panel follows light and dark themes."""
+        palette = self.post_browser.palette()
+        base = palette.color(QPalette.ColorRole.Base)
+        text = palette.color(QPalette.ColorRole.Text)
+        red = QColor(ERROR_COLOR_HTML)
+
+        def blend(one, other, ratio):
+            return QColor(*(int(a * (1 - ratio) + b * ratio) for a, b in zip(one.getRgb()[:3], other.getRgb()[:3])))
+
+        return {'text': text.name(), 'muted': blend(text, base, 0.45).name(), 'tint': blend(base, red, 0.15).name(),
+                'badge': blend(base, text, 0.15).name()}
+
     @staticmethod
-    def details_html(posts, content):
-        """The HTML for the Post section of the details panel."""
-        if not posts and not content:
-            return '<p>Select an item to see its details.</p>'
-        parts = []
-        if len(posts) > 1:
-            parts.append(f'<p><b>{len(posts)} posts selected</b></p><ul>')
-            parts.extend(f'<li>{html.escape(str(post.title))}</li>' for post in posts[:25])
-            parts.append('</ul>')
-            return ''.join(parts)
-        if len(content) > 1:
-            parts.append(f'<p>{len(content)} files selected</p>')
-        elif content:
-            item = content[0]
-            parts.append(f'<p><b>{html.escape(str(item.title))}</b><br>{html.escape(str(item.get_full_file_path()))}')
-            if item.error_message is not None:
-                parts.append(f'<br>Error: {html.escape(str(item.error_message))}')
-            parts.append('</p><hr>')
-        if posts:
-            post = posts[0]
-            parts.append(f'<h3>{html.escape(str(post.title))}</h3>')
-            author = html.escape(str(getattr(post.author, 'name', '')))
-            subreddit = html.escape(str(getattr(post.subreddit, 'name', '')))
-            parts.append(f'<p>{author} in r/{subreddit}<br>'
-                         f'{html.escape(str(post.date_posted_display))} &middot; score {html.escape(str(post.score_display))}'
-                         f'<br><a href="{html.escape(str(post.url))}">{html.escape(str(post.url))}</a></p>')
-            if post.text_html:
-                parts.append(post.text_html)
+    def label_html(text, colors):
+        return f'<p style="color:{colors["muted"]}; font-size:8pt; margin-bottom:2px"><b>{html.escape(text)}</b></p>'
+
+    @staticmethod
+    def error_banner_html(title, message, details, colors):
+        """A red-barred block: bold title, the message, and a muted details line."""
+        lines = f'<b style="color:{ERROR_COLOR_HTML}">! {html.escape(title)}</b>'
+        if message:
+            lines += f'<br>{html.escape(str(message))}'
+        if details:
+            lines += f'<br><span style="color:{colors["muted"]}">{html.escape(details)}</span>'
+        return (f'<table width="100%" cellspacing="0" cellpadding="6"><tr><td width="4" bgcolor="{ERROR_COLOR_HTML}"></td>'
+                f'<td bgcolor="{colors["tint"]}">{lines}</td></tr></table>')
+
+    def post_error_html(self, post, colors):
+        details = [f'Retries: {post.retry_attempts or 0}']
+        if post.extraction_date_display:
+            details.append(f'Last attempt: {post.extraction_date_display}')
+        return self.error_banner_html(f'EXTRACTION FAILED \u00b7 {error_text(post.extraction_error)}',
+                                      post.error_message, '  \u00b7  '.join(details), colors)
+
+    @staticmethod
+    def post_header_html(post, colors):
+        esc = html.escape
+        parts = [f'<h2 style="margin-top:8px; margin-bottom:2px">{esc(str(post.title))}</h2>']
+        badges = [name for name, flag in (('NSFW', post.nsfw), ('Self post', post.is_self)) if flag]
+        if badges:
+            parts.append('<p style="margin-top:0; margin-bottom:2px">' + ' '.join(
+                f'<span style="background-color:{colors["badge"]}">&nbsp;{esc(b)}&nbsp;</span>' for b in badges)
+                         + '</p>')
+        author = esc(str(getattr(post.author, 'name', '')))
+        subreddit = esc(str(getattr(post.subreddit, 'name', '')))
+        parts.append(f'<p style="margin-top:0; color:{colors["muted"]}">u/{author} in r/{subreddit}</p>')
         return ''.join(parts)
 
+    @staticmethod
+    def post_meta_html(post, colors):
+        esc = html.escape
+        if post.extraction_error is not None:
+            status = f'<span style="color:{ERROR_COLOR_HTML}">Failed</span>'
+        else:
+            status = 'Extracted' if post.extracted else 'Not extracted'
+        score = f'{post.score:,}' if post.score is not None else ''
+        muted = f'style="color:{colors["muted"]}"'
+        url = esc(str(post.url))
+        return (f'<table width="100%" cellspacing="0" cellpadding="3">'
+                f'<tr><td {muted}>Posted</td><td>{esc(str(post.date_posted_display))}</td>'
+                f'<td {muted}>Score</td><td>{score}</td></tr>'
+                f'<tr><td {muted}>Domain</td><td>{esc(str(post.domain))}</td>'
+                f'<td {muted}>Status</td><td>{status}</td></tr>'
+                f'<tr><td {muted}>Link</td><td colspan="3"><a href="{url}">{url}</a></td></tr></table>')
+
+    def file_card_html(self, content, colors):
+        esc = html.escape
+        failed = [item for item in content if item.download_error is not None]
+        if len(content) > 1:
+            text = f'{len(content)} files selected'
+            if failed:
+                text += f' <span style="color:{ERROR_COLOR_HTML}">({len(failed)} failed)</span>'
+            return self.label_html('FILE', colors) + f'<p style="margin-top:0">{text}</p>'
+        item = content[0]
+        parts = [self.label_html('FILE', colors), f'<p style="margin-top:0"><b>{esc(str(item.title))}</b><br>'
+                 f'<span style="color:{colors["muted"]}">{esc(str(item.get_full_file_path()))}</span></p>']
+        if item.download_error is not None:
+            parts.append(self.error_banner_html(f'DOWNLOAD FAILED \u00b7 {error_text(item.download_error)}',
+                                                item.error_message, f'Retries: {item.retry_attempts or 0}', colors))
+        return ''.join(parts)
+
+    def multiple_posts_html(self, posts, colors):
+        failed = sum(1 for post in posts if post.extraction_error is not None)
+        header = f'<h3 style="margin-bottom:2px">{len(posts)} posts selected</h3>'
+        if failed:
+            header += f'<p style="margin-top:0; color:{ERROR_COLOR_HTML}">{failed} with errors</p>'
+        items = []
+        for post in posts[:25]:
+            mark = f'<span style="color:{ERROR_COLOR_HTML}">! </span>' if post.extraction_error is not None else ''
+            items.append(f'<li>{mark}{html.escape(str(post.title))}</li>')
+        more = (f'<p style="color:{colors["muted"]}">and {len(posts) - 25} more</p>' if len(posts) > 25 else '')
+        return f'{header}<ul>{"".join(items)}</ul>{more}'
+
+    def details_html(self, posts, content):
+        """The HTML for the Post section of the details panel."""
+        colors = self.detail_colors()
+        if not posts and not content:
+            return f'<p align="center" style="color:{colors["muted"]}"><br>Select an item to see its details.</p>'
+        if len(posts) > 1:
+            return self.multiple_posts_html(posts, colors)
+        post = posts[0] if posts else None
+        sections = []
+        if post is not None and post.extraction_error is not None:
+            sections.append(self.post_error_html(post, colors))
+        if post is not None:
+            sections.append(self.post_header_html(post, colors))
+            sections.append(self.post_meta_html(post, colors))
+        if content:
+            sections.append(self.file_card_html(content, colors))
+        if post is not None:
+            if post.text_html:
+                sections.append(post.text_html)
+            else:
+                sections.append(f'<p style="color:{colors["muted"]}"><i>This post has no text</i></p>')
+        return '<hr>'.join(sections)
     # -----------------------------------------------------------------------------------------------------------------
     # Actions
     # -----------------------------------------------------------------------------------------------------------------
