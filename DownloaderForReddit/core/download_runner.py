@@ -1,5 +1,4 @@
 from http import HTTPStatus
-import json
 import platform
 import logging
 from queue import Queue, Empty

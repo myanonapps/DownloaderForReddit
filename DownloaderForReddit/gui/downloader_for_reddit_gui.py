@@ -24,7 +24,6 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import io
-import json
 import platform
 from datetime import datetime
 import logging

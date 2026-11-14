@@ -3,6 +3,8 @@ from PyQt6.QtCore import (QAbstractListModel, QAbstractTableModel, QAbstractItem
                           pyqtSignal)
 from PyQt6.QtGui import QColor, QPixmap, QIcon, QImage, QPainter
 
+from DownloaderForReddit.utils.color_utils import ColorUtils
+
 from ..core import const
 from ..core.errors import NON_DOWNLOADABLE, Error
 from ..utils import injector
@@ -180,7 +182,7 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
         col = index.column()
         if role == Qt.ItemDataRole.ForegroundRole:
             post = self.items[index.row()]
-            return QColor(*const.ERROR_COLOR_RGB) if post.extraction_error is not None else None
+            return QColor(*self.settings_manager.error_color) if post.extraction_error is not None else None
         if role == Qt.ItemDataRole.DisplayRole:
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])

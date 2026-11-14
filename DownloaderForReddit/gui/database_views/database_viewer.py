@@ -44,14 +44,13 @@ from PyQt6.QtGui import QColor, QCursor, QPalette
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 from sqlalchemy import or_
 
-from DownloaderForReddit.core.const import ERROR_COLOR_RGB
 from DownloaderForReddit.database.model_enums import NsfwFilter
 from DownloaderForReddit.guiresources.database_views.database_viewer_auto import Ui_DatabaseViewer
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
 from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, ContentFilter,
                                                   CommentFilter)
 from DownloaderForReddit.utils import injector, system_util, general_utils
-from DownloaderForReddit.utils.html_formatting import rgb_to_hex
+from DownloaderForReddit.utils.color_utils import ColorUtils
 from DownloaderForReddit.viewmodels.database_view_models import (DownloadSessionModel, RedditObjectModel,
                                                                  PostTableModel, ContentListModel, CommentTreeModel)
 from DownloaderForReddit.core.errors import Error
@@ -677,7 +676,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         palette = self.post_browser.palette()
         base = palette.color(QPalette.ColorRole.Base)
         text = palette.color(QPalette.ColorRole.Text)
-        red = QColor(*ERROR_COLOR_RGB)
+        red = QColor(*self.settings_manager.error_color)
 
         def blend(one, other, ratio):
             return QColor(*(int(a * (1 - ratio) + b * ratio) for a, b in zip(one.getRgb()[:3], other.getRgb()[:3])))
@@ -689,15 +688,14 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
     def label_html(text, colors):
         return f'<p style="color:{colors["muted"]}; font-size:8pt; margin-bottom:2px"><b>{html.escape(text)}</b></p>'
 
-    @staticmethod
-    def error_banner_html(title, message, details, colors):
+    def error_banner_html(self, title, message, details, colors):
         """A red-barred block: bold title, the message, and a muted details line."""
-        lines = f'<b style="color:{rgb_to_hex(ERROR_COLOR_RGB)}">! {html.escape(title)}</b>'
+        lines = f'<b style="color:{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}">! {html.escape(title)}</b>'
         if message:
             lines += f'<br>{html.escape(str(message))}'
         if details:
             lines += f'<br><span style="color:{colors["muted"]}">{html.escape(details)}</span>'
-        return (f'<table width="100%" cellspacing="0" cellpadding="6"><tr><td width="4" bgcolor="{rgb_to_hex(ERROR_COLOR_RGB)}"></td>'
+        return (f'<table width="100%" cellspacing="0" cellpadding="6"><tr><td width="4" bgcolor="{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}"></td>'
                 f'<td bgcolor="{colors["tint"]}">{lines}</td></tr></table>')
 
     def post_error_html(self, post, colors):
@@ -721,11 +719,10 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         parts.append(f'<p style="margin-top:0; color:{colors["muted"]}">u/{author} in r/{subreddit}</p>')
         return ''.join(parts)
 
-    @staticmethod
-    def post_meta_html(post, colors):
+    def post_meta_html(self, post, colors):
         esc = html.escape
         if post.extraction_error is not None:
-            status = f'<span style="color:{rgb_to_hex(ERROR_COLOR_RGB)}">Failed</span>'
+            status = f'<span style="color:{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}">Failed</span>'
         else:
             status = 'Extracted' if post.extracted else 'Not extracted'
         score = f'{post.score:,}' if post.score is not None else ''
@@ -744,7 +741,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         if len(content) > 1:
             text = f'{len(content)} files selected'
             if failed:
-                text += f' <span style="color:{rgb_to_hex(ERROR_COLOR_RGB)}">({len(failed)} failed)</span>'
+                text += f' <span style="color:{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}">({len(failed)} failed)</span>'
             return self.label_html('FILE', colors) + f'<p style="margin-top:0">{text}</p>'
         item = content[0]
         parts = [self.label_html('FILE', colors), f'<p style="margin-top:0"><b>{esc(str(item.title))}</b><br>'
@@ -758,10 +755,10 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         failed = sum(1 for post in posts if post.extraction_error is not None)
         header = f'<h3 style="margin-bottom:2px">{len(posts)} posts selected</h3>'
         if failed:
-            header += f'<p style="margin-top:0; color:{rgb_to_hex(ERROR_COLOR_RGB)}">{failed} with errors</p>'
+            header += f'<p style="margin-top:0; color:{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}">{failed} with errors</p>'
         items = []
         for post in posts[:25]:
-            mark = f'<span style="color:{rgb_to_hex(ERROR_COLOR_RGB)}">! </span>' if post.extraction_error is not None else ''
+            mark = f'<span style="color:{ColorUtils.rgb_list_to_hex(self.settings_manager.error_color)}">! </span>' if post.extraction_error is not None else ''
             items.append(f'<li>{mark}{html.escape(str(post.title))}</li>')
         more = (f'<p style="color:{colors["muted"]}">and {len(posts) - 25} more</p>' if len(posts) > 25 else '')
         return f'{header}<ul>{"".join(items)}</ul>{more}'

@@ -29,8 +29,3 @@ def linkify_urls(text: str) -> str:
     )
 
     return url_regex.sub(r'<a href="\1">\1</a>', text)
-
-def rgb_to_hex(rgb: tuple[int, int, int], uppercase: bool = False) -> str:
-    r, g, b = rgb
-    fmt = "02X" if uppercase else "02x"
-    return f"#{r:{fmt}}{g:{fmt}}{b:{fmt}}"

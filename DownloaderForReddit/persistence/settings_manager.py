@@ -3,6 +3,8 @@ import os
 import logging
 import toml
 
+from DownloaderForReddit.utils.color_utils import ColorUtils
+
 from ..extractors.base_extractor import BaseExtractor
 from ..utils import system_util
 from ..core import const
@@ -157,12 +159,12 @@ class SettingsManager:
         self.output_priority_level = self.get('output', 'output_priority_level', 2,
                                               converter=self.convert_message_priority)
         self.use_color_output = self.get('output', 'use_color_output', True)
-        self.debug_color = self.get('output', 'debug_color', list(const.DEBUG_COLOR_RGB))
-        self.info_color = self.get('output', 'info_color', list(const.INFO_COLOR_RGB))
-        self.warning_color = self.get('output', 'warning_color', list(const.WARNING_COLOR_RGB))
-        self.error_color = self.get('output', 'error_color', list(const.ERROR_COLOR_RGB))
-        self.critical_color = self.get('output', 'critical_color', list(const.CRITICAL_COLOR_RGB))
-        self.requested_color = self.get('output', 'requested_color', list(const.REQUESTED_COLOR_RGB))
+        self.debug_color = self.get('output', 'debug_color', ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.DEBUG_KEY]))
+        self.info_color = self.get('output', 'info_color',  ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.INFO_KEY]))
+        self.warning_color = self.get('output', 'warning_color',  ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.WARNING_KEY]))
+        self.error_color = self.get('output', 'error_color',  ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.ERROR_KEY]))
+        self.critical_color = self.get('output', 'critical_color',  ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.CRITICAL_KEY]))
+        self.requested_color = self.get('output', 'requested_color',  ColorUtils.hex_to_rgb_list(const.DEFAULT_DEBUG_COLOR_HEX[const.REQUESTED_KEY]))
         self.show_priority_level = self.get('output', 'show_priority_level', True)
         self.show_datetime = self.get('output', 'show_datetime', False)
         self.show_session_id = self.get('output', 'show_session_id', False)
@@ -202,13 +204,13 @@ class SettingsManager:
         self.scroll_to_last_added = self.get('display', 'scroll_to_last_added', True)
         self.colorize_new_reddit_objects = self.get('display', 'colorize_new_reddit_objects', True)
         self.new_reddit_object_display_color = self.get('display', 'new_reddit_object_display_color',
-                                                        list(const.DEFAULT_REDDIT_OBJECT_RGB[const.NEW_OBJECT_RGB]))
+                                                        ColorUtils.hex_to_rgb_list(const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.NEW_OBJECT_KEY]))
         self.colorize_disabled_reddit_objects = self.get('display', 'colorize_disabled_reddit_objects', True)
         self.disabled_reddit_object_display_color = self.get('display', 'disabled_reddit_object_display_color',
-                                                             list(const.DEFAULT_REDDIT_OBJECT_RGB[const.DISABLED_OBJECT_RGB]))
+                                                             ColorUtils.hex_to_rgb_list(const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.DISABLED_OBJECT_KEY]))
         self.colorize_inactive_reddit_objects = self.get('display', 'colorize_inactive_reddit_objects', True)
         self.inactive_reddit_object_display_color = self.get('display', 'inactive_reddit_object_display_color',
-                                                             list(const.DEFAULT_REDDIT_OBJECT_RGB[const.INACTIVE_OBJECT_RGB]))
+                                                             ColorUtils.hex_to_rgb_list(const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.INACTIVE_OBJECT_KEY]))
         self.iconize_reddit_objects = self.get('display', 'iconize_reddit_objects', True)
 
         self.datetime_display_format = self.get('display', 'datetime_display_format', '%m/%d/%Y %I:%M %p')

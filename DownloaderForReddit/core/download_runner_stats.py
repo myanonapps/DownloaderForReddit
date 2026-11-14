@@ -482,7 +482,7 @@ class DownloadRunnerStats:
         if self.get_user_names():
             return True
         if self.get_subreddit_names():
-            return True               
+            return True
         if self.get_subreddit_significant_count():
             return True
         if self.get_user_significant_count():
@@ -492,7 +492,7 @@ class DownloadRunnerStats:
         if self.get_comment_extraction_error_count():
             return True
         if self.get_content_error_count():
-            return True        
+            return True
         if check_rate_limit:
             if self.get_ratelimit_duration():
                 return True
