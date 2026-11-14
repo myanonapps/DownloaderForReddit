@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtCore import (QAbstractListModel, QAbstractTableModel, QAbstractItemModel, Qt, QPoint, QSize, QModelIndex, QVariant,
                           pyqtSignal)
-from PyQt6.QtGui import QPixmap, QIcon, QColor, QImage, QPainter
+from PyQt6.QtGui import QColor, QPixmap, QIcon, QImage, QPainter
 
 from ..core import const
 from ..core.errors import NON_DOWNLOADABLE, Error
@@ -141,7 +141,6 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
             return self.state_display.icon(self.items[index.row()])
         return None
 
-
 class PostTableModel(QAbstractTableModel, CustomItemModel):
 
     header_map = {
@@ -167,13 +166,17 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
         self.headers = ['title', 'date_posted', 'score', 'self_post', 'text', 'url', 'domain', 'author',
                         'subreddit', 'nsfw', 'extracted', 'extraction_date', 'extraction_error', 'error_message']
 
-    def headerData(self, row, orientation, role=None): # pylint: disable=invalid-name
-        if role == Qt.ItemDataRole.DisplayRole:
-            if orientation == Qt.Orientation.Horizontal:
-                return self.headers[row].replace('_', ' ').title()
+    def headerData(self, section, orientation, role=None): # pylint: disable=invalid-name
+        if (role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal
+                and 0 <= section < len(self.headers)):
+            return self.headers[section].replace('_', ' ').title()
+        return None
 
     def data(self, index, role=None):
         col = index.column()
+        if role == Qt.ItemDataRole.ForegroundRole:
+            post = self.items[index.row()]
+            return QColor(const.ERROR_TEXT_COLOR) if post.extraction_error is not None else None
         if role == Qt.ItemDataRole.DisplayRole:
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])

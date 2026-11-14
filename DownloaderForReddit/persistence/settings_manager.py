@@ -396,6 +396,8 @@ class SettingsManager:
             'Comments Without Content': [
                 {'model': 'COMMENT', 'field': 'content_count', 'operator': 'lte', 'value': 0}
             ],
+            'Failed downloads': [{'model': 'CONTENT', 'field': 'download_error', 'operator': 'not_null', 'value': ''}],
+            'Failed extractions': [{'model': 'POST', 'field': 'extraction_error', 'operator': 'not_null', 'value': ''}],            
         }
         self.database_view_quick_filters = self.get('database_view', 'database_view_quick_filters',
                                                     default_quick_filters, self.convert_quick_filters)

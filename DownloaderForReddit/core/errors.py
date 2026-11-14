@@ -22,6 +22,9 @@ class Error(Enum):
     RATE_LIMIT_ERROR = 17
     CREDIT_ERROR = 18
 
+    @property
+    def display_name(self):
+        return self.name.replace('_', ' ').title()
 
 # list of errors that should not be retried
 NON_DOWNLOADABLE = [

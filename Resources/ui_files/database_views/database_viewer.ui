@@ -374,7 +374,7 @@ QListView::item:selected {
      </widget>
      <widget class="QTabWidget" name="results_tabs">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="content_tab">
        <attribute name="title">
@@ -493,7 +493,7 @@ QListView::item:selected {
            <enum>QListView::IconMode</enum>
           </property>
           <property name="uniformItemSizes">
-           <bool>true</bool>
+           <bool>false</bool>
           </property>
           <property name="batchSize">
            <number>1</number>

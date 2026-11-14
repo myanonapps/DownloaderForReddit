@@ -27,7 +27,9 @@ class Filter(ABC):
         'gte': lambda attr, value: attr >= value,
         'in': lambda attr, value: attr.in_(value),
         'like': lambda attr, value: attr.like(f'%{value}%'),
-        'contains': lambda attr, value: attr.contains(value)
+        'contains': lambda attr, value: attr.contains(value),
+        'is_null': lambda attr, value: attr.is_(None),
+        'not_null': lambda attr, value: attr.isnot(None),        
     }
 
     model = None

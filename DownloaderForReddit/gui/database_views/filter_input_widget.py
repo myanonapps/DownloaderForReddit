@@ -4,12 +4,12 @@ from PyQt6.QtWidgets import QWidget, QLineEdit, QSpinBox, QComboBox, QDateTimeEd
 from PyQt6.QtCore import Qt, pyqtSignal
 from sqlalchemy import Integer, String, DateTime, Enum, Boolean
 
+from DownloaderForReddit.core.const import NO_VALUE_OPERATORS
 from DownloaderForReddit.guiresources.database_views.filter_input_widget_auto import Ui_FilterInputWidget
 from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, ContentFilter,
                                                   CommentFilter)
 from DownloaderForReddit.utils import injector
 from .filter_item import FilterItem
-
 
 class FilterInputWidget(QWidget, Ui_FilterInputWidget):
 
@@ -47,7 +47,8 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
             self.model_combo.addItem(model.replace('_', ' ').title(), model)
 
         operators = [('Equal To', 'eq'), ('Not Equal', 'not'), ('<', 'lt'), ('<=', 'lte'), ('>', 'gt'), ('>=', 'gte'),
-                     ('In', 'in'), ('Like', 'like'), ('Contains', 'contains')]
+                ('In', 'in'), ('Like', 'like'), ('Contains', 'contains'), ('Is Empty', 'is_null'),
+                ('Has Value', 'not_null')]
         for x in operators:
             self.operator_combo.addItem(x[0], x[1])
 
@@ -136,7 +137,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
                 filters = [FilterItem(**filter_dict) for filter_dict in self.settings_manager.database_view_quick_filters[self.quick_filter_combo.currentText()]]
                 self.add_filter(filters)
                 self.quick_filter_combo.setCurrentIndex(0)
-            finally:                
+            finally:
                 self.launch_quick_filter = True
 
     def add_filter(self, filters=None):
@@ -145,7 +146,8 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.export_filter.emit(filters)
 
     def create_filter(self):
-        return FilterItem(self.current_model, self.current_field, self.current_operator, self.get_value())
+        value = '' if self.current_operator in NO_VALUE_OPERATORS else self.get_value()
+        return FilterItem(self.current_model, self.current_field, self.current_operator, value)
 
     def get_boolean_field(self):
         combo = QComboBox()
@@ -165,8 +167,9 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
 
     def get_choice_field(self, choices):
         combo = QComboBox()
-        for x in choices:
-            combo.addItem(x)
+        for choice in choices or []:
+            label, value = choice if isinstance(choice, tuple) else (choice, choice)
+            combo.addItem(str(label), value)
         return combo
 
     def get_datetime_field(self):

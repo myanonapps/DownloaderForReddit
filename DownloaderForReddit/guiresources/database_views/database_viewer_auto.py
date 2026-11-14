@@ -221,7 +221,7 @@ class Ui_DatabaseViewer(object):
         self.content_view.setResizeMode(QtWidgets.QListView.ResizeMode.Adjust)
         self.content_view.setLayoutMode(QtWidgets.QListView.LayoutMode.Batched)
         self.content_view.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
-        self.content_view.setUniformItemSizes(True)
+        self.content_view.setUniformItemSizes(False)
         self.content_view.setBatchSize(1)
         self.content_view.setWordWrap(True)
         self.content_view.setSelectionRectVisible(True)
@@ -362,7 +362,7 @@ class Ui_DatabaseViewer(object):
 
         self.retranslateUi(DatabaseViewer)
         self.browse_stack.setCurrentIndex(0)
-        self.results_tabs.setCurrentIndex(1)
+        self.results_tabs.setCurrentIndex(0)
         self.details_tabs.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(DatabaseViewer)
 

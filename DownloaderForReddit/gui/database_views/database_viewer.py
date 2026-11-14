@@ -34,6 +34,7 @@ To open it:
     self.database_viewer.show()
 """
 import datetime
+import enum
 import html
 import json
 import logging
@@ -43,6 +44,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 from sqlalchemy import or_
 
+from DownloaderForReddit.database.model_enums import NsfwFilter
 from DownloaderForReddit.guiresources.database_views.database_viewer_auto import Ui_DatabaseViewer
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
 from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, ContentFilter,
@@ -50,7 +52,9 @@ from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditO
 from DownloaderForReddit.utils import injector, system_util, general_utils
 from DownloaderForReddit.viewmodels.database_view_models import (DownloadSessionModel, RedditObjectModel,
                                                                  PostTableModel, ContentListModel, CommentTreeModel)
+from DownloaderForReddit.core.errors import Error
 
+SAVEABLE_ENUMS = {cls.__name__: cls for cls in (Error,NsfwFilter)}  # enums that may appear in a saved filter
 DEFAULT_ICON_SIZE = 150
 MODES = ('REDDIT_OBJECT', 'DOWNLOAD_SESSION')  # what the list on the left browses by
 MAX_PAGES_TO_FIND = 50  # how many pages are loaded to find the remembered selection of a list
@@ -111,6 +115,8 @@ def encode_filters(filter_items):
             return {'__type__': 'datetime', 'value': value.isoformat()}
         if isinstance(value, datetime.date):
             return {'__type__': 'date', 'value': value.isoformat()}
+        if isinstance(value, enum.Enum) and type(value).__name__ in SAVEABLE_ENUMS:
+            return {'__type__': 'enum', 'enum': type(value).__name__, 'name': value.name}        
         raise TypeError(f'Cannot save a filter value of type {type(value).__name__}')
 
     return json.dumps([item.widget_dict for item in filter_items], default=encode_value)
@@ -126,6 +132,11 @@ def decode_filters(text):
             return datetime.datetime.fromisoformat(obj['value'])
         if kind == 'date':
             return datetime.date.fromisoformat(obj['value'])
+        if kind == 'enum':
+            try:
+                return SAVEABLE_ENUMS[obj['enum']][obj['name']]
+            except KeyError as e:
+                raise ValueError('Unknown saved enum value') from e        
         return obj
 
     loaded = json.loads(text, object_hook=decode_value)

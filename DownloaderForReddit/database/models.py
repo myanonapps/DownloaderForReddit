@@ -725,7 +725,7 @@ class Comment(BaseModel):
 
     @property
     def score_display(self):
-        return 'f{self.score:,}'
+        return f'{self.score:,}'
 
     @property
     def extraction_date_display(self):
