@@ -2,6 +2,7 @@
 from PyQt6.QtWidgets import QColorDialog
 from PyQt6.QtCore import Qt
 
+from DownloaderForReddit.core.const import CRITICAL_KEY, DEBUG_KEY, ERROR_KEY, INFO_KEY, REQUESTED_KEY, WARNING_KEY
 from DownloaderForReddit.guiresources.settings.output_settings_widget_auto import Ui_OutputSettingsWidget
 from .abstract_settings_widget import AbstractSettingsWidget
 from ...messaging.message import ContentOutput, MessagePriority
@@ -41,12 +42,12 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         for x in MessagePriority:
             self.colors[x.name.lower()] = getattr(self.settings, f'{x.name.lower()}_color')
 
-        self.set_label_stylesheet('debug')
-        self.set_label_stylesheet('info')
-        self.set_label_stylesheet('warning')
-        self.set_label_stylesheet('error')
-        self.set_label_stylesheet('critical')
-        self.set_label_stylesheet('requested')
+        self.set_label_stylesheet(DEBUG_KEY)
+        self.set_label_stylesheet(INFO_KEY)
+        self.set_label_stylesheet(WARNING_KEY)
+        self.set_label_stylesheet(ERROR_KEY)
+        self.set_label_stylesheet(CRITICAL_KEY)
+        self.set_label_stylesheet(REQUESTED_KEY)
 
     def set_label_stylesheet(self, priority):
         r, g, b = self.colors[priority]
