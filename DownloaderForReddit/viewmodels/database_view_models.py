@@ -176,7 +176,7 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
         col = index.column()
         if role == Qt.ItemDataRole.ForegroundRole:
             post = self.items[index.row()]
-            return QColor(const.ERROR_TEXT_COLOR) if post.extraction_error is not None else None
+            return QColor(*const.ERROR_TEXT_COLOR) if post.extraction_error is not None else None
         if role == Qt.ItemDataRole.DisplayRole:
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])
