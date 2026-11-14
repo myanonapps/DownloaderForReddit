@@ -79,11 +79,15 @@ class CustomItemModel:
     def load_next_page(self, query):
         if self.has_next_page and not self.loading:
             self.loading = True
-            data = query.offset(len(self.items)).limit(self.limit).all()
-            self.beginInsertRows(QModelIndex(), 0, len(data))
-            self.items.extend(data)
-            self.endInsertRows()
-            self.loading = False
+            try:
+                data = query.offset(len(self.items)).limit(self.limit).all()
+                if data:
+                    first = len(self.items)
+                    self.beginInsertRows(QModelIndex(), first, first + len(data) - 1)
+                    self.items.extend(data)
+                    self.endInsertRows()
+            finally:
+                self.loading = False
 
     def rowCount(self, parent=None, *args, **kwargs): # pylint: disable=invalid-name,unused-argument
         row_count = len(self.items)
@@ -363,12 +367,17 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
     def load_next_page(self, query):
         if self.has_next_page and not self.loading:
             self.loading = True
-            data = query.offset(len(self.items)).limit(self.limit).all()
-            self.beginInsertRows(QModelIndex(), 0, len(data))
-            self.items.extend(data)
-            for comment in data:
-                self.add_tree_item(comment, self.root)
-            self.endInsertRows()
+            try:
+                data = query.offset(len(self.items)).limit(self.limit).all()
+                if data:
+                    first = self.root.childCount()
+                    self.beginInsertRows(QModelIndex(), first, first + len(data) - 1)
+                    self.items.extend(data)
+                    for comment in data:
+                        self.add_tree_item(comment, self.root)
+                    self.endInsertRows()
+            finally:
+                self.loading = False
 
     def add_tree_item(self, comment, parent):
         item = TreeItem(comment, parent)
