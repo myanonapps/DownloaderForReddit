@@ -3,23 +3,23 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QIcon, QPixmap
 
-from DownloaderForReddit.core.const import DEFAULT_REDDIT_OBJECT_COLORS, DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT, RESOURCES, SUBREDDIT_OBJECT, USER_OBJECT
+from DownloaderForReddit.core.const import DEFAULT_REDDIT_OBJECT_RGB, DISABLED_OBJECT_RGB, INACTIVE_OBJECT_RGB, NEW_OBJECT_RGB, RESOURCES, SUBREDDIT_OBJECT, USER_OBJECT
 
-STATES = (DISABLED_OBJECT, INACTIVE_OBJECT, NEW_OBJECT)  # in priority order: the first state that applies wins
+STATES = (DISABLED_OBJECT_RGB, INACTIVE_OBJECT_RGB, NEW_OBJECT_RGB)  # in priority order: the first state that applies wins
 
 ACTIVE_OBJECT = "active"
 
 ICONS = {
     USER_OBJECT: {
-        DISABLED_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_disabled.svg")),
-        INACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_nonactive.svg")),
-        NEW_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_new.svg")),
+        DISABLED_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "user_disabled.svg")),
+        INACTIVE_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "user_nonactive.svg")),
+        NEW_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "user_new.svg")),
         ACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "user_active.svg")),
     },
     SUBREDDIT_OBJECT: {
-        DISABLED_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_disabled.svg")),
-        INACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_nonactive.svg")),
-        NEW_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_new.svg")),
+        DISABLED_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "forum_disabled.svg")),
+        INACTIVE_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "forum_nonactive.svg")),
+        NEW_OBJECT_RGB: QIcon(os.path.join(RESOURCES, "images", "forum_new.svg")),
         ACTIVE_OBJECT: QIcon(os.path.join(RESOURCES, "images", "forum_active.svg")),
     }
 }
@@ -55,9 +55,9 @@ class RedditObjectStateDisplay:
 
     @staticmethod
     def has_state(reddit_object, state):
-        if state == DISABLED_OBJECT:
+        if state == DISABLED_OBJECT_RGB:
             return not reddit_object.download_enabled
-        if state == INACTIVE_OBJECT:
+        if state == INACTIVE_OBJECT_RGB:
             return not reddit_object.active
         return bool(reddit_object.new)
 
@@ -66,7 +66,7 @@ class RedditObjectStateDisplay:
 
     def state_rgb(self, state):
         rgb = self.setting(f'{state}_reddit_object_display_color')
-        return tuple(rgb) if rgb else DEFAULT_REDDIT_OBJECT_COLORS[state]
+        return tuple(rgb) if rgb else DEFAULT_REDDIT_OBJECT_RGB[state]
 
     def color(self, reddit_object):
         """The QColor for the text of the reddit object, or None for the default text color."""
@@ -84,11 +84,11 @@ class RedditObjectStateDisplay:
         if not bool(self.setting('iconize_reddit_objects', True)):
             return self.blank()
         if not reddit_object.download_enabled:
-            return ICONS[reddit_object.object_type][DISABLED_OBJECT]
+            return ICONS[reddit_object.object_type][DISABLED_OBJECT_RGB]
         if not reddit_object.active:
-            return ICONS[reddit_object.object_type][INACTIVE_OBJECT]
+            return ICONS[reddit_object.object_type][INACTIVE_OBJECT_RGB]
         if reddit_object.new:
-            return ICONS[reddit_object.object_type][NEW_OBJECT]
+            return ICONS[reddit_object.object_type][NEW_OBJECT_RGB]
         return ICONS[reddit_object.object_type][ACTIVE_OBJECT]
 
     def blank(self):

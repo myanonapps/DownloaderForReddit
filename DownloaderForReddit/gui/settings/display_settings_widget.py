@@ -83,9 +83,9 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.schedule_countdown_combo.setCurrentIndex(
             self.settings.countdown_view_choices.index(self.settings.show_schedule_countdown))
         self.scroll_to_last_added_checkbox.setChecked(self.settings.scroll_to_last_added)
-        self.colors[const.NEW_OBJECT] = self.settings.new_reddit_object_display_color
-        self.colors[const.DISABLED_OBJECT] = self.settings.disabled_reddit_object_display_color
-        self.colors[const.INACTIVE_OBJECT] = self.settings.inactive_reddit_object_display_color
+        self.colors[const.NEW_OBJECT_RGB] = self.settings.new_reddit_object_display_color
+        self.colors[const.DISABLED_OBJECT_RGB] = self.settings.disabled_reddit_object_display_color
+        self.colors[const.INACTIVE_OBJECT_RGB] = self.settings.inactive_reddit_object_display_color
         self.colorize_new_checkbox.setChecked(self.settings.colorize_new_reddit_objects)
         self.colorize_disabled_checkbox.setChecked(self.settings.colorize_disabled_reddit_objects)
         self.colorize_inactive_checkbox.setChecked(self.settings.colorize_inactive_reddit_objects)
@@ -98,42 +98,42 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
             self.add_tooltip_setting_checkbox(key, value)
 
     def set_new_color_label(self):
-        r, g, b = self.colors[const.NEW_OBJECT]
+        r, g, b = self.colors[const.NEW_OBJECT_RGB]
         self.new_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def set_disabled_color_label(self):
-        r, g, b = self.colors[const.DISABLED_OBJECT]
+        r, g, b = self.colors[const.DISABLED_OBJECT_RGB]
         self.disabled_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def set_inactive_color_label(self):
-        r, g, b = self.colors[const.INACTIVE_OBJECT]
+        r, g, b = self.colors[const.INACTIVE_OBJECT_RGB]
         self.inactive_ro_color_label.setStyleSheet(
             f'background-color: white;'
             f'color: rgb({r}, {g}, {b});'
         )
 
     def choose_new_color(self):
-        color = self.choose_color(const.NEW_OBJECT)
+        color = self.choose_color(const.NEW_OBJECT_RGB)
         if color is not None:
-            self.colors[const.NEW_OBJECT] = [color.red(), color.green(), color.blue()]
+            self.colors[const.NEW_OBJECT_RGB] = [color.red(), color.green(), color.blue()]
             self.set_new_color_label()
 
     def choose_disabled_color(self):
-        color = self.choose_color(const.DISABLED_OBJECT)
+        color = self.choose_color(const.DISABLED_OBJECT_RGB)
         if color is not None:
-            self.colors[const.DISABLED_OBJECT] = [color.red(), color.green(), color.blue()]
+            self.colors[const.DISABLED_OBJECT_RGB] = [color.red(), color.green(), color.blue()]
             self.set_disabled_color_label()
 
     def choose_inactive_color(self):
-        color = self.choose_color(const.INACTIVE_OBJECT)
+        color = self.choose_color(const.INACTIVE_OBJECT_RGB)
         if color is not None:
-            self.colors[const.INACTIVE_OBJECT] = [color.red(), color.green(), color.blue()]
+            self.colors[const.INACTIVE_OBJECT_RGB] = [color.red(), color.green(), color.blue()]
             self.set_inactive_color_label()
 
     def choose_color(self, key):
@@ -189,9 +189,9 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.settings.colorize_new_reddit_objects = self.colorize_new_checkbox.isChecked()
         self.settings.colorize_disabled_reddit_objects = self.colorize_disabled_checkbox.isChecked()
         self.settings.colorize_inactive_reddit_objects = self.colorize_inactive_checkbox.isChecked()
-        self.settings.new_reddit_object_display_color = self.colors[const.NEW_OBJECT]
-        self.settings.disabled_reddit_object_display_color = self.colors[const.DISABLED_OBJECT]
-        self.settings.inactive_reddit_object_display_color = self.colors[const.INACTIVE_OBJECT]
+        self.settings.new_reddit_object_display_color = self.colors[const.NEW_OBJECT_RGB]
+        self.settings.disabled_reddit_object_display_color = self.colors[const.DISABLED_OBJECT_RGB]
+        self.settings.inactive_reddit_object_display_color = self.colors[const.INACTIVE_OBJECT_RGB]
         if self.test_date_format(self.datetime_format_line_edit.text()):
             self.settings.datetime_display_format = self.datetime_format_line_edit.text()
         if self.test_date_format(self.date_format_line_edit.text()):
