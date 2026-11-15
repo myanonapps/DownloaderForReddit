@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from DownloaderForReddit.data_interface.adapter_data import AdapterData
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
+from DownloaderForReddit.utils.html_formatting import markdown_to_html
 
 # Constants for data keys
 ID_KEY = "id"
@@ -71,12 +72,19 @@ class AdapterSubmission(AdapterData):
         setattr(self, ID_KEY, dig(dict_data, ID_KEY, default=""))
         setattr(self, DOMAIN_KEY, dig(dict_data, DOMAIN_KEY, default=""))
         setattr(self, SCORE_KEY, dig(dict_data, SCORE_KEY, default=0))
-        setattr(self, PINNED_KEY, bool(dig(PINNED_KEY, PINNED_KEY, default=False)))
-        setattr(self, STICKIED_KEY, bool(dig(STICKIED_KEY, STICKIED_KEY, default=False)))
+        setattr(self, PINNED_KEY, bool(dig(dict_data, PINNED_KEY, PINNED_KEY, default=False)))
+        setattr(self, STICKIED_KEY, bool(dig(dict_data, STICKIED_KEY, STICKIED_KEY, default=False)))
         setattr(self, OVER_18_KEY, bool(dig(dict_data, OVER_18_KEY, default=False)))
         setattr(self, IS_SELF_KEY, bool(dig(dict_data, IS_SELF_KEY, default=False)))
-        setattr(self, SELFTEXT_KEY, dig(dict_data, SELFTEXT_KEY, default=""))
-        setattr(self, SELFTEXT_HTML_KEY, dig(dict_data, SELFTEXT_HTML_KEY, default=""))
+
+        selftext = dig(dict_data, SELFTEXT_KEY, default="")
+        selftext_html = dig(dict_data, SELFTEXT_HTML_KEY, default="")
+        if not selftext_html and selftext:
+            # Arctic Shift only sends selftext_html when asked with md2html, so build it from the markdown
+            selftext_html = markdown_to_html(selftext) or ""
+        setattr(self, SELFTEXT_KEY, selftext)
+        setattr(self, SELFTEXT_HTML_KEY, selftext_html)
+
         author = SimpleNamespace()
         setattr(author, NAME_KEY, dig(dict_data, "author", default=""))
         setattr(self, AUTHOR_KEY, author)

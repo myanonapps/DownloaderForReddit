@@ -51,6 +51,7 @@ from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditO
                                                   CommentFilter)
 from DownloaderForReddit.utils import injector, system_util, general_utils
 from DownloaderForReddit.utils.color_utils import ColorUtils
+from DownloaderForReddit.utils.html_formatting import markdown_to_html
 from DownloaderForReddit.viewmodels.database_view_models import (DownloadSessionModel, RedditObjectModel,
                                                                  PostTableModel, ContentListModel, CommentTreeModel)
 from DownloaderForReddit.core.errors import Error
@@ -667,7 +668,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         parts = []
         for comment in comments:
             author = html.escape(str(getattr(comment.author, 'name', comment.author)))
-            body = comment.body_html if comment.body_html is not None else html.escape(comment.body or '')
+            body = comment.body_html or markdown_to_html(comment.body) or ''
             parts.append(f'<p><b>{author}</b></p>{body}')
         self.comment_browser.setHtml('<hr>'.join(parts))
 
@@ -780,8 +781,9 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         if content:
             sections.append(self.file_card_html(content, colors))
         if post is not None:
-            if post.text_html:
-                sections.append(post.text_html)
+            body = post.text_html or markdown_to_html(post.text)
+            if body:
+                sections.append(body)
             else:
                 sections.append(f'<p style="color:{colors["muted"]}"><i>This post has no text</i></p>')
         return '<hr>'.join(sections)

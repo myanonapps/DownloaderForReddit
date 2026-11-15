@@ -1,5 +1,7 @@
 import re
+import mistune
 
+_markdown = mistune.create_markdown(escape=True, plugins=['strikethrough', 'table', 'url'])
 
 def format_html(html_text: str) -> str:
     """
@@ -29,3 +31,9 @@ def linkify_urls(text: str) -> str:
     )
 
     return url_regex.sub(r'<a href="\1">\1</a>', text)
+
+def markdown_to_html(text):
+    """HTML for reddit markdown text, or None if there is no text.  Raw HTML in the text is escaped."""
+    if not text:
+        return None
+    return _markdown(text)
