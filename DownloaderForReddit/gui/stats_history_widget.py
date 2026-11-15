@@ -26,9 +26,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from DownloaderForReddit.core.const import WARNING_GLYPH
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.persistence.settings_manager import SettingsManager
 from DownloaderForReddit.utils import injector
+from DownloaderForReddit.utils.color_utils import ColorUtils
 
 # (key, row label)
 STAT_ROWS = [
@@ -55,8 +57,7 @@ DEFAULT_VALUES = {
 ROW_HEIGHT = 26
 HEADER_HEIGHT = 30
 COLUMN_WIDTH = 130
-FLAG_GLYPH = "\u26A0"
-FLAG_COLOR = "#b45f06"
+
 
 # Row and column captions (the header cells): fill, divider lines and padding.
 HEADER_BG = "#dfe7f1"
@@ -117,7 +118,7 @@ class StatsHistoryWidget(QWidget):
         super().__init__(parent)
         self._runs: deque[StatsHistoryRun] = deque(maxlen=max_runs)   # index 0 is the newest run
         self.settings_manager:SettingsManager = injector.get_settings_manager()
-        
+
         self.cumulative_table = self._make_table()
         self.runs_table = self._make_table()
 
@@ -239,7 +240,7 @@ class StatsHistoryWidget(QWidget):
         for col, run in enumerate(self._runs):
             title = f"{run.session_id}"
             if run.stopped:
-                title += f" {FLAG_GLYPH}"
+                title += f" {WARNING_GLYPH}"
             header = QTableWidgetItem(title)
 
             if col == 0:
@@ -251,7 +252,7 @@ class StatsHistoryWidget(QWidget):
             tip += f"\nEnded {run.ended.strftime(self.settings_manager.datetime_display_format)}"
             if run.stopped:
                 tip += "\nThis run was stopped before it finished, so these counts may be incomplete."
-                header.setForeground(QBrush(QColor(FLAG_COLOR)))
+                header.setForeground(QBrush(QColor(ColorUtils.rgb_list_to_hex(self.settings_manager.warning_color))))
             header.setToolTip(tip)
             table.setHorizontalHeaderItem(col, header)
 

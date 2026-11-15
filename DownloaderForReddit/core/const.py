@@ -73,3 +73,5 @@ DEFAULT_DEBUG_COLOR_HEX = {
 }
 
 NO_VALUE_OPERATORS = ('is_null', 'not_null')
+
+WARNING_GLYPH = "\u26A0"
