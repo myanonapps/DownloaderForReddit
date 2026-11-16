@@ -1,32 +1,39 @@
 import os
-from PyQt6.QtGui import QIcon
+from pathlib import Path
+import sys
+
+# Resolve the path to the external directory (e.g., one level up and into 'shared')
+external_dir = Path(__file__).resolve().parent.parent / "DownloaderForReddit" / "core"
+sys.path.insert(0, str(external_dir))
+
+import const  # Now you can import directly
 
 class IconFactory:
     # 1. State Matrix Configurations (Colors and Badges)
     STATES = {
         "new": {
-            "primary": "#2ecc71",     # Vibrant Green
+            "primary": const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.NEW_OBJECT_KEY], 
             "secondary": "#a3e4d7",   
             "opacity": "1.0",
             "badge": '<circle cx="26" cy="26" r="5" fill="#2ecc71" stroke="#ffffff" stroke-width="1.5"/>'
         },
         "active": {
-            "primary": "#3498db",     # Vibrant Blue
+            "primary": const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.ACTIVE_OBJECT_KEY],     # Vibrant Blue
             "secondary": "#aed6f1",
             "opacity": "1.0",
             "badge": ""               # Clean base icon
         },
         "nonactive": {
-            "primary": "#95a5a6",     # Muted Slate Gray
+            "primary": const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.INACTIVE_OBJECT_KEY],     # Muted Slate Gray
             "secondary": "#d5dbdb",
             "opacity": "0.7",
             "badge": ""
         },
         "disabled": {
-            "primary": "#7f8c8d",     # Dark Gray
-            "secondary": "#bdc3c7",
+            "primary": const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.DISABLED_OBJECT_KEY],
+            "secondary": "#A86666",
             "opacity": "0.4",         # High transparency for visual dimming
-            "badge": '<line x1="6" y1="26" x2="26" y2="6" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>' # Red strike-through
+            "badge": f'<line x1="6" y1="26" x2="26" y2="6" stroke="{const.DEFAULT_REDDIT_OBJECT_COLOR_HEX[const.DISABLED_OBJECT_KEY]}" stroke-width="3" stroke-linecap="round"/>' # Red strike-through
         }
     }
 
@@ -46,7 +53,7 @@ class IconFactory:
     def make_svg(cls, obj_type, state):
         cfg = cls.STATES[state]
         geometry = cls.SHAPES[obj_type].format(primary=cfg["primary"], secondary=cfg["secondary"])
-        
+
         # Assemble standard valid standalone SVG text wrapper
         return f'''<?xml version="1.0" encoding="utf-8"?>
         <svg version="1.1" xmlns="http://w3.org" width="32" height="32" viewBox="0 0 32 32" opacity="{cfg["opacity"]}">
@@ -62,7 +69,7 @@ class IconFactory:
             for state in cls.STATES.keys():
                 filename = f"{obj_type}_{state}.svg"
                 filepath = os.path.join(output_dir, filename)
-                
+
                 svg_content = cls.make_svg(obj_type, state)
                 with open(filepath, "w", encoding="utf-8") as f:
                     f.write(svg_content)
