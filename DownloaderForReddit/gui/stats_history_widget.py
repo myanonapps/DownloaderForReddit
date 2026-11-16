@@ -27,6 +27,8 @@ from PyQt6.QtWidgets import (
 )
 
 from DownloaderForReddit.core.const import WARNING_GLYPH
+from DownloaderForReddit.core.const import TABLE_HDR_PADNG_PIXELS
+from DownloaderForReddit.core.const import TABLE_STYLE
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.persistence.settings_manager import SettingsManager
 from DownloaderForReddit.utils import injector
@@ -57,33 +59,6 @@ DEFAULT_VALUES = {
 ROW_HEIGHT = 26
 HEADER_HEIGHT = 30
 COLUMN_WIDTH = 130
-
-
-# Row and column captions (the header cells): fill, divider lines and padding.
-HEADER_BG = "#dfe7f1"
-HEADER_BORDER = "#c3cfdd"
-HEADER_PADDING = 8
-CELL_BORDER = "#e1e6ed"      # thin line under every data cell
-TABLE_STYLE = f"""
-QTableWidget::item {{
-    border: none;
-    border-bottom: 1px solid {CELL_BORDER};
-    padding: 0px {HEADER_PADDING}px;
-}}
-QHeaderView::section {{
-    background-color: {HEADER_BG};
-    border: none;
-    border-right: 1px solid {HEADER_BORDER};
-    border-bottom: 1px solid {HEADER_BORDER};
-    padding: 0px {HEADER_PADDING}px;
-}}
-QTableCornerButton::section {{
-    background-color: {HEADER_BG};
-    border: none;
-    border-right: 1px solid {HEADER_BORDER};
-    border-bottom: 1px solid {HEADER_BORDER};
-}}
-"""
 
 
 def format_stats(stats: DownloadRunnerStats, cumulative: bool) -> dict[str, str]:
@@ -130,7 +105,7 @@ class StatsHistoryWidget(QWidget):
         pinned.horizontalHeader().setDefaultSectionSize(COLUMN_WIDTH)
         pinned.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         metrics = pinned.verticalHeader().fontMetrics()      # bold font, set in _make_table
-        label_width = max(metrics.horizontalAdvance(label) for _, label in STAT_ROWS) + 2 * HEADER_PADDING + 4
+        label_width = max(metrics.horizontalAdvance(label) for _, label in STAT_ROWS) + 2 * TABLE_HDR_PADNG_PIXELS + 4
         pinned.verticalHeader().setFixedWidth(label_width)
         body_height = HEADER_HEIGHT + ROW_HEIGHT * len(STAT_ROWS)
         pinned.setFixedSize(label_width + COLUMN_WIDTH, body_height)

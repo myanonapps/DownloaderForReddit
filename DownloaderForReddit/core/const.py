@@ -32,7 +32,7 @@ VID_EXT = ('mp4', 'wmv', 'avi', 'mpg', 'divx')
 TEXT_EXT = ('txt', 'html')
 ANIMATED_EXT = VID_EXT + GIF_EXT
 ALL_EXT = IMAGE_EXT + GIF_EXT + VID_EXT
-FIRST_POST_EPOCH = 1119537833
+FIRST_POST_EPOCH = 1479254400  # Wednesday, November 16, 2016 at 12:00:00 AM
 
 RESOURCES = os.path.abspath('Resources/')
 SUPPORTED_SITES_FILE = os.path.join(RESOURCES, 'supported_video_sites.txt')
@@ -75,3 +75,28 @@ DEFAULT_DEBUG_COLOR_HEX = {
 NO_VALUE_OPERATORS = ('is_null', 'not_null')
 
 WARNING_GLYPH = "\u26A0"
+# Row and column captions (the header cells): fill, divider lines and padding.
+TABLE_HDR_BKG_COLOR_HEX = "#dfe7f1"
+TABLE_HDR_BRDR_COLOR_HEX = "#c3cfdd"
+TABLE_HDR_PADNG_PIXELS = 8
+TABLE_CELL_BRDR_COLOR_HEX = "#e1e6ed"      # thin line under every data cell
+TABLE_STYLE = f"""
+QTableWidget::item {{
+    border: none;
+    border-bottom: 1px solid {TABLE_CELL_BRDR_COLOR_HEX};
+    padding: 0px {TABLE_HDR_PADNG_PIXELS}px;
+}}
+QHeaderView::section {{
+    background-color: {TABLE_HDR_BKG_COLOR_HEX};
+    border: none;
+    border-right: 1px solid {TABLE_HDR_BRDR_COLOR_HEX};
+    border-bottom: 1px solid {TABLE_HDR_BRDR_COLOR_HEX};
+    padding: 0px {TABLE_HDR_PADNG_PIXELS}px;
+}}
+QTableCornerButton::section {{
+    background-color: {TABLE_HDR_BKG_COLOR_HEX};
+    border: none;
+    border-right: 1px solid {TABLE_HDR_BRDR_COLOR_HEX};
+    border-bottom: 1px solid {TABLE_HDR_BRDR_COLOR_HEX};
+}}
+"""

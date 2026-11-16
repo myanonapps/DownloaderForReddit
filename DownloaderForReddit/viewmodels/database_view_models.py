@@ -3,8 +3,6 @@ from PyQt6.QtCore import (QAbstractListModel, QAbstractTableModel, QAbstractItem
                           pyqtSignal)
 from PyQt6.QtGui import QColor, QPixmap, QIcon, QImage, QPainter
 
-from DownloaderForReddit.utils.color_utils import ColorUtils
-
 from ..core import const
 from ..core.errors import NON_DOWNLOADABLE, Error
 from ..utils import injector
@@ -240,7 +238,7 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
                     tip += f'\nError: {content.error_message}'
                 return tip
             if role == Qt.ItemDataRole.TextAlignmentRole:
-                return Qt.AlignmentFlag.AlignHCenter            
+                return Qt.AlignmentFlag.AlignHCenter
         return None
 
     def get_icon(self, content):
