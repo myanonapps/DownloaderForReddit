@@ -39,6 +39,7 @@ import html
 import json
 import logging
 import os
+from pathlib import Path
 
 from PyQt6.QtCore import QItemSelectionModel, QSettings, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor, QPalette
@@ -749,7 +750,7 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             return self.label_html('FILE', colors) + f'<p style="margin-top:0">{text}</p>'
         item = content[0]
         parts = [self.label_html('FILE', colors), f'<p style="margin-top:0"><b>{esc(str(item.title))}</b><br>'
-                 f'<span style="color:{colors["muted"]}">{esc(str(item.get_full_file_path()))}</span></p>']
+                 f'<span style="color:{colors["muted"]}">{esc(str(Path(item.get_full_file_path())))}</span></p>']
         if item.download_error is not None:
             parts.append(self.error_banner_html(f'DOWNLOAD FAILED \u00b7 {error_text(item.download_error)}',
                                                 item.error_message, f'Retries: {item.retry_attempts or 0}', colors))
@@ -811,6 +812,10 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         open_folder = menu.addAction('Open folder',
                                      lambda: system_util.open_in_system(self.current_content[0].directory_path))
         open_folder.setDisabled(content is None)
+        menu.addSeparator()
+        copy_path = menu.addAction('Copy as path',
+                                     lambda: QApplication.clipboard().setText(str(Path(self.current_content[0].get_full_file_path()))))
+        copy_path.setDisabled(content is None)
         menu.exec(QCursor.pos())
 
     def post_context_menu(self, _position):
