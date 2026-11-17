@@ -38,12 +38,14 @@ import enum
 import html
 import json
 import logging
+import os
 
 from PyQt6.QtCore import QItemSelectionModel, QSettings, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor, QPalette
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 from sqlalchemy import or_
 
+from DownloaderForReddit.core.const import RESOURCES
 from DownloaderForReddit.database.model_enums import NsfwFilter
 from DownloaderForReddit.guiresources.database_views.database_viewer_auto import Ui_DatabaseViewer
 from DownloaderForReddit.database.models import DownloadSession, RedditObject, Post, Content, Comment
@@ -729,12 +731,13 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         score = f'{post.score:,}' if post.score is not None else ''
         muted = f'style="color:{colors["muted"]}"'
         url = esc(str(post.url))
+        svg = os.path.join(RESOURCES, "images", "link.svg")
         return (f'<table width="100%" cellspacing="0" cellpadding="3">'
                 f'<tr><td {muted}>Posted</td><td>{esc(str(post.date_posted_display))}</td>'
                 f'<td {muted}>Score</td><td>{score}</td></tr>'
                 f'<tr><td {muted}>Domain</td><td>{esc(str(post.domain))}</td>'
                 f'<td {muted}>Status</td><td>{status}</td></tr>'
-                f'<tr><td {muted}>Link</td><td colspan="3"><a href="{url}">{url}</a></td></tr></table>')
+                f'<tr><td {muted}>Link</td><td colspan="3"><a href="{url}"><img src="{svg}" alt="{url}"></a></td></tr></table>')
 
     def file_card_html(self, content, colors):
         esc = html.escape
