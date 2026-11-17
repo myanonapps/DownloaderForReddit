@@ -810,11 +810,11 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
         open_file = menu.addAction('Open', self.open_selected_content)
         open_file.setDisabled(content is None)
         open_folder = menu.addAction('Open folder',
-                                     lambda: system_util.open_in_system(self.current_content[0].directory_path))
+                                     lambda: system_util.open_in_system(content.directory_path))
         open_folder.setDisabled(content is None)
         menu.addSeparator()
         copy_path = menu.addAction('Copy as path',
-                                     lambda: QApplication.clipboard().setText(str(Path(self.current_content[0].get_full_file_path()))))
+                                     lambda: QApplication.clipboard().setText(str(Path(content.get_full_file_path()))))
         copy_path.setDisabled(content is None)
         menu.exec(QCursor.pos())
 
