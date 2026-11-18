@@ -731,14 +731,17 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
             status = 'Extracted' if post.extracted else 'Not extracted'
         score = f'{post.score:,}' if post.score is not None else ''
         muted = f'style="color:{colors["muted"]}"'
-        url = esc(str(post.url))
         svg = os.path.join(RESOURCES, "images", "link.svg")
+        reddit_url = esc(str(post.url))
+        archive_url = f'https://arctic-shift.photon-reddit.com/search?fun=ids&ids={post.reddit_id}'
         return (f'<table width="100%" cellspacing="0" cellpadding="3">'
                 f'<tr><td {muted}>Posted</td><td>{esc(str(post.date_posted_display))}</td>'
                 f'<td {muted}>Score</td><td>{score}</td></tr>'
                 f'<tr><td {muted}>Domain</td><td>{esc(str(post.domain))}</td>'
-                f'<td {muted}>Status</td><td>{status}</td></tr>'
-                f'<tr><td {muted}>Link</td><td colspan="3"><a href="{url}"><img src="{svg}" alt="{url}"></a></td></tr></table>')
+                f'<td {muted}>Identifier</td><td>{post.reddit_id}</td></tr>'
+                f'<tr><td {muted}>Status</td><td>{status}</td></tr>'
+                f'<tr><td {muted}>Reddit</td><td><a href="{reddit_url}"><img src="{svg}" alt="{reddit_url}"></a></td>'
+                f'<td {muted}>Arctic Shift</td><td><a href="{archive_url}"><img src="{svg}" alt="{archive_url}"></a></td></tr></table>')
 
     def file_card_html(self, content, colors):
         esc = html.escape
