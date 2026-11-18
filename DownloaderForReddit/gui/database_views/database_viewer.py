@@ -740,8 +740,8 @@ class DatabaseViewer(QWidget, Ui_DatabaseViewer):
                 f'<tr><td {muted}>Domain</td><td>{esc(str(post.domain))}</td>'
                 f'<td {muted}>Identifier</td><td>{post.reddit_id}</td></tr>'
                 f'<tr><td {muted}>Status</td><td>{status}</td></tr>'
-                f'<tr><td {muted}>Reddit</td><td><a href="{reddit_url}"><img src="{svg}" alt="{reddit_url}"></a></td>'
-                f'<td {muted}>Arctic Shift</td><td><a href="{archive_url}"><img src="{svg}" alt="{archive_url}"></a></td></tr></table>')
+                f'<tr><td {muted}>Reddit</td><td><a href="{reddit_url}" title="{reddit_url}"><img src="{svg}" alt="Link"></a></td>'
+                f'<td {muted}>Arctic Shift</td><td><a href="{archive_url}" title="{archive_url}"><img src="{svg}" alt="Link"></a></td></tr></table>')
 
     def file_card_html(self, content, colors):
         esc = html.escape
