@@ -1,6 +1,8 @@
 [MAIN]
 # Allow pylint to load the compiled PyQt6 extension modules so their members resolve.
 extension-pkg-allow-list=PyQt6
+# Machine-generated Qt Designer output (regenerate with Tools/ui_converter.py; never edit by hand).
+ignore-paths=^DownloaderForReddit/guiresources/.*$
 
 [BASIC]
 # Require docstrings on every name, including private ones (pylint's default "^_" exempts them).
