@@ -237,6 +237,7 @@ class RedditObject(BaseModel):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(collation='NOCASE'))
+    nickname = Column(String(collation='NOCASE'), nullable=True)
     date_created = Column(DateTime, nullable=True)
     post_limit = Column(SmallInteger, default=25)
     post_score_limit = Column(Integer, default=1000)
@@ -297,6 +298,17 @@ class RedditObject(BaseModel):
             return f'{self.object_type}: {self.name}'
         except AttributeError:
             return f'{self.object_type}: {self.id}'
+
+    @property
+    def nickname_or_name(self) -> str:
+        """
+        The name shown for this reddit object in lists: its nickname when one is set, otherwise its reddit name.
+        :return: The nickname if it is set and not blank, otherwise the reddit name.
+        :rtype: str
+        """
+        if self.nickname and self.nickname.strip():
+            return self.nickname
+        return self.name
 
     @property
     def date_created_display(self):

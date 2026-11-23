@@ -52,7 +52,7 @@ class RedditObjectSettingsDialog(QtWidgets.QDialog, Ui_RedditObjectSettingsDialo
         self.info_widget.set_objects(self.selected_objects)
         self.settings_widget.set_objects(self.selected_objects)
         if len(self.selected_objects) == 1:
-            self.download_button.setText(f'Download {object_list[0].name}')
+            self.download_button.setText(f'Download {object_list[0].nickname_or_name}')
         else:
             self.download_button.setText(f'Download {len(self.selected_objects)} {self.list_type.lower()}s')
 
@@ -66,6 +66,7 @@ class RedditObjectSettingsDialog(QtWidgets.QDialog, Ui_RedditObjectSettingsDialo
 
     def reset(self):
         self.list_model.session.rollback()
+        self.info_widget.set_objects(self.selected_objects)
         self.settings_widget.set_objects(self.selected_objects)
 
     def download(self):

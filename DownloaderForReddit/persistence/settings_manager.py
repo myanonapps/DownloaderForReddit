@@ -178,6 +178,7 @@ class SettingsManager:
         self.short_title_char_length = self.get('display', 'short_title_char_length', 15)
         default_tooltip_display_dict = {
             'name': True,
+            'nickname': True,
             'download_enabled': True,
             'lock_settings': False,
             'last_download_date': False,
@@ -197,8 +198,9 @@ class SettingsManager:
             'content_count': False,
             'comment_count': False
         }
-        self.main_window_tooltip_display_dict = self.get('display', 'main_window_tooltip_display_dict',
-                                                         default_tooltip_display_dict)
+        self.main_window_tooltip_display_dict = {**default_tooltip_display_dict,
+                                                 **self.get('display', 'main_window_tooltip_display_dict',
+                                                            default_tooltip_display_dict)}
         self.countdown_view_choices = [const.DONT_SHOW_SCHEDULE, const.SHOW_ACTIVE_SCHEDULE, const.SHOW_SCHEDULE]
         self.show_schedule_countdown = self.get('display', 'show_schedule_countdown', const.SHOW_ACTIVE_SCHEDULE)
         self.scroll_to_last_added = self.get('display', 'scroll_to_last_added', True)

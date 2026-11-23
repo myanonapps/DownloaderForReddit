@@ -23,6 +23,7 @@ class ObjectInfoWidget(QWidget, Ui_ObjectInfoWidget):
 
         # Connect signal for thread-safe updates
         self.update_labels_signal.connect(self._update_labels_on_main_thread)
+        self.nickname_line_edit.textEdited.connect(self.set_nickname)
 
     @property
     def single_object(self):
@@ -39,6 +40,8 @@ class ObjectInfoWidget(QWidget, Ui_ObjectInfoWidget):
         if self.single_object:
             selected_object = self.selected_objects[0]
             self.name_label.setText(selected_object.name)
+            self.nickname_line_edit.setEnabled(True)
+            self.nickname_line_edit.setText(selected_object.nickname or '')
             self.id_label.setText(str(selected_object.id))
             self.date_created_label.setText(selected_object.date_created_display)
             self.date_added_label.setText(selected_object.date_added_display)
@@ -47,6 +50,24 @@ class ObjectInfoWidget(QWidget, Ui_ObjectInfoWidget):
             for label in [self.name_label, self.id_label, self.date_created_label, self.date_added_label,
                           self.last_download_label]:
                 label.setText('')
+            self.nickname_line_edit.setText('')
+            self.nickname_line_edit.setEnabled(False)
+
+    def set_nickname(self, text: str) -> None:
+        """
+        Stores the nickname typed by the user on the selected reddit object.  A nickname belongs to a single object, so
+        nothing is stored while several objects are selected.  The change is committed or rolled back with the rest of
+        the dialog's changes.
+        :param text: The text of the nickname field.  Surrounding whitespace is removed, and a blank nickname is
+                     stored as None so that the reddit name is shown again.
+        :type text: str
+        :return: None
+        :rtype: None
+        """
+        if not self.single_object:
+            return
+        nickname = text.strip()
+        self.selected_objects[0].nickname = nickname or None
 
     def set_download_info(self):
         self.download_info_thread = Thread(target=self.set_download_info_labels)

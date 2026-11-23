@@ -123,7 +123,7 @@ class RedditObjectListModel(QAbstractListModel):
         try:
             f = RedditObjectFilter()
             if term is not None and term != '':
-                self.reddit_objects = f.filter(self.session, ('name', 'like', term), query=self.list.reddit_objects,
+                self.reddit_objects = f.filter(self.session, ('name_or_nickname', 'like', term), query=self.list.reddit_objects,
                                                order_by=self.settings_manager.list_order_method,
                                                desc=self.settings_manager.order_list_desc).all()
             else:
@@ -270,7 +270,7 @@ class RedditObjectListModel(QAbstractListModel):
         obj = self.reddit_objects[row]
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
-            return obj.name
+            return obj.nickname_or_name
 
         if role == Qt.ItemDataRole.ForegroundRole:
             return self.state_display.color(obj)
@@ -302,6 +302,7 @@ class RedditObjectListModel(QAbstractListModel):
         """
         tooltip_dict = {
             'name': f'Name: {reddit_object.name}',
+            'nickname': f'Nickname: {reddit_object.nickname or "-"}',
             'download_enabled': f'Download Enabled: {reddit_object.download_enabled}',
             'lock_settings': f'Settings Locked: {reddit_object.lock_settings}',
             'last_download_date': f'Last Download: {reddit_object.last_download}',
@@ -321,7 +322,7 @@ class RedditObjectListModel(QAbstractListModel):
         }
         tooltip = ''
         for key, value in tooltip_dict.items():
-            if self.settings_manager.main_window_tooltip_display_dict[key]:
+            if self.settings_manager.main_window_tooltip_display_dict.get(key, False):
                 tooltip += f'{value}\n'
         return tooltip.strip()
 

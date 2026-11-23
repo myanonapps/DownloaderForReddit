@@ -1,3 +1,4 @@
+import logging
 import traceback
 from abc import ABC
 from sqlalchemy.sql import func
@@ -10,6 +11,9 @@ from DownloaderForReddit.core.const import SUBREDDIT_OBJECT, USER_OBJECT
 from .models import (RedditObjectList, RedditObject, User, Subreddit, DownloadSession, Post, Content, Comment,
                      ListAssociation)
 from .model_enums import NsfwFilter
+
+
+logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
 
 class Filter(ABC):
@@ -98,13 +102,15 @@ class Filter(ABC):
     def order_query(self, query, order, desc):
         if order is None:
             order = self.default_order
-        order_by = getattr(self.model, order, None)
-        if order_by is None or isinstance(order_by, property):
-            try:
-                query, order_by = self.custom_filter_map[order].order_method(query)
-            except KeyError:
-                print('key error')
-                order_by = self.default_order
+        custom_item = self.custom_filter_map.get(order)
+        if custom_item is not None and custom_item.order_method is not None:
+            query, order_by = custom_item.order_method(query)
+        else:
+            order_by = getattr(self.model, order, None)
+            if order_by is None or isinstance(order_by, property):
+                logger.warning('Unknown order field %s for %s, ordering by %s', order, type(self).__name__,
+                               self.default_order)
+                order_by = getattr(self.model, self.default_order)
         if desc:
             order_by = descending(order_by)
         return query.order_by(order_by)
@@ -225,7 +231,7 @@ class RedditObjectFilter(Filter):
     filter_include = ['all', 'post_score', 'post_count', 'comment_score', 'comment_count', 'download_count',
                       'last_post_date', 'list_count']
     filter_exclude = ['post_score_limit_operator', 'comment_score_limit_operator', 'lists']
-    order_by_include = ['id', 'name', 'last_download', 'date_added', 'absolute_date_limit', 'date_created',
+    order_by_include = ['id', 'name', 'nickname', 'last_download', 'date_added', 'absolute_date_limit', 'date_created',
                         'post_score', 'post_count', 'content_count', 'comment_count', 'download_count',
                         'last_post_date', 'list_count']
     choices = {'object_type': [USER_OBJECT, SUBREDDIT_OBJECT]}
@@ -241,7 +247,37 @@ class RedditObjectFilter(Filter):
             'download_count': CustomItem(self.filter_download_count, self.order_by_download_count, Integer),
             'last_post_date': CustomItem(self.filter_last_post_date, self.order_by_last_post_date, DateTime),
             'list_count': CustomItem(self.filter_list_count, self.order_by_list_count, Integer),
+            'name_or_nickname': CustomItem(self.filter_name_or_nickname, None, String),
+            'nickname': CustomItem(None, self.order_by_nickname, String),
         }
+
+    def filter_name_or_nickname(self, query, operator: str, value):
+        """
+        Filters reddit objects whose reddit name or nickname matches the value, so that a search finds an object by
+        either of the names it can be shown under.
+        :param query: The query to filter.
+        :type query: Query
+        :param operator: The key of the comparison in op_map, such as 'like' or 'eq'.
+        :type operator: str
+        :param value: The value that the name or nickname is compared to.
+        :return: The filtered query.
+        :rtype: Query
+        """
+        compare = self.op_map[operator]
+        return query.filter(or_(compare(RedditObject.name, value), compare(RedditObject.nickname, value)))
+
+    @staticmethod
+    def order_by_nickname(query):
+        """
+        Orders reddit objects by the name they are displayed under: the nickname when one is set, otherwise the reddit
+        name.  Objects without a nickname are therefore sorted among the others instead of being grouped together.
+        :param query: The query to order.
+        :type query: Query
+        :return: The query and the expression to order it by.
+        :rtype: tuple
+        """
+        shown_name = func.coalesce(func.nullif(func.trim(RedditObject.nickname), ''), RedditObject.name)
+        return query, shown_name.collate('NOCASE')
 
     def get_score_sum_sub(self):
         return self.session.query(Post.significant_reddit_object_id, func.sum(Post.score).label('total_score')) \

@@ -694,6 +694,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
         dialog.show()
         dialog.exec()
+        self.user_list_model.refresh_session()
 
     def subreddit_settings(self, subreddits):
         """Operates the same as the user_settings function"""
@@ -705,6 +706,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
         dialog.show()
         dialog.exec()
+        self.subreddit_list_model.refresh_session()
 
     def user_list_settings(self):
         try:
