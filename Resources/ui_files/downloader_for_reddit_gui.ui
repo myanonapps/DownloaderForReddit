@@ -78,6 +78,7 @@ QListView::item:active {
     <addaction name="open_data_directory_menu_item"/>
     <addaction name="separator"/>
     <addaction name="import_reddit_export_menu_item"/>
+    <addaction name="backup_menu_item"/>
     <addaction name="separator"/>
     <addaction name="minimize_to_tray_menu_item"/>
     <addaction name="separator"/>
@@ -642,6 +643,14 @@ QListView::item:selected {
    </property>
    <property name="toolTip">
     <string>Import the posts, comments, chats and messages from a Reddit data export zip file</string>
+   </property>
+  </action>
+  <action name="backup_menu_item">
+   <property name="text">
+    <string>Backup...</string>
+   </property>
+   <property name="toolTip">
+    <string>Back up the database, and optionally the settings and download directories, to a .tar.gz archive</string>
    </property>
   </action>
   <action name="import_database_file_menu_item">

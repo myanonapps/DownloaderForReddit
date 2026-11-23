@@ -31,8 +31,11 @@ from typing import Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QWidget
+from sqlalchemy import func
 
+from ..core.const import USER_OBJECT
 from ..database.export_models import ExportImport
+from ..database.models import RedditObjectList, User
 from ..database.model_enums import PostDownloadSource
 from ..guiresources.import_reddit_export_dialog_auto import Ui_ImportRedditExportDialog
 from ..utils import injector
@@ -71,8 +74,16 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
                 self.hydration_combo.setCurrentIndex(index)
         self.download_media_check_box.setChecked(bool(self.settings_manager.export_import_queue_downloads))
 
+        self.account_list_combo.addItem("Don't add to a list", None)
+        with injector.get_database_handler().get_scoped_session() as session:
+            for list_id, list_name in session.query(RedditObjectList.id, RedditObjectList.name) \
+                    .filter(RedditObjectList.list_type == USER_OBJECT).order_by(RedditObjectList.name):
+                self.account_list_combo.addItem(list_name, list_id)
+
         self.browse_button.clicked.connect(self.select_file)
+        self.account_line_edit.textChanged.connect(self.update_account_list_combo)
         self.account_line_edit.textChanged.connect(self.update_ok_button)
+        self.update_account_list_combo()
         self.posts_check_box.toggled.connect(self.update_ok_button)
         self.button_box.accepted.connect(self.accept)
         self.update_ok_button()
@@ -166,6 +177,37 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
             return (f'This file was already imported on {previous.import_date_display}. Importing it again only adds '
                     'records that are not stored yet.')
 
+    def update_account_list_combo(self) -> None:
+        """
+        Enables the list choice only when the account named is not in the database yet, because the import adds only a
+        newly created account to a list.  An existing account keeps the lists it is already on.
+        :return: None
+        :rtype: None
+        """
+        name = self.account_line_edit.text().strip().removeprefix('/u/').removeprefix('u/')
+        is_new = bool(name)
+        if is_new:
+            with injector.get_database_handler().get_scoped_session() as session:
+                is_new = session.query(User.id).filter(func.lower(User.name) == name.lower()).first() is None
+        has_lists = self.account_list_combo.count() > 1
+        self.account_list_combo.setEnabled(is_new and has_lists)
+        self.account_list_label.setEnabled(is_new and has_lists)
+        if not has_lists:
+            self.account_list_combo.setToolTip('There are no user lists to add the account to.')
+        elif name and not is_new:
+            self.account_list_combo.setToolTip(f'{name} is already in the database, so it is not added to a list.')
+        else:
+            self.account_list_combo.setToolTip('The user list to add the account to.  Only available when the account is not in the database yet.')
+
+    @property
+    def account_list_id(self) -> Optional[int]:
+        """
+        The id of the user list to add a newly created account to.
+        :return: The list id, or None when the account is not to be added to a list.
+        :rtype: Optional[int]
+        """
+        return self.account_list_combo.currentData() if self.account_list_combo.isEnabled() else None
+
     def update_ok_button(self) -> None:
         """
         Enables the OK button once a valid archive is loaded, an account is named and something is selected.
@@ -192,6 +234,7 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
             import_chats=self.chats_check_box.isChecked(),
             import_private_messages=self.private_messages_check_box.isChecked(),
             chunk_size=int(self.settings_manager.export_import_chunk_size),
+            account_list_id=self.account_list_id,
         )
 
     @property

@@ -68,6 +68,20 @@
        </property>
       </widget>
      </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="account_list_label">
+       <property name="text">
+        <string>Add to list:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="account_list_combo">
+       <property name="toolTip">
+        <string>The user list to add the account to.  Only available when the account is not in the database yet.</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>

@@ -58,10 +58,13 @@ from ..gui.database_views.database_statistics_dialog import DatabaseStatisticsDi
 from ..gui.settings.settings_dialog import SettingsDialog
 from ..gui.export_wizard import ExportWizard
 from ..gui.import_reddit_export_dialog import ImportRedditExportDialog
+from ..gui.backup_dialog import BackupDialog
 from ..gui.invalid_reddit_object_dialog import InvalidRedditObjectDialog, InvalidObject
 from ..core.download_runner import DownloadRunner
 from ..core.update_runner import UpdateRunner
 from ..core.export_import_runner import ExportImportRunner
+from ..core.backup_runner import BackupRunner
+from ..utils.backup.backup_creator import BackupOptions, BackupStats
 from ..utils.importers.reddit_export.export_importer import ExportImportOptions, ExportImportStats
 from ..core.cli import CLI
 from ..database.models import RedditObject, RedditObjectList, ListAssociation
@@ -125,6 +128,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.conversation_viewer = None
         self.export_import_download_media = False
         self.importing_export = False
+        self.backup_runner = None
+        self.backup_thread = None
+        self.backing_up = False
         self.user_auth = None
         self.progress_limit = 0
         self.progress = 0
@@ -180,6 +186,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
         self.import_reddit_export_menu_item.triggered.connect(self.open_import_reddit_export_dialog)
+        self.backup_menu_item.triggered.connect(self.open_backup_dialog)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
         self.exit_menu_item.triggered.connect(self.close)
         # endregion
@@ -781,6 +788,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.importing_export:
             Message.send_warning('A Reddit data export is being imported; downloads can start once it has finished')
             return
+        if self.backing_up:
+            Message.send_warning('A backup is running; downloads can start once it has finished')
+            return
         self.started_download_gui_shift()
 
         self.download_runner = DownloadRunner(
@@ -879,8 +889,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         :return: None
         :rtype: None
         """
-        if self.running or self.importing_export:
-            message_dialogs.generic_message(self, 'Busy', 'Wait for the current download or import to finish before importing a Reddit data export.')
+        if self.running or self.importing_export or self.backing_up:
+            message_dialogs.generic_message(self, 'Busy', 'Wait for the current download, import or backup to finish before importing a Reddit data export.')
             return
         dialog = ImportRedditExportDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.zip_path is not None:
@@ -935,6 +945,60 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.export_import_download_media and stats.new_post_ids and not stats.cancelled:
             Message.send_info(f'Downloading media from {len(stats.new_post_ids):,} imported posts')
             self.run_unextracted_only(id_list=stats.new_post_ids)
+
+    def open_backup_dialog(self) -> None:
+        """
+        Asks the user where to write a backup and what to include, then starts it.
+        :return: None
+        :rtype: None
+        """
+        if self.running or self.importing_export or self.backing_up:
+            message_dialogs.generic_message(self, 'Busy', 'Wait for the current download, import or backup to finish before starting a backup.')
+            return
+        dialog = BackupDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.run_backup(dialog.options)
+
+    def run_backup(self, options: BackupOptions) -> None:
+        """
+        Runs a backup on a background thread.  The settings are saved first so that the backed up settings file is
+        current.
+        :param options: What to back up and where.
+        :type options: BackupOptions
+        :return: None
+        :rtype: None
+        """
+        self.settings_manager.save_all()
+        self.backing_up = True
+        self.init_progress_bar()
+        self.update_download_action_states()
+
+        self.backup_runner = BackupRunner(options)
+        self.backup_thread = QThread()
+        self.backup_runner.moveToThread(self.backup_thread)
+        # Direct, so that the stop reaches the runner while its thread is busy in run(); it only sets a threading.Event.
+        self.stop_download_signal.connect(self.backup_runner.stop, Qt.ConnectionType.DirectConnection)
+        self.backup_thread.started.connect(self.backup_runner.run)
+        self.backup_runner.finished.connect(self.backup_finished)
+        self.backup_runner.finished.connect(self.backup_thread.quit)
+        self.backup_runner.finished.connect(self.backup_runner.deleteLater)
+        self.backup_thread.finished.connect(self.backup_thread.deleteLater)
+        self.backup_thread.start()
+        self.logger.info('Backup thread started')
+
+    def backup_finished(self, stats: BackupStats) -> None:
+        """
+        Restores the window after a backup.
+        :param stats: The results of the backup.
+        :type stats: BackupStats
+        :return: None
+        :rtype: None
+        """
+        self.logger.info('Backup finished: %s', stats.archive_path)
+        self.backing_up = False
+        self.backup_runner = None
+        self.progress_bar.setVisible(False)
+        self.update_download_action_states()
 
     def handle_message(self, message:Message):
         if message.message_type == MessageType.STATUS_TRAY:
@@ -1428,11 +1492,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.system_tray_icon.setToolTip('Downloader For Reddit')
 
     def update_download_action_states(self):
-        busy = self.running or self.importing_export
+        busy = self.running or self.importing_export or self.backing_up
         self.download_action.setEnabled(not busy)
         self.soft_stop_download_action.setEnabled(busy)
         self.terminate_download_action.setEnabled(busy)
         self.import_reddit_export_menu_item.setEnabled(not busy)
+        self.backup_menu_item.setEnabled(not busy)
 
     def check_invalid(self):
         if len(self.invalid_list) > 0:

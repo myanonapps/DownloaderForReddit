@@ -36,7 +36,8 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
-from ....database.models import Post, Comment, User, Subreddit, DownloadSession
+from ....core.const import USER_OBJECT
+from ....database.models import Post, Comment, User, Subreddit, DownloadSession, ListAssociation, RedditObjectList
 from ....database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
 from ...html_formatting import markdown_to_html
 from ... import injector
@@ -65,6 +66,8 @@ class ExportImportOptions:
     import_chats: bool = True
     import_private_messages: bool = True
     chunk_size: int = 500
+    # The user list a newly created account is added to.  An account that is already in the database is left alone.
+    account_list_id: Optional[int] = None
 
 
 @dataclass
@@ -181,10 +184,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             session.commit()
             self.stats.export_import_id = export_import.id
             self.stats.download_session_id = download_session.id
-            # As when a user is added to a list, the owner is created significant, and an existing user is left as it is
-            self._owner = self._get_user(session, self.options.account_name, significant=True)
-            if self._owner is None:
-                raise ValueError(f'{self.options.account_name!r} is not a valid reddit user name')
+            self._owner = self._get_owner(session)
             session.commit()
 
             steps = (
@@ -229,7 +229,34 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         if self.progress_callback is not None:
             self.progress_callback(record_type, count)
 
-    def _get_user(self, session: Session, name: Optional[str], significant: bool = False) -> Optional[User]:
+    def _get_owner(self, session: Session) -> User:
+        """
+        Returns the account the export belongs to, creating it if needed.  As when a user is added to a list, a new
+        owner is created significant, and an existing user is left as it is.  A new owner is added to the user list
+        named in the options, and takes that list's download defaults.
+        :param session: The database session.
+        :type session: Session
+        :return: The owner.
+        :rtype: User
+        :raises ValueError: When the account name is not a valid reddit user name, or the list id names no user list.
+        """
+        account_list = None
+        if self.options.account_list_id is not None:
+            account_list = session.query(RedditObjectList).filter(RedditObjectList.id == self.options.account_list_id) \
+                .filter(RedditObjectList.list_type == USER_OBJECT).first()
+            if account_list is None:
+                raise ValueError(f'There is no user list with id {self.options.account_list_id}')
+        defaults = account_list.get_default_dict() if account_list is not None else None
+        owner = self._get_user(session, self.options.account_name, significant=True, defaults=defaults)
+        if owner is None:
+            raise ValueError(f'{self.options.account_name!r} is not a valid reddit user name')
+        if account_list is not None and owner in session.new:
+            session.add(ListAssociation(reddit_object=owner, reddit_object_list=account_list))
+            logger.info('Added %s to user list %s', owner.name, account_list.name)
+        return owner
+
+    def _get_user(self, session: Session, name: Optional[str], significant: bool = False,
+                  defaults: Optional[dict[str, object]] = None) -> Optional[User]:
         """
         Returns the User with a name, creating it if needed.  Names that are not valid reddit user names (deleted
         accounts, subreddit modmail addresses) give None.
@@ -239,6 +266,9 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         :type name: Optional[str]
         :param significant: Whether a newly created user is significant.  An existing user's flag is never changed.
         :type significant: bool
+        :param defaults: Download settings for a newly created user, usually a list's defaults.  Never applied to an
+                         existing user.
+        :type defaults: Optional[dict[str, object]]
         :return: The user, or None.
         :rtype: Optional[User]
         """
@@ -252,7 +282,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         if user is None:
             user = session.query(User).filter(User.name == name).first()
             if user is None:
-                user = User(name=name, significant=significant)
+                user = User(name=name, significant=significant, **(defaults or {}))
                 session.add(user)
             self._users[key] = user
         return user

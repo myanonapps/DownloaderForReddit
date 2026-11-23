@@ -441,6 +441,17 @@ class SettingsManager:
         self.export_import_chunk_size = self.get('export_import', 'export_import_chunk_size', 500)
         # endregion
 
+        # region Backup
+        # Manual backup (File > Backup).  The database is always backed up; the settings file and the base download
+        # directories are optional.  The compression level is gzip's, from 1 (fastest) to 9 (smallest).
+        self.last_backup_directory = self.get('backup', 'last_backup_directory',
+                                              os.path.join(system_util.get_data_directory(), 'backups'))
+        self.backup_include_config = self.get('backup', 'backup_include_config', True)
+        self.backup_include_user_directory = self.get('backup', 'backup_include_user_directory', False)
+        self.backup_include_subreddit_directory = self.get('backup', 'backup_include_subreddit_directory', False)
+        self.backup_compression_level = self.get('backup', 'backup_compression_level', 6)
+        # endregion
+
         # region Misc Dialogs
         self.settings_dialog_geom = self.get('misc_dialogs', 'settings_dialog_geom',
                                              {'width': 1169, 'height': 820, 'x': 0, 'y': 0})

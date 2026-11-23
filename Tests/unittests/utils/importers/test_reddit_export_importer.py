@@ -26,9 +26,10 @@ import threading
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from DownloaderForReddit.core.const import USER_OBJECT
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
-from DownloaderForReddit.database.models import Post, Comment, User
+from DownloaderForReddit.database.models import Post, Comment, User, RedditObjectList
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.utils.importers.reddit_export.export_importer import (ExportImportOptions, ExportImportStats,
                                                                                RedditExportImporter)
@@ -239,3 +240,73 @@ class TestRedditExportImporter(TestCase):
             stats = RedditExportImporter(reader, ExportImportOptions(account_name=ACCOUNT), stop_event=stop).run()
         self.assertTrue(stats.cancelled)
         self.assertEqual(0, stats.total_added)
+
+
+class TestRedditExportImporterAccountList(TestCase):
+    """Tests for adding the export's account to a user list."""
+
+    def setUp(self) -> None:
+        """Gives each test a fresh in-memory database and a temporary directory for its archive."""
+        injector.settings_manager = MagicMock()
+        self.db = DatabaseHandler(in_memory=True)
+        injector.database_handler = self.db
+        self.temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with  # cleaned up in tearDown
+        self.export_path = write_export(self.temp_dir.name)
+
+    def tearDown(self) -> None:
+        """Removes the temporary directory."""
+        self.temp_dir.cleanup()
+
+    def make_user_list(self, name: str = 'Imported', post_limit: int = 77) -> int:
+        """
+        Creates a user list.
+        :param name: The list name.
+        :type name: str
+        :param post_limit: The list's default post limit, to check that a new member takes the list's defaults.
+        :type post_limit: int
+        :return: The new list's id.
+        :rtype: int
+        """
+        with self.db.get_scoped_session() as session:
+            user_list = RedditObjectList(name=name, list_type=USER_OBJECT, post_limit=post_limit)
+            session.add(user_list)
+            session.commit()
+            return user_list.id
+
+    def import_into_list(self, list_id: int) -> None:
+        """
+        Imports the default export, asking for the account to be added to a list.
+        :param list_id: The list id.
+        :type list_id: int
+        :return: None
+        :rtype: None
+        """
+        with RedditExportReader(self.export_path) as reader:
+            RedditExportImporter(reader, ExportImportOptions(account_name=ACCOUNT, account_list_id=list_id)).run()
+
+    def test_new_account_added_to_list(self) -> None:
+        """A newly created account is added to the chosen list and takes its download defaults."""
+        list_id = self.make_user_list()
+        self.import_into_list(list_id)
+        with self.db.get_scoped_session() as session:
+            user_list = session.query(RedditObjectList).get(list_id)
+            members = user_list.reddit_objects.all()
+            self.assertEqual([ACCOUNT], [member.name for member in members])
+            self.assertEqual(77, members[0].post_limit)
+            self.assertTrue(members[0].significant)
+
+    def test_existing_account_not_added_to_list(self) -> None:
+        """An account already in the database is not added to a list, and its settings are left as they were."""
+        with self.db.get_scoped_session() as session:
+            session.add(User(name=ACCOUNT, post_limit=5))
+            session.commit()
+        list_id = self.make_user_list()
+        self.import_into_list(list_id)
+        with self.db.get_scoped_session() as session:
+            self.assertEqual(0, session.query(RedditObjectList).get(list_id).reddit_objects.count())
+            self.assertEqual(5, session.query(User).filter(User.name == ACCOUNT).one().post_limit)
+
+    def test_unknown_list_raises(self) -> None:
+        """A list id that names no user list is refused."""
+        with self.assertRaises(ValueError):
+            self.import_into_list(12345)
