@@ -1,7 +1,8 @@
 import hashlib
 from http import HTTPStatus
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 import requests
 
 from DownloaderForReddit.core.runner import Runner, verify_run
@@ -38,6 +39,7 @@ class Downloader(Runner):
         self.executor = None
         self.multi_part_executor = ThreadPoolExecutor(8)
         self.futures = []
+        self._futures_lock = threading.Lock()
         self.hold = False
         self.hard_stop = False
         self.download_count = 0
@@ -64,8 +66,7 @@ class Downloader(Runner):
                     self.hold = False
                 else:
                     future = self.executor.submit(self.download, content_id=item)
-                    future.add_done_callback(self.remove_future)
-                    self.futures.append(future)
+                    self._track_future(future)
             else:
                 break
         self.executor.shutdown(wait=True)
@@ -79,8 +80,26 @@ class Downloader(Runner):
         """
         self.executor = ThreadPoolExecutor(self.thread_count)
 
-    def remove_future(self, future):
-        self.futures.remove(future)
+    def _track_future(self, future: Future) -> None:
+        """
+        Records a submitted future as outstanding work and arranges for it to be dropped when it completes.  The future
+        is added to the list before the callback is registered, because `add_done_callback` runs the callback
+        immediately if the future has already finished.
+        :param future: The future returned by submitting a download to the executor.
+        :type future: Future
+        """
+        with self._futures_lock:
+            self.futures.append(future)
+        future.add_done_callback(self.remove_future)
+
+    def remove_future(self, future: Future) -> None:
+        """
+        Removes a completed future from the outstanding work list.  Called by the executor when the future finishes.
+        :param future: The future that has finished.
+        :type future: Future
+        """
+        with self._futures_lock:
+            self.futures.remove(future)
 
     @verify_run
     def download(self, content_id: int):

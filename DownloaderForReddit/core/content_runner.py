@@ -1,5 +1,6 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from queue import Empty
 from sqlalchemy.orm.exc import MultipleResultsFound
 
@@ -27,6 +28,7 @@ class ContentRunner(Runner):
         self.thread_count = self.settings_manager.extraction_thread_count
         self.executor = ThreadPoolExecutor(max_workers=self.thread_count)
         self.futures = []
+        self._futures_lock = threading.Lock()
         self.hold = False
         self.submit_hold = False
 
@@ -55,8 +57,7 @@ class ContentRunner(Runner):
                                                           significant_id=significant_id)
                         else:
                             future = self.executor.submit(self.finish_post, post_id=extraction_object)
-                        future.add_done_callback(self.remove_future)
-                        self.futures.append(future)
+                        self._track_future(future)
                 else:
                     break
             except Empty:
@@ -67,12 +68,26 @@ class ContentRunner(Runner):
         self.download_queue.put(None)
         self.logger.debug('Content extractor exiting')
 
-    def remove_future(self, future):
-        try:
+    def _track_future(self, future: Future) -> None:
+        """
+        Records a submitted future as outstanding work and arranges for it to be dropped when it completes.  The future
+        is added to the list before the callback is registered, because `add_done_callback` runs the callback
+        immediately if the future has already finished.
+        :param future: The future returned by submitting an extraction task to the executor.
+        :type future: Future
+        """
+        with self._futures_lock:
+            self.futures.append(future)
+        future.add_done_callback(self.remove_future)
+
+    def remove_future(self, future: Future) -> None:
+        """
+        Removes a completed future from the outstanding work list.  Called by the executor when the future finishes.
+        :param future: The future that has finished.
+        :type future: Future
+        """
+        with self._futures_lock:
             self.futures.remove(future)
-        except ValueError:
-            Message.send_extraction_error("Missing future, runner may be out of sync with UI", session_id=self.download_session_id)
-            return
 
     @verify_run
     def handle_submission(self, submission, significant_id):
@@ -83,6 +98,7 @@ class ContentRunner(Runner):
         :param significant_id: The id of the reddit object for which the submissions was extracted from reddit.
         """
         with self.db.get_scoped_session() as session:
+            post = None
             try:
                 post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
             except MultipleResultsFound:

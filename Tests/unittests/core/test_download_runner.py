@@ -14,7 +14,7 @@ logging.disable(logging.CRITICAL)
 DL = 'DownloaderForReddit.core.download_runner.DownloadRunner'
 
 
-@patch('DownloaderForReddit.utils.reddit_utils.get_reddit_instance', return_value=None)
+@patch('DownloaderForReddit.core.download_runner.RedditAdapterManager')
 class TestDownloadRunner(TestCase):
 
     def submission_generator(self, submission_list):
@@ -37,7 +37,7 @@ class TestDownloadRunner(TestCase):
     @patch(f'{DL}.get_subreddit_submissions')
     @patch(f'{DL}.get_user_submissions')
     @patch(f'{DL}.get_reddit_object_submissions')
-    def test_setup_for_user_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions, reddit_utils):
+    def test_setup_for_user_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions, adapter_manager):
         download_runner = DownloadRunner(user_id_list=[2, 3, 4])
         download_runner.run_download()
         get_ro_submissions.assert_not_called()
@@ -48,7 +48,7 @@ class TestDownloadRunner(TestCase):
     @patch(f'{DL}.get_user_submissions')
     @patch(f'{DL}.get_reddit_object_submissions')
     def test_setup_for_subreddit_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions,
-                                          reddit_utils):
+                                          adapter_manager):
         download_runner = DownloadRunner(subreddit_id_list=[2, 3, 4])
         download_runner.run_download()
         get_ro_submissions.assert_not_called()
@@ -58,7 +58,7 @@ class TestDownloadRunner(TestCase):
     @patch(f'{DL}.get_subreddit_submissions')
     @patch(f'{DL}.get_user_submissions')
     @patch(f'{DL}.get_reddit_object_submissions')
-    def test_setup_for_ro_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions, reddit_utils):
+    def test_setup_for_ro_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions, adapter_manager):
         download_runner = DownloadRunner(reddit_object_id_list=[2, 3, 4])
         download_runner.run_download()
         get_ro_submissions.assert_called()
@@ -70,7 +70,7 @@ class TestDownloadRunner(TestCase):
     @patch(f'{DL}.get_user_submissions')
     @patch(f'{DL}.get_reddit_object_submissions')
     def test_setup_for_restricted_download(self, get_ro_submissions, get_user_submissions, get_sub_submissions,
-                                           validate_subreddit_list, reddit_utils):
+                                           validate_subreddit_list, adapter_manager):
         download_runner = DownloadRunner(user_id_list=[2, 3, 4], subreddit_id_list=[4, 6, 2])
         download_runner.run_download()
         get_ro_submissions.assert_not_called()
@@ -80,7 +80,7 @@ class TestDownloadRunner(TestCase):
         self.assertTrue(download_runner.filter_subreddits)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_old_stickied_posts(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_old_stickied_posts(self, get_raw_submissions, adapter_manager):
         user = get_user(absolute_date_limit=self.now - timedelta(days=10))
         mock_submissions = []
         for x in range(2):
@@ -99,7 +99,7 @@ class TestDownloadRunner(TestCase):
             self.assertFalse(sub.stickied)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_new_stickied_posts(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_new_stickied_posts(self, get_raw_submissions, adapter_manager):
         user = get_user(absolute_date_limit=self.now - timedelta(days=10))
         mock_submissions = []
         for x in range(2):
@@ -121,7 +121,7 @@ class TestDownloadRunner(TestCase):
         self.assertEqual(2, stickied)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_no_stickied_posts(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_no_stickied_posts(self, get_raw_submissions, adapter_manager):
         user = get_user(absolute_date_limit=self.now - timedelta(days=10))
         mock_submissions = []
         for x in range(20):
@@ -137,7 +137,7 @@ class TestDownloadRunner(TestCase):
             self.assertGreater(sub.created, user.absolute_date_limit.timestamp())
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_old_stickied_posts_restricted_download(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_old_stickied_posts_restricted_download(self, get_raw_submissions, adapter_manager):
         allowed_subreddit = get_subreddit(name='allowed')
         setattr(allowed_subreddit, 'display_name', 'allowed')
         forbidden_subreddit = get_subreddit(name='forbidden')
@@ -168,7 +168,7 @@ class TestDownloadRunner(TestCase):
             self.assertNotEqual(sub.subreddit, forbidden_subreddit)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_new_stickied_posts_restricted_download(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_new_stickied_posts_restricted_download(self, get_raw_submissions, adapter_manager):
         allowed_subreddit = get_subreddit(name='allowed')
         setattr(allowed_subreddit, 'display_name', 'allowed')
         forbidden_subreddit = get_subreddit(name='forbidden')
@@ -202,7 +202,7 @@ class TestDownloadRunner(TestCase):
         self.assertEqual(2, stickied)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_no_stickied_posts_restricted_download(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_no_stickied_posts_restricted_download(self, get_raw_submissions, adapter_manager):
         allowed_subreddit = get_subreddit(name='allowed')
         setattr(allowed_subreddit, 'display_name', 'allowed')
         forbidden_subreddit = get_subreddit(name='forbidden')
@@ -229,7 +229,7 @@ class TestDownloadRunner(TestCase):
             self.assertNotEqual(sub.subreddit, forbidden_subreddit)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_old_pinned_posts(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_old_pinned_posts(self, get_raw_submissions, adapter_manager):
         user = get_user(absolute_date_limit=self.now - timedelta(days=10))
         mock_submissions = []
         for x in range(2):
@@ -248,7 +248,7 @@ class TestDownloadRunner(TestCase):
             self.assertFalse(sub.stickied)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_new_pinned_posts(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_new_pinned_posts(self, get_raw_submissions, adapter_manager):
         user = get_user(absolute_date_limit=self.now - timedelta(days=10))
         mock_submissions = []
         for x in range(2):
@@ -270,7 +270,7 @@ class TestDownloadRunner(TestCase):
         self.assertEqual(2, pinned)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_old_pinned_posts_restricted_download(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_old_pinned_posts_restricted_download(self, get_raw_submissions, adapter_manager):
         allowed_subreddit = get_subreddit(name='allowed')
         setattr(allowed_subreddit, 'display_name', 'allowed')
         forbidden_subreddit = get_subreddit(name='forbidden')
@@ -301,7 +301,7 @@ class TestDownloadRunner(TestCase):
             self.assertNotEqual(sub.subreddit, forbidden_subreddit)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_get_submissions_with_new_pinned_posts_restricted_download(self, get_raw_submissions, reddit_utils):
+    def test_get_submissions_with_new_pinned_posts_restricted_download(self, get_raw_submissions, adapter_manager):
         allowed_subreddit = get_subreddit(name='allowed')
         setattr(allowed_subreddit, 'display_name', 'allowed')
         forbidden_subreddit = get_subreddit(name='forbidden')
@@ -335,7 +335,7 @@ class TestDownloadRunner(TestCase):
         self.assertEqual(2, pinned)
 
     @patch(f'{DL}.get_raw_submissions')
-    def test_too_many_requests_exception_is_properly_handled(self, get_raw_submissions, reddit_utils):
+    def test_too_many_requests_exception_is_properly_handled(self, get_raw_submissions, adapter_manager):
         user = get_user()
         mock_submissions = []
         for x in range(4):
