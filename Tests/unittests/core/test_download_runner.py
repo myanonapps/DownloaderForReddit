@@ -7,7 +7,7 @@ import prawcore
 from DownloaderForReddit.core.download_runner import DownloadRunner
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.utils import injector
-from Tests.mockobjects.mock_objects import MockPrawSubmission, get_user, get_subreddit
+from Tests.mockobjects.mock_objects import MockPrawSubmission, get_user, get_subreddit, get_post
 
 
 logging.disable(logging.CRITICAL)
@@ -348,3 +348,36 @@ class TestDownloadRunner(TestCase):
         get_raw_submissions.assert_called()
         self.assertEqual(0, len(submissions))
 
+
+
+class TestDownloadRunnerUnfinishedLists(TestCase):
+    """Tests for queueing unextracted posts and undownloaded content from supplied id lists."""
+
+    def setUp(self) -> None:
+        """Uses a fresh in-memory database and mocked settings."""
+        injector.settings_manager = MagicMock()
+        injector.database_handler = DatabaseHandler(in_memory=True)
+
+    def test_unextracted_id_list(self) -> None:
+        """A supplied list of post ids is queued as is."""
+        runner = DownloadRunner(run_unextracted=True, unextracted_id_list=[4, 9])
+        runner.run_unextracted_posts()
+        queued = [runner.submission_queue.get_nowait().extraction_object for _ in range(runner.submission_queue.qsize())]
+        self.assertEqual([4, 9], queued)
+
+    def test_undownloaded_id_list(self) -> None:
+        """A supplied list of content ids is queued as is."""
+        runner = DownloadRunner(run_undownloaded=True, undownloaded_id_list=[3])
+        runner.run_undownloaded_content()
+        self.assertEqual(3, runner.download_queue.get_nowait())
+
+    def test_unextracted_from_database(self) -> None:
+        """Without a list, unextracted posts are read from the database."""
+        with injector.get_database_handler().get_scoped_session() as session:
+            post = get_post(session=session)
+            post.extracted = False
+            session.commit()
+            post_id = post.id
+        runner = DownloadRunner(run_unextracted=True)
+        runner.run_unextracted_posts()
+        self.assertEqual(post_id, runner.submission_queue.get_nowait().extraction_object)

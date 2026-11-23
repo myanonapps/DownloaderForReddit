@@ -33,6 +33,21 @@ USER_AGENT = (
 DEFAULT_WAIT_S=10
 DEFAULT_RETRIES=20
 
+
+def bare_reddit_id(value: str) -> str:
+    """
+    Removes a reddit type prefix such as ``t1_`` or ``t3_`` from an id.
+
+    :param value: An id, with or without its type prefix.
+    :type value: str
+    :return: The id without its prefix.
+    :rtype: str
+    """
+    value = value.strip()
+    if len(value) > 3 and value[0] == 't' and value[1].isdigit() and value[2] == '_':
+        return value[3:]
+    return value
+
 class RedditDataInterface(ABC):
     """
     Abstract base class for Reddit Data Interface implementations.
@@ -111,6 +126,36 @@ class RedditDataInterface(ABC):
             Submission object from the Reddit Data Interface
         """
         pass
+
+    def submissions_by_ids(self, ids: list[str]) -> list[Any]:
+        """
+        Looks up several submissions at once, for filling in data that only their ids are known for.  This default
+        fetches them one by one; adapters with a batch lookup override it.
+
+        :param ids: Submission ids, with or without the ``t3_`` prefix.
+        :type ids: list[str]
+        :return: The submissions that were found, in no particular order.  Ids the data source does not hold are left
+                 out.
+        :rtype: list[Any]
+        """
+        found = []
+        for submission_id in ids:
+            item = self.submission(bare_reddit_id(submission_id))
+            if item is not None:
+                found.append(item)
+        return found
+
+    def comments_by_ids(self, ids: list[str]) -> list[Any]:
+        """
+        Looks up several comments at once.  This default finds none; adapters with a comment lookup override it.
+
+        :param ids: Comment ids, with or without the ``t1_`` prefix.
+        :type ids: list[str]
+        :return: The comments that were found.  Ids the data source does not hold are left out.
+        :rtype: list[Any]
+        """
+        self.logger.debug("%s cannot look up %d comments by id", self.__class__.__name__, len(ids))
+        return []
 
     def get_comments(self, submission_id: str, limit: int | None = None) -> list[dict]:
         """

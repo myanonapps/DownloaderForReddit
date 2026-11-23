@@ -19,17 +19,19 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, override
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
+from DownloaderForReddit.data_interface.adapters.adapter_comment import AdapterComment
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
-from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
+from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet, bare_reddit_id
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.utils.general_utils import dig
 
 
 BASE_URL = "https://arctic-shift.photon-reddit.com/"
 SUBMISSION_FULLNAME_PREFIX = "t3_"
+MAX_IDS_PER_REQUEST = 500
 
 class ArcticShiftAdapter(RedditDataInterface):
     MAX_LIMIT = 100
@@ -70,6 +72,53 @@ class ArcticShiftAdapter(RedditDataInterface):
         if not isinstance(items, list) or not items:
             return None
         return AdapterSubmission(self._source, items[0], comment_loader=self.get_comments)
+
+    def _items_by_ids(self, endpoint: str, ids: list[str]) -> list[dict]:
+        """
+        Fetches items from one of the ``ids`` endpoints, at most 500 ids per request.
+
+        :param endpoint: The endpoint, ``api/posts/ids`` or ``api/comments/ids``.
+        :type endpoint: str
+        :param ids: The ids, with or without their type prefix.
+        :type ids: list[str]
+        :return: The item dictionaries the archive returned.
+        :rtype: list[dict]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        bare_ids = [bare_reddit_id(item) for item in ids]
+        items: list[dict] = []
+        for start in range(0, len(bare_ids), MAX_IDS_PER_REQUEST):
+            data = self.make_http_request(endpoint, {"ids": ",".join(bare_ids[start:start + MAX_IDS_PER_REQUEST])})
+            found = dig(data, 'data', default=[])
+            if isinstance(found, list):
+                items.extend(found)
+        return items
+
+    @override
+    def submissions_by_ids(self, ids: list[str]) -> list[AdapterSubmission]:
+        """
+        Looks up several submissions through the ``api/posts/ids`` endpoint.
+
+        :param ids: Submission ids, with or without the ``t3_`` prefix.
+        :type ids: list[str]
+        :return: The submissions the archive holds.
+        :rtype: list[AdapterSubmission]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        return [AdapterSubmission(self._source, item, comment_loader=self.get_comments) for item in self._items_by_ids("api/posts/ids", ids)]
+
+    @override
+    def comments_by_ids(self, ids: list[str]) -> list[AdapterComment]:
+        """
+        Looks up several comments through the ``api/comments/ids`` endpoint.
+
+        :param ids: Comment ids, with or without the ``t1_`` prefix.
+        :type ids: list[str]
+        :return: The comments the archive holds.
+        :rtype: list[AdapterComment]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        return [AdapterComment(self._source, item) for item in self._items_by_ids("api/comments/ids", ids)]
 
     @override
     def get_comments(self, submission_id: str, limit: int | None = None) -> list[dict]:

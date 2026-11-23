@@ -195,33 +195,37 @@ class DownloadRunner(QObject):
 
     def run_unextracted_posts(self):
         self.logger.debug('Running unextracted posts')
-        post_id_list = self.unextracted_id_list
-        if post_id_list is None:
+        if self.unextracted_id_list is not None:
+            post_ids = list(self.unextracted_id_list)
+        else:
             with self.db.get_scoped_session() as session:
                 # pylint: disable=singleton-comparison
-                post_id_list = session.query(Post.id)\
+                query = session.query(Post.id)\
                     .filter(Post.extracted == False) \
                     .filter(Post.retry_attempts <= 3) \
                     .filter(or_(Post.extraction_error == None, Post.extraction_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug('%d unfinished posts to download', post_id_list.count())
-        for post_id, in post_id_list.all():  # comma used to unpack result tuple
+                post_ids = [post_id for post_id, in query]  # comma used to unpack result tuple
+        self.logger.debug('%d unfinished posts to download', len(post_ids))
+        for post_id in post_ids:
             extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None)
             self.submission_queue.put(extraction_set)
         self.logger.debug('Finished unextracted posts')
 
     def run_undownloaded_content(self):
         self.logger.debug('Running undownloaded content')
-        content_id_list = self.undownloaded_id_list
-        if content_id_list is None:
+        if self.undownloaded_id_list is not None:
+            content_ids = list(self.undownloaded_id_list)
+        else:
             with self.db.get_scoped_session() as session:
                 # pylint: disable=singleton-comparison
-                content_id_list = session.query(Content)\
+                query = session.query(Content.id)\
                     .filter(Content.downloaded == False) \
                     .filter(Content.retry_attempts <= 3) \
                     .filter(or_(Content.download_error == None, Content.download_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug('%d unfinished content items to download', content_id_list.count())
-        for content in content_id_list.all():
-            self.download_queue.put(content.id)
+                content_ids = [content_id for content_id, in query]  # comma used to unpack result tuple
+        self.logger.debug('%d unfinished content items to download', len(content_ids))
+        for content_id in content_ids:
+            self.download_queue.put(content_id)
         self.logger.debug('Finished undownloaded content')
 
     def run(self):

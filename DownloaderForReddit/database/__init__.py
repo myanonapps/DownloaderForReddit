@@ -2,6 +2,7 @@ from sqlalchemy import event
 
 from ..scheduling.tasks import DownloadTask  # import here so the database table is created along with the others
 from .models import Post, Content, Comment
+from . import export_models  # import here so the export import tables are created with the others
 from ..messaging.message import Message, MessageType
 
 

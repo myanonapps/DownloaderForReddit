@@ -26,7 +26,14 @@ The venv is in `.venv` (Python 3.12). Run everything from the repo root, because
 
 **User data** lives in `system_util.get_data_directory()` (`%APPDATA%/SomeGuySoftware/DownloaderForReddit`, `~/.SomeGuySoftware/DownloaderForReddit` on Linux). It contains `config.toml` (read by `persistence/settings_manager.py`, which exposes config keys as attributes) and the SQLite database.
 
-**Database**: SQLAlchemy 1.3 ORM in `database/models.py`, with enums in `model_enums.py`. `DatabaseHandler` provides `get_scoped_session()` context managers. Schema changes need an alembic revision in `alembic/versions/`, plus a version bump so that `Migrator` will run it.
+**Database**: SQLAlchemy 1.3 ORM in `database/models.py`, with enums in `model_enums.py`. `DatabaseHandler` provides `get_scoped_session()` context managers. Schema changes need an alembic revision in `alembic/versions/`, plus a version bump so that `Migrator` will run it. `DatabaseHandler.__init__` runs `create_all()` before `Migrator` runs, so new tables (and their indexes) already exist when a migration runs. A migration must skip whatever already exists (see `3e5a9c1d7b42_add_export_import_tables.py`), while new columns on existing tables still come only from the migration. Any test that ends up calling `injector.get_database_handler()` must first set `injector.database_handler = DatabaseHandler(in_memory=True)`, or it opens the real user database.
+
+**Reddit data export import** (`utils/importers/reddit_export/`, specific to the fork): it imports the zip Reddit sends for a data request.
+- `RedditExportReader` streams the csv files out of the zip (nothing is extracted).
+- `RedditExportImporter` upserts posts, comments, chats and private messages. Chats and private messages are stored in the `ChatChannel`, `ChatMessage` and `PrivateMessage` models in `database/export_models.py`.
+- `ExportHydrator` can optionally fill in scores and metadata through an adapter's `submissions_by_ids`/`comments_by_ids`.
+- `core/export_import_runner.py` runs this on a QThread.
+- The GUI is in `gui/import_reddit_export_dialog.py` (File menu) and `gui/database_views/conversation_viewer.py` (Database menu).
 
 **Download pipeline** (`core/`): `DownloadRunner` (a QObject that the GUI runs in a QThread) creates a `DownloadSession`, then starts two worker threads joined by queues:
 1. The runner fetches submissions for each user or subreddit and pushes them onto `submission_queue`.

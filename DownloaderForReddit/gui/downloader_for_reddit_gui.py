@@ -27,8 +27,9 @@ import io
 import platform
 from datetime import datetime
 import logging
+from typing import Optional
 from PyQt6.QtWidgets import (QComboBox, QMainWindow, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
-                             QMessageBox, QStyle, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
+                             QMessageBox, QStyle, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication, QDialog)
 from PyQt6.QtCore import QModelIndex, QThread, Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QCursor, QPixmap, QIcon, QActionGroup
 from PyQt6.QtGui import QColor
@@ -40,6 +41,7 @@ from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.gui.database_views.database_viewer import DatabaseViewer
+from DownloaderForReddit.gui.database_views.conversation_viewer import ConversationViewer
 from DownloaderForReddit.persistence.settings_manager import DownloadScope, SettingsManager
 
 from ..core.user_auth import UserAuth
@@ -55,9 +57,12 @@ from ..gui.database_views.database_dialog import DatabaseDialog
 from ..gui.database_views.database_statistics_dialog import DatabaseStatisticsDialog
 from ..gui.settings.settings_dialog import SettingsDialog
 from ..gui.export_wizard import ExportWizard
+from ..gui.import_reddit_export_dialog import ImportRedditExportDialog
 from ..gui.invalid_reddit_object_dialog import InvalidRedditObjectDialog, InvalidObject
 from ..core.download_runner import DownloadRunner
 from ..core.update_runner import UpdateRunner
+from ..core.export_import_runner import ExportImportRunner
+from ..utils.importers.reddit_export.export_importer import ExportImportOptions, ExportImportStats
 from ..core.cli import CLI
 from ..database.models import RedditObject, RedditObjectList, ListAssociation
 from ..database.filters import RedditObjectFilter
@@ -115,6 +120,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.download_runner = None
         self.update_runner = None
         self.update_check_thread = None
+        self.export_import_runner = None
+        self.export_import_thread = None
+        self.conversation_viewer = None
+        self.export_import_download_media = False
+        self.importing_export = False
         self.user_auth = None
         self.progress_limit = 0
         self.progress = 0
@@ -169,6 +179,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.connect_reddit_account_menu_item.setText("Reddit Account")
             self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
+        self.import_reddit_export_menu_item.triggered.connect(self.open_import_reddit_export_dialog)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
         self.exit_menu_item.triggered.connect(self.close)
         # endregion
@@ -197,6 +208,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         # region Database Menu
         self.database_browser_menu_item.triggered.connect(self.display_database_browser)
+        self.conversations_menu_item.triggered.connect(self.display_conversation_viewer)
         self.database_view_menu_item.triggered.connect(self.open_database_view_dialog)
         self.download_sessions_view_menu_item.triggered.connect(self.open_download_sessions_dialog)
         self.reddit_objects_view_menu_item.triggered.connect(self.open_reddit_objects_dialog)
@@ -764,6 +776,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.run(user_id_list, sub_id_list, run_unextracted=run_unextracted, run_undownloaded=run_undownloaded)
 
     def run(self, user_id_list, sub_id_list, reddit_object_id_list=None, **kwargs):
+        if self.importing_export:
+            Message.send_warning('A Reddit data export is being imported; downloads can start once it has finished')
+            return
         self.started_download_gui_shift()
 
         self.download_runner = DownloadRunner(
@@ -855,6 +870,69 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def finish_update(self):
         pass
+
+    def open_import_reddit_export_dialog(self) -> None:
+        """
+        Asks the user for a Reddit data export archive and its import options, then starts the import.
+        :return: None
+        :rtype: None
+        """
+        if self.running or self.importing_export:
+            message_dialogs.generic_message(self, 'Busy', 'Wait for the current download or import to finish before importing a Reddit data export.')
+            return
+        dialog = ImportRedditExportDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.zip_path is not None:
+            self.run_export_import(dialog.zip_path, dialog.options, dialog.hydration_source, dialog.download_media)
+
+    def run_export_import(self, zip_path: str, options: ExportImportOptions, hydration_source: Optional[PostDownloadSource],
+                          download_media: bool) -> None:
+        """
+        Runs a Reddit data export import on a background thread.
+        :param zip_path: The export archive.
+        :type zip_path: str
+        :param options: What to import.
+        :type options: ExportImportOptions
+        :param hydration_source: The download source to fill in missing data from, or None.
+        :type hydration_source: Optional[PostDownloadSource]
+        :param download_media: Whether to download the imported posts' media once the import is done.
+        :type download_media: bool
+        :return: None
+        :rtype: None
+        """
+        self.importing_export = True
+        self.export_import_download_media = download_media
+        self.init_progress_bar()
+        self.progress_bar.setVisible(True)
+        self.update_download_action_states()
+
+        self.export_import_runner = ExportImportRunner(zip_path, options, hydration_source)
+        self.export_import_thread = QThread()
+        self.export_import_runner.moveToThread(self.export_import_thread)
+        self.stop_download_signal.connect(self.export_import_runner.stop)
+        self.export_import_thread.started.connect(self.export_import_runner.run)
+        self.export_import_runner.finished.connect(self.export_import_finished)
+        self.export_import_runner.finished.connect(self.export_import_thread.quit)
+        self.export_import_runner.finished.connect(self.export_import_runner.deleteLater)
+        self.export_import_thread.finished.connect(self.export_import_thread.deleteLater)
+        self.export_import_thread.start()
+        self.logger.info('Export import thread started')
+
+    def export_import_finished(self, stats: ExportImportStats) -> None:
+        """
+        Restores the window after an export import, and starts the media download if it was asked for.
+        :param stats: The results of the import.
+        :type stats: ExportImportStats
+        :return: None
+        :rtype: None
+        """
+        self.importing_export = False
+        self.export_import_runner = None
+        self.progress_bar.setVisible(False)
+        self.update_download_action_states()
+        self.user_list_model.refresh_session()
+        if self.export_import_download_media and stats.new_post_ids and not stats.cancelled:
+            Message.send_info(f'Downloading media from {len(stats.new_post_ids):,} imported posts')
+            self.run_unextracted_only(id_list=stats.new_post_ids)
 
     def handle_message(self, message:Message):
         if message.message_type == MessageType.STATUS_TRAY:
@@ -1199,6 +1277,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def display_database_browser(self):
         DatabaseViewer().show()
+
+    def display_conversation_viewer(self) -> None:
+        """
+        Shows the window for reading imported chats and private messages, reusing it if it is already open.
+        :return: None
+        :rtype: None
+        """
+        if self.conversation_viewer is None:
+            self.conversation_viewer = ConversationViewer()
+        else:
+            self.conversation_viewer.load_conversations()
+        self.conversation_viewer.show()
+        self.conversation_viewer.raise_()
+        self.conversation_viewer.activateWindow()
     
     def display_database_dialog(self, **kwargs):
         """
@@ -1334,9 +1426,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.system_tray_icon.setToolTip('Downloader For Reddit')
 
     def update_download_action_states(self):
-        self.download_action.setEnabled(not self.running)
-        self.soft_stop_download_action.setEnabled(self.running)
-        self.terminate_download_action.setEnabled(self.running)
+        busy = self.running or self.importing_export
+        self.download_action.setEnabled(not busy)
+        self.soft_stop_download_action.setEnabled(busy)
+        self.terminate_download_action.setEnabled(busy)
+        self.import_reddit_export_menu_item.setEnabled(not busy)
 
     def check_invalid(self):
         if len(self.invalid_list) > 0:

@@ -590,6 +590,7 @@ class Post(BaseModel):
     nsfw = Column(Boolean, default=False)
     reddit_id = Column(String(collation='NOCASE'), unique=True)
     url = Column(String)
+    permalink = Column(String, nullable=True)
 
     is_self = Column(Boolean, default=False)
     text = Column(Text, nullable=True)
@@ -685,6 +686,8 @@ class Comment(BaseModel):
     date_added = Column(DateTime, default=datetime.now())
     date_posted = Column(DateTime)
     reddit_id = Column(String(collation='NOCASE'), unique=True)
+    permalink = Column(String, nullable=True)
+    link_reddit_id = Column(String(collation='NOCASE'), nullable=True, index=True)  # parent post id when the post is not stored
 
     extracted = Column(Boolean, default=False)
     has_content = Column(Boolean, default=False)
@@ -737,11 +740,11 @@ class Comment(BaseModel):
 
     @property
     def post_title(self):
-        return self.post.title
+        return self.post.title if self.post is not None else None
 
     @property
     def short_post_title(self):
-        return self.post.short_title
+        return self.post.short_title if self.post is not None else None
 
     def set_extracted(self):
         self.extracted = True

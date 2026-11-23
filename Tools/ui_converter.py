@@ -37,6 +37,8 @@ class Converter:
             'invalid_dialog',
             'existing_names_dialog',
             'database_viewer',
+            'import_reddit_export_dialog',
+            'conversation_viewer',
         ]
 
     def run(self):
@@ -173,6 +175,14 @@ class Converter:
     def existing_names_dialog(self):
         name = 'existing_names_dialog'
         self.convert(name)
+
+    def import_reddit_export_dialog(self):
+        name = 'import_reddit_export_dialog'
+        self.convert(name)
+
+    def conversation_viewer(self):
+        name = 'conversation_viewer'
+        self.convert(name, 'database_views')
 
     def user_auth_wizard(self):
         name = 'user_auth_wizard'

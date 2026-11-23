@@ -77,6 +77,8 @@ QListView::item:active {
     <addaction name="separator"/>
     <addaction name="open_data_directory_menu_item"/>
     <addaction name="separator"/>
+    <addaction name="import_reddit_export_menu_item"/>
+    <addaction name="separator"/>
     <addaction name="minimize_to_tray_menu_item"/>
     <addaction name="separator"/>
     <addaction name="exit_menu_item"/>
@@ -175,6 +177,7 @@ QListView::item:active {
      <string>Database</string>
     </property>
     <addaction name="database_browser_menu_item"/>
+    <addaction name="conversations_menu_item"/>
     <addaction name="separator"/>
     <addaction name="database_view_menu_item"/>
     <addaction name="separator"/>
@@ -623,6 +626,22 @@ QListView::item:selected {
   <action name="open_data_directory_menu_item">
    <property name="text">
     <string>Open Data Directory</string>
+   </property>
+  </action>
+  <action name="conversations_menu_item">
+   <property name="text">
+    <string>Conversations</string>
+   </property>
+   <property name="toolTip">
+    <string>Browse the chats and private messages imported from Reddit data exports</string>
+   </property>
+  </action>
+  <action name="import_reddit_export_menu_item">
+   <property name="text">
+    <string>Import Reddit Data Export...</string>
+   </property>
+   <property name="toolTip">
+    <string>Import the posts, comments, chats and messages from a Reddit data export zip file</string>
    </property>
   </action>
   <action name="import_database_file_menu_item">

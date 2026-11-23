@@ -21,6 +21,7 @@ import logging
 from typing import Any, override
 
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
+from DownloaderForReddit.data_interface.adapters.adapter_comment import AdapterComment
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
 from DownloaderForReddit.data_interface.adapters.adapter_submission import AdapterSubmission
 from DownloaderForReddit.data_interface.adapters.adapter_subreddit import AdapterSubreddit
@@ -35,6 +36,7 @@ COMMENT_ENDPOINT = "comment"
 MAX_PAGE_SIZE = 100
 DEFAULT_COMMENT_LIMIT = 1000
 SUBMISSION_FULLNAME_PREFIX = "t3_"
+COMMENT_FULLNAME_PREFIX = "t1_"
 USER_FULLNAME_PREFIX = "t2_"
 SUBREDDIT_FULLNAME_PREFIX = "t5_"
 
@@ -137,6 +139,54 @@ class PullPushAdapter(RedditDataInterface):
         """
         items = self._search(TOPIC_ENDPOINT, {"ids": _strip_prefix(id, SUBMISSION_FULLNAME_PREFIX)})
         return AdapterSubmission(self._source, items[0], comment_loader=self.get_comments) if items else None
+
+    def _items_by_ids(self, endpoint: str, ids: list[str], prefix: str) -> list[dict]:
+        """
+        Fetches items by id from a search endpoint, one page of at most ``MAX_PAGE_SIZE`` ids per request.
+
+        :param endpoint: The endpoint to query, ``topic`` or ``comment``.
+        :type endpoint: str
+        :param ids: The ids, with or without their type prefix.
+        :type ids: list[str]
+        :param prefix: The type prefix to strip from the ids.
+        :type prefix: str
+        :return: The item dictionaries the archive returned.
+        :rtype: list[dict]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        bare_ids = [_strip_prefix(item, prefix) for item in ids]
+        items: list[dict] = []
+        for start in range(0, len(bare_ids), MAX_PAGE_SIZE):
+            chunk = bare_ids[start:start + MAX_PAGE_SIZE]
+            items.extend(self._search(endpoint, {"ids": ",".join(chunk), "size": len(chunk)}))
+        return items
+
+    @override
+    def submissions_by_ids(self, ids: list[str]) -> list[AdapterSubmission]:
+        """
+        Looks up several submissions through the ``topic`` endpoint's ``ids`` filter.
+
+        :param ids: Submission ids, with or without the ``t3_`` prefix.
+        :type ids: list[str]
+        :return: The submissions the archive holds.
+        :rtype: list[AdapterSubmission]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        items = self._items_by_ids(TOPIC_ENDPOINT, ids, SUBMISSION_FULLNAME_PREFIX)
+        return [AdapterSubmission(self._source, item, comment_loader=self.get_comments) for item in items]
+
+    @override
+    def comments_by_ids(self, ids: list[str]) -> list[AdapterComment]:
+        """
+        Looks up several comments through the ``comment`` endpoint's ``ids`` filter.
+
+        :param ids: Comment ids, with or without the ``t1_`` prefix.
+        :type ids: list[str]
+        :return: The comments the archive holds.
+        :rtype: list[AdapterComment]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        return [AdapterComment(self._source, item) for item in self._items_by_ids(COMMENT_ENDPOINT, ids, COMMENT_FULLNAME_PREFIX)]
 
     def _paged_search(self, endpoint: str, params: dict[str, Any], limit: int) -> list[dict]:
         """

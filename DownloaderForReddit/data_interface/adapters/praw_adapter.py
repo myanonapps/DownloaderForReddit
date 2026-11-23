@@ -13,12 +13,15 @@ from PyQt6.QtCore import QUrl
 from DownloaderForReddit.core import const
 from DownloaderForReddit.core.const import RATE_LIMIT_DOC_URL
 from DownloaderForReddit.data_interface.reddit_adapter_token import RedditAdapterToken
-from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet
+from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface, ValidationSet, bare_reddit_id
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import injector
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+
+SUBMISSION_FULLNAME_PREFIX = 't3_'
+COMMENT_FULLNAME_PREFIX = 't1_'
 
 
 class PRAWAdapter(RedditDataInterface):
@@ -84,6 +87,34 @@ class PRAWAdapter(RedditDataInterface):
         """
         reddit = self._get_praw_instance()
         return reddit.submission(id=id)
+
+    def submissions_by_ids(self, ids: list[str]) -> list[Any]:
+        """
+        Looks up several submissions through Reddit's info endpoint, which PRAW batches 100 at a time.
+
+        :param ids: Submission ids, with or without the ``t3_`` prefix.
+        :type ids: list[str]
+        :return: The PRAW submissions that Reddit returned.  Removed or unknown ids are left out.
+        :rtype: list[Any]
+        """
+        if not ids:
+            return []
+        fullnames = [f'{SUBMISSION_FULLNAME_PREFIX}{bare_reddit_id(item)}' for item in ids]
+        return list(self._get_praw_instance().info(fullnames=fullnames))
+
+    def comments_by_ids(self, ids: list[str]) -> list[Any]:
+        """
+        Looks up several comments through Reddit's info endpoint, which PRAW batches 100 at a time.
+
+        :param ids: Comment ids, with or without the ``t1_`` prefix.
+        :type ids: list[str]
+        :return: The PRAW comments that Reddit returned.  Removed or unknown ids are left out.
+        :rtype: list[Any]
+        """
+        if not ids:
+            return []
+        fullnames = [f'{COMMENT_FULLNAME_PREFIX}{bare_reddit_id(item)}' for item in ids]
+        return list(self._get_praw_instance().info(fullnames=fullnames))
 
     def redditor(self, name: str) -> Any:
         """

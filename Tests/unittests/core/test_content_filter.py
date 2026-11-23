@@ -14,6 +14,8 @@ class TestContentFilter(TestCase):
     def setUpClass(cls):
         cls.mock_settings_manager = MagicMock()
         injector.settings_manager = cls.mock_settings_manager
+        # ContentFilter fetches the injector's database handler; without this the real user database is opened
+        injector.database_handler = DatabaseHandler(in_memory=True)
 
     def setUp(self):
         self.content_filter = ContentFilter()
