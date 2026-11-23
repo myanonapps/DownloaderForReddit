@@ -48,8 +48,22 @@ class AdapterRedditor(AdapterData):
         self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
         return None
 
-    def from_pull_push(self, dict_data:dict):
-        pass
+    def from_pull_push(self, dict_data: dict) -> None:
+        """
+        Fills the redditor from the dictionary that PullPushAdapter builds, either from the user's oldest archived
+        activity or from known values.  PullPush has no user endpoint, so the data is not an API response.
+
+        :param dict_data: A dictionary with ``author`` (the username), ``id`` (bare user id) and ``created_utc``
+                          (epoch seconds), any of which may be missing.
+        :type dict_data: dict
+        """
+        name = dig(dict_data, "author", default="")
+        created = dig(dict_data, CREATED_UTC_KEY, default=0)
+        setattr(self, NAME_KEY, name)
+        setattr(self, FULLNAME_KEY, name)
+        setattr(self, ID_KEY, dig(dict_data, ID_KEY, default=""))
+        setattr(self, CREATED_KEY, created)
+        setattr(self, CREATED_UTC_KEY, created)
 
     def from_arctic_shift(self, dict_data:dict):
         '''

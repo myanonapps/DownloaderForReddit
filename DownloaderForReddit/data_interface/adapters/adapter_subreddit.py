@@ -12,6 +12,7 @@ from DownloaderForReddit.utils.general_utils import dig
 # Constants for data keys
 ID_KEY = "id"
 NAME_KEY = "name"
+FULLNAME_KEY = "fullname"
 CREATED_UTC_KEY = "created_utc"
 CREATED_KEY = "created"
 
@@ -45,8 +46,23 @@ class AdapterSubreddit(AdapterData):
         self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
         return None
 
-    def from_pull_push(self, dict_data:dict):
-        pass
+    def from_pull_push(self, dict_data: dict) -> None:
+        """
+        Fills the subreddit from the dictionary that PullPushAdapter builds, either from the subreddit's oldest
+        archived post or from known values.  PullPush has no subreddit endpoint, so the data is not an API response.
+        ``fullname`` is set to the name because download validation requires a non-empty ``fullname``.
+
+        :param dict_data: A dictionary with ``name`` (display name), ``id`` (bare subreddit id) and ``created_utc``
+                          (epoch seconds), any of which may be missing.
+        :type dict_data: dict
+        """
+        name = dig(dict_data, NAME_KEY, default="")
+        created = dig(dict_data, CREATED_UTC_KEY, default=0)
+        setattr(self, NAME_KEY, name)
+        setattr(self, FULLNAME_KEY, name)
+        setattr(self, ID_KEY, dig(dict_data, ID_KEY, default=""))
+        setattr(self, CREATED_KEY, created)
+        setattr(self, CREATED_UTC_KEY, created)
 
     def from_arctic_shift(self, dict_data:dict):
         '''

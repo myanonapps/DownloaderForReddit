@@ -66,6 +66,19 @@ class AdapterSubmission(AdapterData):
         self.logger.error("Invoked the fallback method in '%s' for missing: %s", self.__class__.__name__, attr)
         return None
 
+    def from_pull_push(self, dict_data: dict) -> None:
+        """
+        Fills the submission from a PullPush ``/topic`` result.  PullPush serves posts in Reddit's own JSON format,
+        the same as Arctic Shift, so the Arctic Shift parser is reused.  PullPush items carry only ``created_utc``,
+        so ``created`` falls back to it.
+
+        :param dict_data: One item from the ``data`` list of a PullPush ``/topic`` response.
+        :type dict_data: dict
+        """
+        self.from_arctic_shift(dict_data)
+        if not getattr(self, CREATED_KEY):
+            setattr(self, CREATED_KEY, getattr(self, CREATED_UTC_KEY))
+
     def from_arctic_shift(self, dict_data:dict):
         setattr(self, TITLE_KEY, dig(dict_data, TITLE_KEY, default=""))
         setattr(self, URL_KEY, dig(dict_data, URL_KEY, default=""))

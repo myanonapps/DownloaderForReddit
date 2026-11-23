@@ -9,7 +9,6 @@ from unittest.mock import Mock, patch
 from DownloaderForReddit.data_interface.reddit_data_interface import RedditDataInterface
 from DownloaderForReddit.data_interface.adapters.praw_adapter import PRAWAdapter
 from DownloaderForReddit.data_interface.adapters.arctic_shift_adapter import ArcticShiftAdapter
-from DownloaderForReddit.data_interface.adapters.pull_push_adapter import PullPushAdapter
 
 
 class TestRedditDataInterface(unittest.TestCase):
@@ -104,39 +103,7 @@ class TestArcticShiftAdapter(unittest.TestCase):
         self.assertTrue(len(user_agent) > 0)
 
 
-class TestPullPushAdapter(unittest.TestCase):
-    """Test the PullPushAdapter implementation."""
-    
-    def setUp(self):
-        """Set up test fixtures."""
-        self.api_key = "test_api_key"
-        self.adapter = PullPushAdapter(self.api_key)
-    
-    def test_initialization(self):
-        """Test adapter initialization."""
-        self.assertIsInstance(self.adapter, RedditDataInterface)
-        self.assertEqual(self.adapter.api_key, self.api_key)
-        
-    @patch('requests.Session')
-    def test_make_request(self, mock_session):
-        """Test internal request method."""
-        mock_response = Mock()
-        mock_response.json.return_value = {"test": "data"}
-        mock_response.raise_for_status.return_value = None
-        mock_session.return_value.get.return_value = mock_response
-        
-        result = self.adapter._make_request("/test-endpoint")
-        self.assertEqual(result, {"test": "data"})
-        
-    def test_is_authenticated(self):
-        """Test authentication check."""
-        self.assertTrue(self.adapter.is_authenticated())
-        
-    def test_get_user_agent(self):
-        """Test user agent retrieval."""
-        user_agent = self.adapter.get_user_agent()
-        self.assertIsInstance(user_agent, str)
-        self.assertTrue(len(user_agent) > 0)
+# PullPushAdapter is covered by test_pull_push_adapter.py
 
 
 if __name__ == '__main__':
