@@ -33,13 +33,19 @@ class RedditAdapterToken:
         f = Fernet(key.encode())
         self._decrypted = f.decrypt(encrypted.encode()).decode()
 
-    def set(self, decrypted: bytes):
+    def set(self, decrypted: str) -> None:
+        """
+        Stores a plain-text token and its encrypted form, generating an encryption key if there is none yet.
+
+        :param decrypted: The plain-text token.
+        :type decrypted: str
+        :return: None
+        """
         if self._key is None:
-            self._key = Fernet.generate_key()
-        self._decrypted = decrypted.decode()
-        f = Fernet(self._key)
-        t = f.encrypt(decrypted.encode())
-        self._encrypted = t.decode()
+            self._key = Fernet.generate_key().decode()
+        self._decrypted = decrypted
+        f = Fernet(self._key.encode())
+        self._encrypted = f.encrypt(decrypted.encode()).decode()
 
     def get_key(self) -> str:
         return self._key

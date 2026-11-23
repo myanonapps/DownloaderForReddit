@@ -55,7 +55,7 @@ class PRAWAdapter(RedditDataInterface):
         if self._praw is not None:
             return self._praw
 
-        if self._token is not None:
+        if self._token is not None and self._token.get_decrypted():
             self._praw = praw.Reddit(
                 client_id=injector.get_settings_manager().reddit_client_id,
                 user_agent=self.get_user_agent(),

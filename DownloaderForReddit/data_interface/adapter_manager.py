@@ -48,7 +48,7 @@ class RedditAdapterManager:
         return cls._instance
 
     def delete_adapter_token(self, source:PostDownloadSource) -> None:
-        token:RedditAdapterToken = self._instance.get_adapter_token(source)()
+        token:RedditAdapterToken = self._instance.get_adapter_token(source)
         token.reset()
         settings_manager = injector.get_settings_manager()
         settings_manager.config['core'][token.get_key_settings_key()] = token.get_key()
@@ -57,7 +57,7 @@ class RedditAdapterManager:
         setattr(settings_manager, token.get_key_settings_token(), settings_manager.config['core'][token.get_key_settings_token()])
 
     def save_adapter_token(self, source:PostDownloadSource, decrypted:str) -> None:
-        token:RedditAdapterToken = self._instance.get_adapter_token(source)()
+        token:RedditAdapterToken = self._instance.get_adapter_token(source)
         token.set(decrypted)
         settings_manager = injector.get_settings_manager()
         settings_manager.config['core'][token.get_key_settings_key()] = token.get_key()

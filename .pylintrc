@@ -1,0 +1,11 @@
+[MAIN]
+# Allow pylint to load the compiled PyQt6 extension modules so their members resolve.
+extension-pkg-allow-list=PyQt6
+
+[BASIC]
+# Require docstrings on every name, including private ones (pylint's default "^_" exempts them).
+no-docstring-rgx=^$
+
+[FORMAT]
+max-line-length=225
+max-module-lines=3000
