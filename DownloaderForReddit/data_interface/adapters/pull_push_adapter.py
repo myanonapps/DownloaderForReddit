@@ -18,7 +18,7 @@ account or subreddit creation date.  Nothing can be looked up by user or subredd
 """
 from datetime import datetime
 import logging
-from typing import Any
+from typing import Any, override
 
 from DownloaderForReddit.core.submission_filter import SubmissionFilter
 from DownloaderForReddit.data_interface.adapters.adapter_redditor import AdapterRedditor
@@ -33,6 +33,8 @@ BASE_URL = "https://api.pullpush.io/"
 TOPIC_ENDPOINT = "topic"
 COMMENT_ENDPOINT = "comment"
 MAX_PAGE_SIZE = 100
+DEFAULT_COMMENT_LIMIT = 1000
+SUBMISSION_FULLNAME_PREFIX = "t3_"
 USER_FULLNAME_PREFIX = "t2_"
 SUBREDDIT_FULLNAME_PREFIX = "t5_"
 
@@ -133,47 +135,81 @@ class PullPushAdapter(RedditDataInterface):
         :return: The submission, or None if the archive does not hold it.
         :rtype: AdapterSubmission | None
         """
-        items = self._search(TOPIC_ENDPOINT, {"ids": _strip_prefix(id, "t3_")})
-        return AdapterSubmission(self._source, items[0]) if items else None
+        items = self._search(TOPIC_ENDPOINT, {"ids": _strip_prefix(id, SUBMISSION_FULLNAME_PREFIX)})
+        return AdapterSubmission(self._source, items[0], comment_loader=self.get_comments) if items else None
+
+    def _paged_search(self, endpoint: str, params: dict[str, Any], limit: int) -> list[dict]:
+        """
+        Collects up to ``limit`` items in ascending ``created_utc`` order, one page at a time.
+
+        Pages through the results with the method the PullPush documentation prescribes: the ``after`` boundary is
+        kept at the last item's ``created_utc`` (filters are inclusive), and the ids already held that share that
+        timestamp are sent in ``exclude_ids`` so that they are not returned again.
+
+        :param endpoint: The endpoint to query, ``topic`` or ``comment``.
+        :type endpoint: str
+        :param params: The search filters, optionally with a starting ``after``.  Sorting and page size are added here.
+        :type params: dict[str, Any]
+        :param limit: The maximum number of items to collect.
+        :type limit: int
+        :return: The items found, oldest first.
+        :rtype: list[dict]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        params = {**params, "sort": "asc", "sort_type": "created_utc"}
+        items: list[dict] = []
+        held_ids: set[str] = set()
+        while len(items) < limit:
+            params["size"] = min(MAX_PAGE_SIZE, limit - len(items))
+            new_items = [item for item in self._search(endpoint, dict(params)) if item.get("id") and item["id"] not in held_ids]
+            if not new_items:
+                break
+            items.extend(new_items)
+            held_ids.update(item["id"] for item in new_items)
+            boundary = _created(items[-1])
+            params["after"] = boundary
+            tied_ids = []
+            for item in reversed(items):
+                if _created(item) != boundary:
+                    break
+                tied_ids.append(item["id"])
+            params["exclude_ids"] = ",".join(tied_ids)
+        return items[:limit]
 
     def posts_by_author(self) -> list[AdapterSubmission]:
         """
         Gets the current reddit object's posts made after its date limit, oldest first, up to its post limit.
 
-        Pages through the results with the method the PullPush documentation prescribes: the ``after`` boundary is
-        kept at the last post's ``created_utc`` (filters are inclusive), and the ids already held that share that
-        timestamp are sent in ``exclude_ids`` so that they are not returned again.
-
         :return: The author's submissions, or an empty list if no reddit object is set.
         :rtype: list[AdapterSubmission]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
         """
         reddit_object = self.get_reddit_object()
         if reddit_object is None:
             return []
-        limit = reddit_object.post_limit
-        params: dict[str, Any] = {"author": reddit_object.name, "sort": "asc", "sort_type": "created_utc"}
+        params: dict[str, Any] = {"author": reddit_object.name}
         date_limit = SubmissionFilter.get_date_limit(reddit_object)
         if date_limit is not None:
             params["after"] = int(date_limit.timestamp())
+        posts = self._paged_search(TOPIC_ENDPOINT, params, reddit_object.post_limit)
+        return [AdapterSubmission(self._source, post, comment_loader=self.get_comments) for post in posts]
 
-        posts: list[dict] = []
-        held_ids: set[str] = set()
-        while len(posts) < limit:
-            params["size"] = min(MAX_PAGE_SIZE, limit - len(posts))
-            new_posts = [post for post in self._search(TOPIC_ENDPOINT, dict(params)) if post.get("id") and post["id"] not in held_ids]
-            if not new_posts:
-                break
-            posts.extend(new_posts)
-            held_ids.update(post["id"] for post in new_posts)
-            boundary = _created(posts[-1])
-            params["after"] = boundary
-            tied_ids = []
-            for post in reversed(posts):
-                if _created(post) != boundary:
-                    break
-                tied_ids.append(post["id"])
-            params["exclude_ids"] = ",".join(tied_ids)
-        return [AdapterSubmission(self._source, post) for post in posts[:limit]]
+    @override
+    def get_comments(self, submission_id: str, limit: int | None = None) -> list[dict]:
+        """
+        Fetches a submission's comments from the ``comment`` endpoint, oldest first.  PullPush returns them flat, with
+        each comment's ``parent_id`` linking it into the tree.
+
+        :param submission_id: The submission id, with or without the ``t3_`` prefix.
+        :type submission_id: str
+        :param limit: The maximum number of comments wanted, or None for ``DEFAULT_COMMENT_LIMIT``.
+        :type limit: int | None
+        :return: The comment dictionaries.
+        :rtype: list[dict]
+        :raises requests.exceptions.HTTPError: If a request fails after the base class's retries.
+        """
+        link_id = _strip_prefix(submission_id, SUBMISSION_FULLNAME_PREFIX)
+        return self._paged_search(COMMENT_ENDPOINT, {"link_id": link_id}, limit or DEFAULT_COMMENT_LIMIT)
 
     def redditor(self, name: str) -> AdapterRedditor:
         """

@@ -112,6 +112,21 @@ class RedditDataInterface(ABC):
         """
         pass
 
+    def get_comments(self, submission_id: str, limit: int | None = None) -> list[dict]:
+        """
+        Fetches the raw comments of a submission, for data sources whose submissions are ``AdapterSubmission`` objects.
+        Adapters that return objects with their own comment loading, such as PRAW submissions, do not override it.
+
+        :param submission_id: The submission id, without the ``t3_`` prefix.
+        :type submission_id: str
+        :param limit: The maximum number of comments wanted, or None for the data source's default.
+        :type limit: int | None
+        :return: The comment dictionaries, flat or in Reddit's nested listing format.  This default returns none.
+        :rtype: list[dict]
+        """
+        self.logger.debug("%s does not fetch comments for submission %s (limit %s)", self.__class__.__name__, submission_id, limit)
+        return []
+
     @abstractmethod
     def redditor(self, name: str) -> Any:
         """

@@ -29,9 +29,11 @@ from DownloaderForReddit.utils.general_utils import dig
 
 
 BASE_URL = "https://arctic-shift.photon-reddit.com/"
+SUBMISSION_FULLNAME_PREFIX = "t3_"
 
 class ArcticShiftAdapter(RedditDataInterface):
     MAX_LIMIT = 100
+    MAX_COMMENT_LIMIT = 25000
     """
     Adapter that wraps Arctic Shift HTTP API to provide the RedditAPI interface.
     
@@ -52,25 +54,41 @@ class ArcticShiftAdapter(RedditDataInterface):
             return "Maybe slow down a bit" in response.text
         return False
 
-    def submission(self, id: str) -> AdapterSubmission:
+    def submission(self, id: str) -> AdapterSubmission | None:
         """
-        Get a submission by its ID.
-        
-        Args:
-            id: The Reddit submission ID
-            
-        Returns:
-            Submission object from the Arctic Shift API
+        Gets a submission by its id.
+
+        :param id: The Reddit submission id.
+        :type id: str
+        :return: The submission, or None if the archive does not hold it.
+        :rtype: AdapterSubmission | None
         """
-        submissions = []
         # Arctic Shift API endpoint for submissions
         endpoint = f"api/posts/ids?ids={id}"
         data = self.make_http_request(endpoint)
-        if 'data' in data:
-            for dict_submission in data['data']:
-                submission = AdapterSubmission(self._source, dict_submission)
-                submissions.append(submission)
-        return submissions[0]
+        items = dig(data, 'data', default=[])
+        if not isinstance(items, list) or not items:
+            return None
+        return AdapterSubmission(self._source, items[0], comment_loader=self.get_comments)
+
+    @override
+    def get_comments(self, submission_id: str, limit: int | None = None) -> list[dict]:
+        """
+        Fetches a submission's comment tree from the ``api/comments/tree`` endpoint.
+
+        :param submission_id: The submission id, with or without the ``t3_`` prefix.
+        :type submission_id: str
+        :param limit: The maximum number of comments wanted.  The API allows at most 25,000; None asks for that many.
+        :type limit: int | None
+        :return: The top-level entries of the tree in Reddit's nested listing format.
+        :rtype: list[dict]
+        :raises requests.exceptions.HTTPError: If the request fails after the base class's retries.
+        """
+        link_id = submission_id if submission_id.startswith(SUBMISSION_FULLNAME_PREFIX) else f"{SUBMISSION_FULLNAME_PREFIX}{submission_id}"
+        params = {"link_id": link_id, "limit": min(limit, ArcticShiftAdapter.MAX_COMMENT_LIMIT) if limit else ArcticShiftAdapter.MAX_COMMENT_LIMIT}
+        data = self.make_http_request("api/comments/tree", params)
+        items = dig(data, 'data', default=[])
+        return items if isinstance(items, list) else []
 
     def posts_by_author(self) -> list[AdapterSubmission]:
         submissions = []
@@ -87,7 +105,7 @@ class ArcticShiftAdapter(RedditDataInterface):
         data = self.make_http_request(endpoint)
         if 'data' in data:
             for dict_submission in data['data']:
-                submission = AdapterSubmission(self._source, dict_submission)
+                submission = AdapterSubmission(self._source, dict_submission, comment_loader=self.get_comments)
                 submissions.append(submission)
         return submissions
 

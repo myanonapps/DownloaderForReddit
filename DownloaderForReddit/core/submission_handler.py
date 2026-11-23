@@ -61,8 +61,18 @@ class SubmissionHandler(Runner):
                 self.handle_error(e)
 
     @verify_run
-    def extract_comments(self):
-        comment_handler = CommentHandler(self.submission, self.post, self.download_session_id, self.stop_run,
+    def extract_comments(self) -> None:
+        """
+        Extracts the submission's comments as the significant reddit object's comment settings direct, then downloads
+        them and the links in them as required.  Does nothing but report the problem when the data source could not
+        provide the submission, since there are then no comments to read.
+        """
+        if self.submission is None:
+            self.logger.debug('No submission available to extract comments from for post %s', self.post.reddit_id)
+            Message.send_extraction_error(f'Comments not available from the data source\nTitle: {self.post.title}\n'
+                                          f'Url: {self.post.url}', session_id=self.download_session_id)
+            return
+        comment_handler =CommentHandler(self.submission, self.post, self.download_session_id, self.stop_run,
                                          self.session)
         comment_handler.run()
         for comment in comment_handler.comments_to_download:

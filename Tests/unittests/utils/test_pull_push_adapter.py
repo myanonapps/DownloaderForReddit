@@ -25,6 +25,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 Unit tests for PullPushAdapter.  HTTP calls are replaced by canned responses shaped like real PullPush responses.
 """
 import copy
+import logging
 from datetime import datetime
 from types import SimpleNamespace
 from unittest import TestCase
@@ -281,3 +282,49 @@ class TestPullPushAdapter(TestCase):
         self.assertEqual(("someone", "someone", "abc", 1500000000), (redditor.name, redditor.fullname, redditor.id, redditor.created))
         self.assertEqual(("pics", "pics", "2qh0u", 0), (subreddit.name, subreddit.fullname, subreddit.id, subreddit.created))
         self.request.assert_not_called()
+
+    def test_get_comments_pages_by_link_id(self) -> None:
+        """
+        Comments are searched by the bare link id, oldest first, with the same paging as posts.
+        """
+        self.request.side_effect = [
+            response(post("c1", BASE + 100), post("c2", BASE + 200)),
+            response(post("c2", BASE + 200)),
+        ]
+
+        comments = self.adapter.get_comments("t3_6uey5x", 5)
+
+        self.assertEqual(["c1", "c2"], [c["id"] for c in comments])
+        self.assertEqual("comment", self.request.call_args_list[0].args[0])
+        self.assertEqual({"link_id": "6uey5x", "sort": "asc", "sort_type": "created_utc", "size": 5}, copy.deepcopy(self.params(0)))
+        self.assertEqual("c2", self.params(1)["exclude_ids"])
+
+    def test_submission_comments_are_loaded_from_archive(self) -> None:
+        """
+        A submission's ``comments`` are fetched lazily through the adapter and built into a tree, without falling
+        back to the missing-attribute handler.
+        """
+        self.request.side_effect = [
+            response(TOPIC_ITEM),
+            response(post("c1", BASE + 100, parent_id="t3_6uey5x", author="--love", body="top", score=5),
+                     post("c2", BASE + 200, parent_id="t1_c1", body="reply", score=1)),
+            response(),
+        ]
+
+        previous_disable = logging.root.manager.disable
+        logging.disable(logging.NOTSET)  # Tests/__init__.py disables logging, which would make assertNoLogs vacuous
+        self.addCleanup(logging.disable, previous_disable)
+        submission = self.adapter.submission("6uey5x")
+        self.assertEqual(1, self.request.call_count)
+        with self.assertNoLogs("DownloaderForReddit", level="ERROR"):
+            submission.comment_limit = 50
+            forest = submission.comments
+            self.assertEqual([], forest.replace_more(limit=0))
+
+        self.assertEqual(["c1"], [c.id for c in forest])
+        self.assertTrue(forest[0].is_submitter)
+        self.assertEqual(["c2"], [c.id for c in forest[0].replies])
+        self.assertFalse(forest[0].replies[0].is_submitter)
+        self.assertEqual({"link_id": "6uey5x", "sort": "asc", "sort_type": "created_utc", "size": 50}, copy.deepcopy(self.params(1)))
+        self.assertIs(forest, submission.comments)
+        self.assertEqual(3, self.request.call_count)
