@@ -5,11 +5,14 @@ from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
 from collections import namedtuple
+from dataclasses import dataclass, field
+from typing import Optional
 import prawcore
 from PyQt6.QtCore import QObject, pyqtSignal
 from praw.models import Redditor
 import requests
 from sqlalchemy import or_
+from sqlalchemy.orm.session import Session
 from DownloaderForReddit.core import download_runner_stats
 from DownloaderForReddit.core.download.downloader import Downloader
 from DownloaderForReddit.core.download_runner_stats import DownloadRunnerStats
@@ -32,6 +35,67 @@ from ..utils import injector
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
 RunPair = namedtuple('RunPair', 'reddit_object_id praw_object')
+
+
+@dataclass
+class SessionTally:
+    """
+    The error counts and the user and subreddit names of a download session, gathered from the posts, comments and
+    content recorded against it.
+    """
+    post_errors: int = 0
+    comment_errors: int = 0
+    content_errors: int = 0
+    user_names: set[str] = field(default_factory=set)
+    subreddit_names: set[str] = field(default_factory=set)
+
+
+def collect_session_tally(session: Session, download_session_id: int) -> SessionTally:
+    """
+    Gathers the error counts and the names of the users and subreddits downloaded in a download session.  Content found
+    in chat and private messages has no post, so its user is taken from the content's significant reddit object (the
+    message's author) and the content's own user, rather than from a post.
+    :param session: The database session to query with.
+    :type session: Session
+    :param download_session_id: The id of the download session to gather from.
+    :type download_session_id: int
+    :return: The gathered counts and names.
+    :rtype: SessionTally
+    """
+    tally = SessionTally()
+
+    def add_names(user: Optional[RedditObject], subreddit: Optional[RedditObject]) -> None:
+        """
+        Records the names of a user and a subreddit, skipping either when it is missing or unnamed.
+        :param user: The user, or None.
+        :type user: Optional[RedditObject]
+        :param subreddit: The subreddit, or None.
+        :type subreddit: Optional[RedditObject]
+        :return: None
+        :rtype: None
+        """
+        if user is not None and user.name:
+            tally.user_names.add(user.name)
+        if subreddit is not None and subreddit.name:
+            tally.subreddit_names.add(subreddit.name)
+
+    for post in session.query(Post).filter(Post.download_session_id == download_session_id):
+        if post.extraction_error:
+            tally.post_errors += 1
+        add_names(post.author, post.subreddit)
+
+    for comment in session.query(Comment).filter(Comment.download_session_id == download_session_id):
+        if comment.extraction_error:
+            tally.comment_errors += 1
+        add_names(comment.author, comment.subreddit)
+
+    for content in session.query(Content).filter(Content.download_session_id == download_session_id):
+        if content.download_error:
+            tally.content_errors += 1
+        significant = content.significant_reddit_object
+        add_names(significant if isinstance(significant, User) else None, content.subreddit)
+        add_names(content.user, None)
+    return tally
 
 
 class DownloadRunner(QObject):
@@ -557,69 +621,9 @@ class DownloadRunner(QObject):
         stats:DownloadRunnerStats = None
         with self.db.get_scoped_session() as session:
             dl_session:DownloadSession = self.finish_download_session(session)
-            post_errors = 0
-            comment_errors = 0
-            download_errors = 0
-            user_names:set = set()
-            subreddit_names:set = set()
-            b_full = True
-
-            if b_full:
-
-                # Get all users who had posts/comments/content in this session
-
-                # Query for all Posts associated with this session
-                posts = session.query(Post).filter(Post.download_session_id == dl_session.id).all()
-                for post in posts:
-                    if post.extraction_error:
-                        post_errors += 1
-                    if post.author and post.author.name:
-                        user_names.add(post.author.name)
-                    if post.subreddit and post.subreddit.name:
-                        subreddit_names.add(post.subreddit.name)
-
-                # Query for all Comments associated with this session
-                comments = session.query(Comment).filter(Comment.download_session_id == dl_session.id).all()
-                for comment in comments:
-                    if comment.extraction_error:
-                        comment_errors += 1
-                    if comment.author and comment.author.name:
-                        user_names.add(comment.author.name)
-                    if comment.subreddit and comment.subreddit.name:
-                        subreddit_names.add(comment.subreddit.name)
-
-                # Query for all Content items associated with this session
-                content_items = session.query(Content).filter(Content.download_session_id == dl_session.id).all()
-                for content in content_items:
-                    if content.download_error:
-                        download_errors += 1
-                    if content.post and content.post.author and content.post.author.name:
-                        user_names.add(content.post.author.name)
-                    if content.subreddit and content.subreddit.name:
-                        subreddit_names.add(content.subreddit.name)
-
-            else:
-
-                # Count and add error statistics for this specific session
-                # Count extraction errors (posts with extraction_error set for this session)
-                post_errors = session.query(Post.id).filter(
-                    Post.extraction_error != None,
-                    Post.download_session_id == dl_session.id
-                ).count()
-
-                comment_errors = session.query(Comment.id).filter(
-                    Comment.extraction_error != None,
-                    Comment.download_session_id == dl_session.id
-                ).count()
-
-                # Count download errors (content items with download_error set for this session)
-                download_errors = session.query(Content.id).filter(
-                    Content.download_error != None,
-                    Content.download_session_id == dl_session.id
-                ).count()
-
-            # Update the stats object to include error counts
-            stats:DownloadRunnerStats = download_runner_stats.from_session(dl_session, self.stopped, post_errors, comment_errors, download_errors, user_names, subreddit_names)
+            tally = collect_session_tally(session, dl_session.id)
+            stats = download_runner_stats.from_session(dl_session, self.stopped, tally.post_errors, tally.comment_errors, tally.content_errors,
+                                                       tally.user_names, tally.subreddit_names)
             self.finish_messages(stats)
         self.finished.emit(stats)
 
@@ -634,34 +638,29 @@ class DownloadRunner(QObject):
         session.commit()
         return download_session
 
-    def finish_messages(self, stats:DownloadRunnerStats):
+    def finish_messages(self, stats: DownloadRunnerStats) -> None:
         """
-        Constructs and displays a finish message to the user and a log message.
-        :param dl_session: The active download session for this run.
+        Constructs and displays a finish message to the user, a log message and, when anything was downloaded, a tray
+        status message.  Users and subreddits are only listed when the run downloaded from any.
+        :param stats: The statistics of the finished run.
+        :type stats: DownloadRunnerStats
+        :return: None
+        :rtype: None
         """
         extra:dict = stats.to_dict()
-        message = "Download complete"
-        extra_message = ""
-        if self.stopped:
-            message = "Download stopped"
-        users = ""
-        subs = ""
-        if stats.get_user_names() or stats.get_subreddit_names():
-            if stats.get_user_names():
-                users = ', '.join(stats.get_user_names())
-            if stats.get_subreddit_names():
-                subs = ', '.join(stats.get_subreddit_names())
-            if users and subs:
-                extra_message = f":\n\tUsers: {users}\n\tSubreddits: {subs}"
-            elif users:
-                extra_message = f":\n\tUsers: {users}"
-            elif subs:
-                extra_message = f":\n\tSubreddits: {subs}"
+        message = "Download stopped" if self.stopped else "Download complete"
+        parts = []
+        if stats.get_user_names():
+            parts.append(f"Users: {', '.join(stats.get_user_names())}")
+        if stats.get_subreddit_names():
+            parts.append(f"Subreddits: {', '.join(stats.get_subreddit_names())}")
+        extra_message = ':' + ''.join(f'\n\t{part}' for part in parts) if parts else ''
 
         Message.send_info(f'{message}{extra_message}\n', session_id=self.download_session_id)
         self.logger.info("%s", message + extra_message, extra=extra)
         if stats.get_content_downloaded_count() > 0:
-            Message.send_status_tray(f'{stats.get_content_downloaded_count()} downloads. Users: {users} Subreddits: {subs}', session_id=self.download_session_id)
+            tray_message = ' '.join([f'{stats.get_content_downloaded_count()} downloads.'] + parts)
+            Message.send_status_tray(tray_message, session_id=self.download_session_id)
 
     def stop_download(self, hard_stop=False):
         self.stopped = True

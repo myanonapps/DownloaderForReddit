@@ -534,24 +534,50 @@ class DownloadSession(BaseModel):
         return session.query(Post.significant_reddit_object_id)\
             .filter(Post.download_session_id == self.id).distinct().count()
 
-    def get_downloaded_user_count(self, significant=True, session=None):
+    def get_downloaded_user_count(self, significant: bool = True, session: Optional[Session] = None) -> int:
+        """
+        Counts the distinct users downloaded in this session.  Users come from the posts extracted in the session and,
+        because media found in chat and private messages has no post, from the authors of message content downloaded in
+        the session.  A message's author is always its significant reddit object, so it counts in both modes.
+        :param significant: True to count only users that were downloaded as a significant reddit object (a user list
+                            entry); False to count every post author.
+        :type significant: bool
+        :param session: The session to query with; the object's own session when None.
+        :type session: Optional[Session]
+        :return: The number of distinct users.
+        :rtype: int
+        """
         if session is None:
             session = self.get_session()
         if significant:
-            query = session.query(Post.significant_reddit_object_id) \
+            post_query = session.query(Post.significant_reddit_object_id.label('user_id')) \
                 .filter(Post.author_id == Post.significant_reddit_object_id)
         else:
-            query = session.query(Post.subreddit_id)
-        return query.filter(Post.download_session_id == self.id).distinct().count()
+            post_query = session.query(Post.author_id.label('user_id'))
+        post_query = post_query.filter(Post.download_session_id == self.id, Post.author_id.isnot(None))
+        message_query = session.query(Content.user_id.label('user_id')) \
+            .filter(Content.download_session_id == self.id, Content.post_id.is_(None), Content.user_id.isnot(None))
+        user_ids = post_query.union(message_query).subquery()
+        return session.query(user_ids.c.user_id).distinct().count()
 
-    def get_downloaded_subreddit_count(self, significant=True, session=None):
+    def get_downloaded_subreddit_count(self, significant: bool = True, session: Optional[Session] = None) -> int:
+        """
+        Counts the distinct subreddits downloaded in this session, from the posts extracted in the session.
+        :param significant: True to count only subreddits that were downloaded as a significant reddit object (a
+                            subreddit list entry); False to count every subreddit a post was in.
+        :type significant: bool
+        :param session: The session to query with; the object's own session when None.
+        :type session: Optional[Session]
+        :return: The number of distinct subreddits.
+        :rtype: int
+        """
         if session is None:
             session = self.get_session()
         if significant:
             query = session.query(Post.significant_reddit_object_id)\
                 .filter(Post.subreddit_id == Post.significant_reddit_object_id)
         else:
-            query = session.query(Post.author_id)
+            query = session.query(Post.subreddit_id).filter(Post.subreddit_id.isnot(None))
         return query.filter(Post.download_session_id == self.id).distinct().count()
 
     def get_extracted_post_count(self, session=None):

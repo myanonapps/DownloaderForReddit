@@ -77,7 +77,7 @@ class SettingsManager:
         default_user_download_dict = {
             'lock_settings': False,
             'post_limit': 25,
-            'post_download_source': PostDownloadSource.REDDIT,
+            'post_download_source': PostDownloadSource.ARCTIC_SHIFT,
             'post_score_limit_operator': LimitOperator.NO_LIMIT,
             'post_score_limit': 1000,
             'avoid_duplicates': True,  # Url duplicates
@@ -113,7 +113,7 @@ class SettingsManager:
         default_subreddit_download_dict = {
             'lock_settings': False,
             'post_limit': 25,
-            'post_download_source': PostDownloadSource.REDDIT,
+            'post_download_source': PostDownloadSource.ARCTIC_SHIFT,
             'post_score_limit_operator': LimitOperator.NO_LIMIT,
             'post_score_limit': 1000,
             'avoid_duplicates': True,  # Url duplicates
