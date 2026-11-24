@@ -68,13 +68,17 @@ MESSAGES_ARCHIVE = [
     ['id', 'permalink', 'thread_id', 'date', 'ip', 'from', 'to', 'subject', 'body'],
     ['m0', 'https://www.reddit.com/message/messages/m0', 't4_m0', '2020-01-01 00:00:00 UTC', '', '[deleted]', ACCOUNT,
      'Old', 'Archived message'],
+    ['m8', 'https://www.reddit.com/message/messages/m8', 't4_m8', '2019-06-01 00:00:00 UTC', '', 'r/modsub', ACCOUNT,
+     'Mod notice', 'Please read the rules'],
+    ['m7', 'https://www.reddit.com/message/messages/m7', 't4_m7', '2018-06-01 00:00:00 UTC', '', '[deleted]', 'ab',
+     'Gone', 'From a deleted account to a short name'],
 ]
 
 CHAT_HISTORY = [
     ['message_id', 'created_at', 'updated_at', 'username', 'message', 'thread_parent_message_id', 'channel_url',
      'subreddit', 'channel_name', 'conversation_type'],
-    ['msg-1', '2024-04-01 10:00:00 UTC', '', ACCOUNT, 'hi there', '', 'sendbird_group_channel_1', '', '', 'direct'],
-    ['msg-2', '2024-04-01 10:01:00 UTC', '', 'friend_two', 'hello!', '', 'sendbird_group_channel_1', '', '', 'direct'],
+    ['msg-1', '2024-04-01 10:00:00 UTC', '', f'/u/{ACCOUNT}', 'hi there', '', 'sendbird_group_channel_1', '', '', 'direct'],
+    ['msg-2', '2024-04-01 10:01:00 UTC', '', '/u/friend_two', 'hello!', '', 'sendbird_group_channel_1', '', '', 'direct'],
     ['msg-3', '2024-04-02 11:00:00 UTC', '', 'friend_three', 'group message', '', 'sendbird_group_channel_2', '',
      'Group chat', 'group'],
     ['$msg-4', '2024-04-03 12:00:00 UTC', '', ACCOUNT, 'anyone there?', '',

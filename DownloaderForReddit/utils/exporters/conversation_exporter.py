@@ -28,12 +28,11 @@ from typing import Iterable, Optional
 from sqlalchemy.orm import Session
 
 from ...database.conversation_queries import chat_messages, private_message_thread
-from ...database.export_models import ChatChannel, ChatMessage, PrivateMessage
+from ...database.export_models import ChatChannel, ChatMessage, PrivateMessage, person_name
 
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
-_UNKNOWN_AUTHOR = '[unknown]'
 _DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
@@ -55,18 +54,18 @@ def format_chat_transcript(channel: ChatChannel, messages: Iterable[ChatMessage]
     :type channel: ChatChannel
     :param messages: The channel's messages, in the order to show them.
     :type messages: Iterable[ChatMessage]
-    :return: The transcript text.
+    :return: The transcript text, with people shown under their nicknames where they have one.
     :rtype: str
     """
     lines = [f'Chat: {channel.display_name}']
-    if channel.subreddit_name:
-        lines.append(f'Subreddit: r/{channel.subreddit_name}')
+    if channel.subreddit is not None:
+        lines.append(f'Subreddit: {channel.subreddit.nickname_or_name}')
     if channel.conversation_type:
         lines.append(f'Type: {channel.conversation_type}')
     lines.append('')
     for message in messages:
         reply = ' (thread reply)' if message.thread_parent_message_id else ''
-        lines.append(f'[{_format_date(message.date_posted)}] {message.author_name or _UNKNOWN_AUTHOR}{reply}:')
+        lines.append(f'[{_format_date(message.date_posted)}] {person_name(message.author)}{reply}:')
         lines.append(message.body or '')
         lines.append('')
     return '\n'.join(lines)
@@ -77,14 +76,14 @@ def format_private_message_thread(messages: list[PrivateMessage]) -> str:
     Formats a private message thread as a transcript.
     :param messages: The thread's messages, in the order to show them.
     :type messages: list[PrivateMessage]
-    :return: The transcript text.
+    :return: The transcript text, with people shown under their nicknames where they have one.
     :rtype: str
     """
     subject = next((message.subject for message in messages if message.subject), '[no subject]')
     lines = [f'Subject: {subject}', '']
     for message in messages:
-        sender = message.sender_name or _UNKNOWN_AUTHOR
-        recipient = message.recipient_name or _UNKNOWN_AUTHOR
+        sender = person_name(message.sender)
+        recipient = person_name(message.recipient)
         lines.append(f'[{_format_date(message.date_sent)}] {sender} -> {recipient}:')
         lines.append(message.body or '')
         lines.append('')

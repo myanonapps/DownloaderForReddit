@@ -36,12 +36,12 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
-from ....core.const import USER_OBJECT
-from ....database.models import Post, Comment, User, Subreddit, DownloadSession, ListAssociation, RedditObjectList
+from ....core.const import SUBREDDIT_OBJECT, USER_OBJECT
+from ....database.models import Post, Comment, User, Subreddit, DownloadSession, ListAssociation, RedditObject, RedditObjectList
 from ....database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
 from ...html_formatting import markdown_to_html
 from ... import injector
-from .export_reader import RedditExportReader
+from .export_reader import RedditExportReader, is_deleted_name, person_reference, strip_user_prefix
 from .export_records import ExportPost, ExportComment, ExportChatMessage, ExportPrivateMessage
 
 
@@ -178,14 +178,13 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         with injector.get_database_handler().get_scoped_session() as session:
             download_session = DownloadSession(name=f'Export import: {self.options.account_name}', start_time=datetime.now(),
                                                extraction_thread_count=0, download_thread_count=0)
+            self._owner = self._get_owner(session)
             export_import = ExportImport(file_name=os.path.basename(self.reader.zip_path), file_sha256=self.reader.file_sha256(),
-                                         account_name=self.options.account_name, download_session=download_session)
+                                         owner=self._owner, download_session=download_session)
             session.add_all([download_session, export_import])
             session.commit()
             self.stats.export_import_id = export_import.id
             self.stats.download_session_id = download_session.id
-            self._owner = self._get_owner(session)
-            session.commit()
 
             steps = (
                 (self.options.import_posts, self._import_posts),
@@ -246,37 +245,49 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
                 .filter(RedditObjectList.list_type == USER_OBJECT).first()
             if account_list is None:
                 raise ValueError(f'There is no user list with id {self.options.account_list_id}')
-        defaults = account_list.get_default_dict() if account_list is not None else None
-        owner = self._get_user(session, self.options.account_name, significant=True, defaults=defaults)
-        if owner is None:
+        name = strip_user_prefix(self.options.account_name)
+        if not name or not _USER_NAME.match(name) or is_deleted_name(name):
             raise ValueError(f'{self.options.account_name!r} is not a valid reddit user name')
+        defaults = account_list.get_default_dict() if account_list is not None else None
+        owner = self._get_user(session, name, significant=True, defaults=defaults)
         if account_list is not None and owner in session.new:
             session.add(ListAssociation(reddit_object=owner, reddit_object_list=account_list))
             logger.info('Added %s to user list %s', owner.name, account_list.name)
         return owner
 
-    def _get_user(self, session: Session, name: Optional[str], significant: bool = False,
-                  defaults: Optional[dict[str, object]] = None) -> Optional[User]:
+    def _get_person(self, session: Session, name: Optional[str]) -> RedditObject:
         """
-        Returns the User with a name, creating it if needed.  Names that are not valid reddit user names (deleted
-        accounts, subreddit modmail addresses) give None.
+        Returns the reddit object for a person named in a conversation, creating it, insignificant, if needed.  Every
+        name gets one: a subreddit sender (modmail) becomes a Subreddit, a deleted or missing account the shared
+        deleted placeholder user, and any other name a User.
         :param session: The database session.
         :type session: Session
-        :param name: The user name.
+        :param name: The name as the export gives it.
         :type name: Optional[str]
+        :return: The reddit object.
+        :rtype: RedditObject
+        """
+        object_type, bare_name = person_reference(name)
+        if object_type == SUBREDDIT_OBJECT:
+            return self._get_subreddit(session, bare_name)
+        return self._get_user(session, bare_name)
+
+    def _get_user(self, session: Session, name: str, significant: bool = False,
+                  defaults: Optional[dict[str, object]] = None) -> User:
+        """
+        Returns the User with a name, creating it if needed.
+        :param session: The database session.
+        :type session: Session
+        :param name: The bare user name.
+        :type name: str
         :param significant: Whether a newly created user is significant.  An existing user's flag is never changed.
         :type significant: bool
         :param defaults: Download settings for a newly created user, usually a list's defaults.  Never applied to an
                          existing user.
         :type defaults: Optional[dict[str, object]]
-        :return: The user, or None.
-        :rtype: Optional[User]
+        :return: The user.
+        :rtype: User
         """
-        if not name:
-            return None
-        name = name.strip().removeprefix('/u/').removeprefix('u/')
-        if not _USER_NAME.match(name) or name.lower() in ('[deleted]', 'deleted'):
-            return None
         key = name.lower()
         user = self._users.get(key)
         if user is None:
@@ -384,7 +395,6 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             score=0,
             reddit_id=record.reddit_id,
             url=url,
-            permalink=record.permalink,
             is_self=is_self,
             text=record.body,
             text_html=markdown_to_html(record.body) if record.body else None,
@@ -446,7 +456,6 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             score=0,
             date_posted=record.date_posted,
             reddit_id=record.reddit_id,
-            permalink=record.permalink,
             link_reddit_id=record.link_reddit_id,
             author=self._owner,
             subreddit=self._get_subreddit(session, record.subreddit),
@@ -502,15 +511,14 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             self.stats.chat_messages_added += len(new_messages)
             self._report('chat messages', len(chunk))
 
-    def _get_channel(self, session: Session, record: ExportChatMessage, export_import: ExportImport) -> ChatChannel:
+    def _get_channel(self, session: Session, record: ExportChatMessage) -> ChatChannel:
         """
-        Returns the channel a chat message belongs to, creating it if needed.
+        Returns the channel a chat message belongs to, creating it if needed.  Channels are matched by url, so exports
+        of different accounts that took part in the same channel share it.
         :param session: The database session.
         :type session: Session
         :param record: The exported chat message.
         :type record: ExportChatMessage
-        :param export_import: The import being run.
-        :type export_import: ExportImport
         :return: The channel.
         :rtype: ChatChannel
         """
@@ -519,13 +527,15 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             channel = session.query(ChatChannel).filter(ChatChannel.channel_url == record.channel_url).first()
             if channel is None:
                 channel = ChatChannel(channel_url=record.channel_url, channel_name=record.channel_name,
-                                      subreddit_name=record.subreddit, conversation_type=record.conversation_type,
-                                      export_import=export_import)
+                                      subreddit=self._get_subreddit(session, record.subreddit),
+                                      conversation_type=record.conversation_type)
                 session.add(channel)
                 self.stats.chat_channels_added += 1
             self._channels[record.channel_url] = channel
         if channel.channel_name is None and record.channel_name:
             channel.channel_name = record.channel_name
+        if channel.subreddit is None and record.subreddit:
+            channel.subreddit = self._get_subreddit(session, record.subreddit)
         return channel
 
     def _make_chat_message(self, session: Session, record: ExportChatMessage, export_import: ExportImport) -> ChatMessage:
@@ -542,9 +552,8 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         """
         return ChatMessage(
             message_id=record.message_id,
-            channel=self._get_channel(session, record, export_import),
-            author_name=record.author,
-            author=self._get_user(session, record.author),
+            channel=self._get_channel(session, record),
+            author=self._get_person(session, record.author),
             body=record.body,
             date_posted=record.date_posted,
             date_updated=record.date_updated,
@@ -594,11 +603,8 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         return PrivateMessage(
             reddit_id=record.reddit_id,
             thread_id=record.thread_id,
-            permalink=record.permalink,
-            sender_name=record.sender,
-            sender=self._get_user(session, record.sender),
-            recipient_name=record.recipient,
-            recipient=self._get_user(session, record.recipient),
+            sender=self._get_person(session, record.sender),
+            recipient=self._get_person(session, record.recipient),
             subject=record.subject,
             body=record.body,
             date_sent=record.date_sent,

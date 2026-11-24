@@ -137,9 +137,14 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
         self.state_display = RedditObjectStateDisplay(self.settings_manager)
 
     def data(self, index, role=None):
-        if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self.items[index.row()].nickname_or_name
+        if role == Qt.ItemDataRole.EditRole:
             return self.items[index.row()].name
-        elif role == Qt.ItemDataRole.ForegroundRole:
+        if role == Qt.ItemDataRole.ToolTipRole:
+            reddit_object = self.items[index.row()]
+            return reddit_object.name if reddit_object.nickname_or_name != reddit_object.name else None
+        if role == Qt.ItemDataRole.ForegroundRole:
             return self.state_display.color(self.items[index.row()])
         elif role == Qt.ItemDataRole.DecorationRole:
             return self.state_display.icon(self.items[index.row()])

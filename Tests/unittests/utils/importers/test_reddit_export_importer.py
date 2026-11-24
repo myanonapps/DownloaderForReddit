@@ -26,15 +26,17 @@ import threading
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from sqlalchemy import or_
+
 from DownloaderForReddit.core.const import USER_OBJECT
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
-from DownloaderForReddit.database.models import Post, Comment, User, RedditObjectList
+from DownloaderForReddit.database.models import Post, Comment, User, RedditObjectList, Subreddit
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.utils.importers.reddit_export.export_importer import (ExportImportOptions, ExportImportStats,
                                                                                RedditExportImporter)
 from DownloaderForReddit.utils.importers.reddit_export.export_reader import RedditExportReader
-from Tests.unittests.utils.importers.export_fixture import ACCOUNT, COMMENTS, POSTS, csv_text, write_export
+from Tests.unittests.utils.importers.export_fixture import ACCOUNT, CHAT_HISTORY, COMMENTS, POSTS, csv_text, write_export
 
 
 class TestRedditExportImporter(TestCase):
@@ -72,11 +74,11 @@ class TestRedditExportImporter(TestCase):
         self.assertEqual(3, stats.comments_added)
         self.assertEqual(4, stats.chat_messages_added)
         self.assertEqual(3, stats.chat_channels_added)
-        self.assertEqual(3, stats.private_messages_added)
+        self.assertEqual(5, stats.private_messages_added)
         self.assertEqual(2, len(stats.new_post_ids))
         with self.db.get_scoped_session() as session:
             export_import = session.query(ExportImport).one()
-            self.assertEqual(ACCOUNT, export_import.account_name)
+            self.assertEqual(ACCOUNT, export_import.owner.name)
             self.assertEqual(3, export_import.comment_count)
             self.assertIsNotNone(export_import.download_session.end_time)
 
@@ -88,7 +90,7 @@ class TestRedditExportImporter(TestCase):
         self.assertEqual(2, stats.posts_skipped)
         self.assertEqual(3, stats.comments_skipped)
         self.assertEqual(4, stats.chat_messages_skipped)
-        self.assertEqual(3, stats.private_messages_skipped)
+        self.assertEqual(5, stats.private_messages_skipped)
         with self.db.get_scoped_session() as session:
             self.assertEqual(2, session.query(Post).count())
             self.assertEqual(3, session.query(ChatChannel).count())
@@ -148,17 +150,20 @@ class TestRedditExportImporter(TestCase):
             direct = session.query(ChatChannel).filter(ChatChannel.channel_url == 'sendbird_group_channel_1').one()
             self.assertEqual(2, len(direct.messages))
             self.assertIsNone(direct.channel_name)
-            self.assertEqual('friend_two', direct.display_name)
+            self.assertEqual('export_owner, friend_two', direct.display_name)
             named = session.query(ChatChannel).filter(ChatChannel.channel_url == 'sendbird_group_channel_2').one()
             self.assertEqual('Group chat', named.display_name)
             alone = session.query(ChatChannel).filter(ChatChannel.channel_url.like('%abcdefghij%')).one()
-            self.assertEqual([], alone.participant_names)
-            self.assertEqual('Chat abcdefghij', alone.display_name)
+            self.assertEqual([ACCOUNT], [person.name for person in alone.participants])
+            self.assertEqual(ACCOUNT, alone.display_name)
             message = session.query(ChatMessage).filter(ChatMessage.message_id == 'msg-2').one()
             self.assertEqual('friend_two', message.author.name)
 
     def test_private_messages(self) -> None:
-        """Private messages keep their thread and map valid user names to users."""
+        """
+        Private messages keep their thread, and every sender and recipient is a reddit object: users by name,
+        subreddit senders as subreddits, and deleted accounts as the shared placeholder user.
+        """
         self.run_import()
         with self.db.get_scoped_session() as session:
             first = session.query(PrivateMessage).filter(PrivateMessage.reddit_id == 'm1').one()
@@ -167,15 +172,29 @@ class TestRedditExportImporter(TestCase):
             self.assertEqual('friend_one', first.recipient.name)
             archived = session.query(PrivateMessage).filter(PrivateMessage.reddit_id == 'm0').one()
             self.assertTrue(archived.archived)
-            self.assertIsNone(archived.sender)
-            self.assertEqual('[deleted]', archived.sender_name)
+            self.assertEqual('deleted', archived.sender.name)
+            self.assertIsInstance(archived.sender, User)
+            # Every person gets a reddit object: subreddit senders become subreddits, odd names become users, and
+            # deleted accounts share one placeholder.
+            modmail = session.query(PrivateMessage).filter(PrivateMessage.reddit_id == 'm8').one()
+            self.assertIsInstance(modmail.sender, Subreddit)
+            self.assertEqual('modsub', modmail.sender.name)
+            self.assertFalse(modmail.sender.significant)
+            gone = session.query(PrivateMessage).filter(PrivateMessage.reddit_id == 'm7').one()
+            old = session.query(PrivateMessage).filter(PrivateMessage.reddit_id == 'm0').one()
+            self.assertEqual(old.sender_id, gone.sender_id)
+            self.assertIsInstance(gone.recipient, User)
+            self.assertEqual('ab', gone.recipient.name)
+            self.assertFalse(gone.recipient.significant)
+            self.assertEqual(0, session.query(PrivateMessage).filter(or_(PrivateMessage.sender_id.is_(None),
+                                                                          PrivateMessage.recipient_id.is_(None))).count())
 
     def test_users_are_not_duplicated(self) -> None:
         """Each person gets a single User row, however often they appear."""
         self.run_import()
         with self.db.get_scoped_session() as session:
             names = sorted(user.name for user in session.query(User))
-        self.assertEqual(sorted([ACCOUNT, 'friend_one', 'friend_two', 'friend_three']), names)
+        self.assertEqual(sorted([ACCOUNT, 'ab', 'deleted', 'friend_one', 'friend_two', 'friend_three']), names)
 
     def significance(self) -> dict[str, bool]:
         """
@@ -224,6 +243,7 @@ class TestRedditExportImporter(TestCase):
             RedditExportImporter(reader, ExportImportOptions(account_name='not a name!')).run()
         with self.db.get_scoped_session() as session:
             self.assertEqual(0, session.query(Post).count())
+            self.assertEqual(0, session.query(ExportImport).count())
 
     def test_disabled_types_are_skipped(self) -> None:
         """Record types that are switched off are not imported."""
@@ -310,3 +330,49 @@ class TestRedditExportImporterAccountList(TestCase):
         """A list id that names no user list is refused."""
         with self.assertRaises(ValueError):
             self.import_into_list(12345)
+
+
+class TestSharedChatChannels(TestCase):
+    """Tests for naming chat channels, which belong to no account."""
+
+    def setUp(self) -> None:
+        """Gives each test a fresh in-memory database and a temporary directory for its archives."""
+        injector.settings_manager = MagicMock()
+        self.db = DatabaseHandler(in_memory=True)
+        injector.database_handler = self.db
+        self.temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with  # cleaned up in tearDown
+
+    def tearDown(self) -> None:
+        """Removes the temporary directory."""
+        self.temp_dir.cleanup()
+
+    def test_channel_without_messages_is_named_after_room(self) -> None:
+        """A channel nobody is known to have written in is named after its room id."""
+        with self.db.get_scoped_session() as session:
+            channel = ChatChannel(channel_url='https://chat.reddit.com/room/!qrstuvwxyz0123:reddit.com')
+            session.add(channel)
+            session.commit()
+            self.assertEqual('Chat qrstuvwxyz', channel.display_name)
+
+    def test_shared_channel_has_no_owner(self) -> None:
+        """
+        Exports of two accounts that chatted with each other share one channel, whose participants are both accounts
+        whichever export was imported first.
+        """
+        for first, second in (('export_owner', 'friend_two'), ('friend_two', 'export_owner')):
+            with self.subTest(first=first):
+                self.db = DatabaseHandler(in_memory=True)
+                injector.database_handler = self.db
+                for account in (first, second):
+                    history = csv_text(CHAT_HISTORY[:3] + [['msg-9', '2024-04-01 10:02:00 UTC', '', '/u/friend_two', 'bye', '',
+                                                            'sendbird_group_channel_1', '', '', 'direct']])
+                    statistics = csv_text([['statistic', 'value'], ['account name', account]])
+                    path = write_export(self.temp_dir.name, {'chat_history.csv': history, 'statistics.csv': statistics},
+                                        name=f'{account}.zip')
+                    with RedditExportReader(path) as reader:
+                        RedditExportImporter(reader, ExportImportOptions(account_name=account)).run()
+                with self.db.get_scoped_session() as session:
+                    channel = session.query(ChatChannel).one()
+                    self.assertEqual(['export_owner', 'friend_two'], [person.name for person in channel.participants])
+                    self.assertEqual('export_owner, friend_two', channel.display_name)
+                    self.assertEqual(3, len(channel.messages))

@@ -61,7 +61,7 @@ class TestConversationExporter(TestCase):
             count = export_chat_transcript(session, channel.id, path)
         text = self.read(path)
         self.assertEqual(2, count)
-        self.assertTrue(text.startswith('Chat: friend_two'))
+        self.assertTrue(text.startswith(f'Chat: {ACCOUNT}, friend_two'))
         self.assertLess(text.index('hi there'), text.index('hello!'))
         self.assertIn(f'[2024-04-01 10:00:00 UTC] {ACCOUNT}:', text)
 

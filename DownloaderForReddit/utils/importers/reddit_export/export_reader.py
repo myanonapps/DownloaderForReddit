@@ -38,6 +38,7 @@ from datetime import datetime, timezone
 from types import TracebackType
 from typing import Iterator, Optional
 
+from ....core.const import DELETED_REDDIT_OBJECT_NAME, SUBREDDIT_OBJECT, USER_OBJECT
 from . import InvalidExportError
 from .export_records import (ExportPost, ExportComment, ExportPrivateMessage, ExportChatMessage, ExportManifest,
                              POSTS_FILE, COMMENTS_FILE, MESSAGES_FILE, MESSAGES_ARCHIVE_FILE, CHAT_HISTORY_FILE,
@@ -48,6 +49,7 @@ logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
 _PERMALINK_POST_ID = re.compile(r'/comments/([a-z0-9]+)', re.IGNORECASE)
 _FULLNAME_PREFIX = re.compile(r'^t\d_', re.IGNORECASE)
+_DELETED_NAMES = ('[deleted]', 'deleted')
 _ACCOUNT_NAME_STATISTICS = ('account name', 'account_name', 'username', 'user name')
 _HASH_CHUNK_SIZE = 1024 * 1024
 _REDDIT_ORIGIN = 'https://www.reddit.com'
@@ -112,6 +114,49 @@ def strip_fullname(value: Optional[str]) -> Optional[str]:
     if not value or not value.strip():
         return None
     return _FULLNAME_PREFIX.sub('', value.strip())
+
+
+def strip_user_prefix(name: Optional[str]) -> Optional[str]:
+    """
+    Removes the '/u/' or 'u/' prefix that the export puts on some user names, such as chat authors.
+    :param name: A user name, with or without the prefix.
+    :type name: Optional[str]
+    :return: The bare user name, or None when nothing is left.
+    :rtype: Optional[str]
+    """
+    if not name:
+        return None
+    return name.strip().removeprefix('/u/').removeprefix('u/').strip() or None
+
+
+def is_deleted_name(name: Optional[str]) -> bool:
+    """
+    Whether a name from the export stands for a deleted or missing account.
+    :param name: The name, without a 'u/' prefix.
+    :type name: Optional[str]
+    :return: True for an empty name, '[deleted]' or 'deleted'.
+    :rtype: bool
+    """
+    return not name or name.strip().lower() in _DELETED_NAMES
+
+
+def person_reference(name: Optional[str]) -> tuple[str, str]:
+    """
+    Works out which reddit object a person named in a conversation refers to.  Subreddits write messages too
+    (modmail), and appear as 'r/name'; deleted or missing accounts refer to the shared deleted placeholder user.
+    :param name: The name as the export gives it.
+    :type name: Optional[str]
+    :return: The reddit object type (USER_OBJECT or SUBREDDIT_OBJECT) and its bare name.
+    :rtype: tuple[str, str]
+    """
+    bare = (name or '').strip()
+    for prefix in ('/r/', 'r/'):
+        if bare.lower().startswith(prefix) and bare[len(prefix):].strip():
+            return SUBREDDIT_OBJECT, bare[len(prefix):].strip()
+    bare = strip_user_prefix(bare)
+    if is_deleted_name(bare):
+        return USER_OBJECT, DELETED_REDDIT_OBJECT_NAME
+    return USER_OBJECT, bare
 
 
 def post_id_from_permalink(permalink: Optional[str]) -> Optional[str]:
@@ -325,17 +370,17 @@ class RedditExportReader:
         for row in self.iter_rows(STATISTICS_FILE):
             statistic = (_first(row, 'statistic', 'name', 'key') or '').lower()
             if statistic in _ACCOUNT_NAME_STATISTICS:
-                value = _first(row, 'value')
+                value = strip_user_prefix(_first(row, 'value'))
                 if value:
                     return value
         names: Counter[str] = Counter()
         for file_name in (MESSAGES_FILE, MESSAGES_ARCHIVE_FILE):
             for row in self.iter_rows(file_name):
-                for name in (_first(row, 'from'), _first(row, 'to')):
+                for name in (strip_user_prefix(_first(row, 'from')), strip_user_prefix(_first(row, 'to'))):
                     if name:
                         names[name] += 1
         for row in self.iter_rows(CHAT_HISTORY_FILE):
-            name = _first(row, 'username', 'user', 'author')
+            name = strip_user_prefix(_first(row, 'username', 'user', 'author'))
             if name:
                 names[name] += 1
         if not names:
@@ -385,7 +430,6 @@ class RedditExportReader:
                 parent_reddit_id = None  # top level comments name the post as their parent
             yield ExportComment(
                 reddit_id=reddit_id,
-                permalink=permalink,
                 date_posted=parse_export_date(_first(row, 'date', 'created_utc', 'created')),
                 subreddit=_first(row, 'subreddit'),
                 link_reddit_id=link_reddit_id,
@@ -408,11 +452,10 @@ class RedditExportReader:
                     continue
                 yield ExportPrivateMessage(
                     reddit_id=reddit_id,
-                    permalink=absolute_reddit_url(_first(row, 'permalink')),
                     thread_id=strip_fullname(_first(row, 'thread_id')),
                     date_sent=parse_export_date(_first(row, 'date', 'created_utc', 'created')),
-                    sender=_first(row, 'from', 'author'),
-                    recipient=_first(row, 'to', 'dest'),
+                    sender=strip_user_prefix(_first(row, 'from', 'author')),
+                    recipient=strip_user_prefix(_first(row, 'to', 'dest')),
                     subject=_text(row, 'subject'),
                     body=_text(row, 'body'),
                     archived=archived,
@@ -435,7 +478,7 @@ class RedditExportReader:
                 channel_url=channel_url,
                 date_posted=parse_export_date(_first(row, 'created_at', 'date')),
                 date_updated=parse_export_date(_first(row, 'updated_at')),
-                author=_first(row, 'username', 'user', 'author'),
+                author=strip_user_prefix(_first(row, 'username', 'user', 'author')),
                 body=_text(row, 'message', 'body'),
                 thread_parent_message_id=_first(row, 'thread_parent_message_id'),
                 subreddit=_first(row, 'subreddit'),

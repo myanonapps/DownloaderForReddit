@@ -33,6 +33,7 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
+from ....core.const import DELETED_REDDIT_OBJECT_NAME
 from ....data_interface.reddit_data_interface import RedditDataInterface
 from ....database.models import Post, Comment, User, Subreddit
 from ...html_formatting import markdown_to_html
@@ -251,13 +252,12 @@ class ExportHydrator:  # pylint: disable=too-few-public-methods  # hydrate() is 
             nsfw=bool(getattr(item, 'over_18', False)),
             reddit_id=str(item.id),
             url=getattr(item, 'url', None),
-            permalink=getattr(item, 'permalink', None),
             is_self=bool(getattr(item, 'is_self', False)),
             text=selftext,
             text_html=getattr(item, 'selftext_html', None) or (markdown_to_html(selftext) if selftext else None),
             extracted=True,
             extraction_date=datetime.now(),
-            author=db.get_or_create(User, name=author_name, session=session)[0] if author_name else None,
-            subreddit=db.get_or_create(Subreddit, name=subreddit_name, session=session)[0] if subreddit_name else None,
+            author=db.get_or_create(User, name=author_name or DELETED_REDDIT_OBJECT_NAME, session=session)[0],
+            subreddit=db.get_or_create(Subreddit, name=subreddit_name or DELETED_REDDIT_OBJECT_NAME, session=session)[0],
             download_session_id=download_session_id,
         )

@@ -41,6 +41,8 @@ RATE_LIMIT_DOC_URL = 'https://github.com/MalloyDelacroix/DownloaderForReddit/wik
 
 USER_OBJECT = 'USER'
 SUBREDDIT_OBJECT = 'SUBREDDIT'
+# Name of the placeholder user/subreddit that stands in for a deleted or unknown author or subreddit.
+DELETED_REDDIT_OBJECT_NAME = 'deleted'
 
 DISABLED_OBJECT_KEY = 'disabled'
 INACTIVE_OBJECT_KEY = 'inactive'

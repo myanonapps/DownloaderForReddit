@@ -26,10 +26,12 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
+from DownloaderForReddit.core.const import DELETED_REDDIT_OBJECT_NAME, SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.utils.importers.reddit_export import InvalidExportError
 from DownloaderForReddit.utils.importers.reddit_export.export_reader import (RedditExportReader, absolute_reddit_url,
-                                                                             parse_export_date, post_id_from_permalink,
-                                                                             strip_fullname)
+                                                                             parse_export_date, person_reference,
+                                                                             post_id_from_permalink, strip_fullname,
+                                                                             strip_user_prefix)
 from Tests.unittests.utils.importers.export_fixture import ACCOUNT, POSTS, csv_text, write_export
 
 
@@ -65,6 +67,22 @@ class TestExportParsingHelpers(TestCase):
         self.assertEqual('abc', strip_fullname('t1_abc'))
         self.assertEqual('abc', strip_fullname('abc'))
         self.assertIsNone(strip_fullname('  '))
+
+    def test_strip_user_prefix(self) -> None:
+        """The u/ prefix is removed in either form, and an empty name gives None."""
+        self.assertEqual('someone', strip_user_prefix('/u/someone'))
+        self.assertEqual('someone', strip_user_prefix('u/someone'))
+        self.assertEqual('someone', strip_user_prefix(' someone '))
+        self.assertIsNone(strip_user_prefix('/u/'))
+
+    def test_person_reference(self) -> None:
+        """Names map to users, r/ names to subreddits, and deleted or missing names to the deleted placeholder."""
+        self.assertEqual((USER_OBJECT, 'someone'), person_reference('/u/someone'))
+        self.assertEqual((USER_OBJECT, 'ab'), person_reference('ab'))
+        self.assertEqual((SUBREDDIT_OBJECT, 'modsub'), person_reference('/r/modsub'))
+        self.assertEqual((SUBREDDIT_OBJECT, 'modsub'), person_reference('r/modsub'))
+        for deleted in ('[deleted]', 'deleted', '', None, '/u/'):
+            self.assertEqual((USER_OBJECT, DELETED_REDDIT_OBJECT_NAME), person_reference(deleted))
 
     def test_post_id_from_permalink(self) -> None:
         """The submission id is taken from a permalink."""
@@ -106,7 +124,7 @@ class TestRedditExportReader(TestCase):
         self.assertEqual(2, manifest.count('posts.csv'))
         self.assertEqual(3, manifest.count('comments.csv'))
         self.assertEqual(2, manifest.count('messages.csv'))
-        self.assertEqual(1, manifest.count('messages_archive.csv'))
+        self.assertEqual(3, manifest.count('messages_archive.csv'))
         self.assertEqual(4, manifest.count('chat_history.csv'))
         self.assertNotIn('ip_logs.csv', manifest.files_present)
         self.assertEqual(64, len(manifest.file_sha256))
@@ -167,9 +185,10 @@ class TestRedditExportReader(TestCase):
         """Messages from both message files are read, and archived ones are flagged."""
         with RedditExportReader(write_export(self.directory)) as reader:
             messages = list(reader.iter_private_messages())
-        self.assertEqual(['m1', 'm2', 'm0'], [message.reddit_id for message in messages])
+        self.assertEqual(['m1', 'm2', 'm0', 'm8', 'm7'], [message.reddit_id for message in messages])
         self.assertEqual('m1', messages[0].thread_id)
-        self.assertEqual([False, False, True], [message.archived for message in messages])
+        self.assertEqual([False, False, True, True, True], [message.archived for message in messages])
+        self.assertEqual('r/modsub', messages[3].sender)
 
     def test_chat_messages(self) -> None:
         """Chat messages are read with their channel."""

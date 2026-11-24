@@ -104,7 +104,7 @@ class ExportImportRunner(QObject):
         :return: The import results.
         :rtype: ExportImportStats
         """
-        Message.send_info(f'Importing Reddit data export {self.zip_path} for u/{self.options.account_name}')
+        Message.send_info(f'Importing Reddit data export {self.zip_path} for {self.options.account_name}')
         with RedditExportReader(self.zip_path) as reader:
             self._importer = RedditExportImporter(reader, self.options, self.stop_event, self._import_progress)
             stats = self._importer.run()

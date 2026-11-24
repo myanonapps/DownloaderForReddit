@@ -171,7 +171,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         user = RedditAdapterManager().get_adapter(PostDownloadSource.REDDIT).get_authenticated_user()
 
         if user is not None:
-            Message.send_info(f'You are logged in to Reddit as /u/{user}.')
+            Message.send_info(f'You are logged in to Reddit as {user}.')
         else:
             Message.send_info('You are not logged in to Reddit. Use Action/Connect/Reddit Account')
         # region Main Menu

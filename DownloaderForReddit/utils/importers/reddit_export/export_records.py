@@ -66,11 +66,10 @@ class ExportPost:
 
 
 @dataclass
-class ExportComment:  # pylint: disable=too-many-instance-attributes  # mirrors the export's csv columns
+class ExportComment:
     """A comment made by the exporting account."""
 
     reddit_id: str
-    permalink: Optional[str] = None
     date_posted: Optional[datetime] = None
     subreddit: Optional[str] = None
     link_reddit_id: Optional[str] = None
@@ -84,7 +83,6 @@ class ExportPrivateMessage:  # pylint: disable=too-many-instance-attributes  # m
     """A legacy private (inbox) message sent or received by the exporting account."""
 
     reddit_id: str
-    permalink: Optional[str] = None
     thread_id: Optional[str] = None
     date_sent: Optional[datetime] = None
     sender: Optional[str] = None

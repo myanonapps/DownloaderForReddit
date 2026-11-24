@@ -5,6 +5,7 @@ from sqlalchemy.orm.session import Session
 from praw.models import Submission, Comment as PrawComment
 
 from ..database.models import User, Subreddit, Post, Comment
+from .const import DELETED_REDDIT_OBJECT_NAME
 from ..utils import injector
 
 
@@ -90,7 +91,7 @@ class SubmittableCreator:
                                                 session=session)[0]
         except AttributeError:
             cls.logger.error('Failed to get author', exc_info=True)
-            author = cls.get_db().get_or_create(User, name='deleted', session=session)[0]
+            author = cls.get_db().get_or_create(User, name=DELETED_REDDIT_OBJECT_NAME, session=session)[0]
         return author
 
     @classmethod
@@ -101,5 +102,5 @@ class SubmittableCreator:
                                                    defaults=defaults, session=session)[0]
         except AttributeError:
             cls.logger.error('Failed to get subreddit', exc_info=True)
-            subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]       
+            subreddit = cls.get_db().get_or_create(Subreddit, name=DELETED_REDDIT_OBJECT_NAME, session=session)[0]       
         return subreddit
