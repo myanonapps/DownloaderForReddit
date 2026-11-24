@@ -29,12 +29,14 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import html
 import logging
 import os
+from enum import Enum
 from typing import Optional
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QWidget
+from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QStyle, QWidget
 from sqlalchemy import func
 
 from ..core.const import USER_OBJECT
@@ -51,6 +53,46 @@ from ..utils.importers.reddit_export.export_records import (ExportManifest, POST
 
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+
+SUMMARY_STYLE = ('QLabel#summary_label { background: palette(alternate-base); border: 1px solid palette(mid); '
+                 'border-radius: 6px; }')
+
+
+class StatusSeverity(Enum):
+    """How serious a message in the dialog's status banner is, which decides the banner's color and icon."""
+
+    ERROR = ('rgba(220, 53, 69, 0.15)', 'rgba(220, 53, 69, 0.6)', QStyle.StandardPixmap.SP_MessageBoxCritical)
+    WARNING = ('rgba(255, 193, 7, 0.18)', 'rgba(255, 193, 7, 0.7)', QStyle.StandardPixmap.SP_MessageBoxWarning)
+
+    @property
+    def style_sheet(self) -> str:
+        """
+        The banner frame's style sheet: a translucent tint and border, so that it reads on light and dark themes.
+        :return: The style sheet.
+        :rtype: str
+        """
+        background, border, _ = self.value
+        return f'QFrame#status_frame {{ background: {background}; border: 1px solid {border}; border-radius: 6px; }}'
+
+    @property
+    def icon(self) -> QStyle.StandardPixmap:
+        """
+        The standard icon shown beside the message.
+        :return: The icon.
+        :rtype: QStyle.StandardPixmap
+        """
+        return self.value[2]
+
+
+def bold(text: str) -> str:
+    """
+    Escapes text for a rich-text label and makes it bold.
+    :param text: The plain text.
+    :type text: str
+    :return: The HTML.
+    :rtype: str
+    """
+    return f'<b>{html.escape(text)}</b>'
 
 
 def bare_account_name(text: str) -> str:
@@ -92,6 +134,14 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         self.settings_manager = injector.get_settings_manager()
         self.manifest: Optional[ExportManifest] = None
         self.zip_path: Optional[str] = None
+
+        self.summary_label.setStyleSheet(SUMMARY_STYLE)
+        # A margin, unlike style sheet padding, is counted in the label's height for its width, so wrapped text is not cut off.
+        self.summary_label.setMargin(8)
+        self.status_label.setTextFormat(Qt.TextFormat.PlainText)
+        self.status_label.setStyleSheet('background: transparent; border: none;')
+        self.status_icon_label.setStyleSheet('background: transparent; border: none;')
+        self.status_frame.hide()
 
         self.hydrate_check_box.setChecked(bool(self.settings_manager.export_import_hydrate))
         self.download_media_check_box.setChecked(bool(self.settings_manager.export_import_queue_downloads))
@@ -142,7 +192,7 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
             logger.warning('Could not read export %s: %s', path, error)
             self.manifest = None
             self.zip_path = None
-            self.status_label.setText(f'This is not a Reddit data export: {error}')
+            self._show_status(f'This is not a Reddit data export: {error}', StatusSeverity.ERROR)
             self.update_ok_button()
             return
         finally:
@@ -164,8 +214,40 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         self._set_count(self.comments_check_box, 'Comments', manifest.count(COMMENTS_FILE))
         self._set_count(self.chats_check_box, 'Chat messages', manifest.count(CHAT_HISTORY_FILE))
         self._set_count(self.private_messages_check_box, 'Private messages', message_count)
-        self.status_label.setText(self._previous_import_text(manifest))
+        self._show_status(self._previous_import_text(manifest), StatusSeverity.WARNING)
         self.update_ok_button()
+
+    def _show_status(self, text: str, severity: StatusSeverity) -> None:
+        """
+        Shows a message in the status banner, tinted and with an icon for its severity, or hides the banner when there
+        is no message.
+        :param text: The message, or an empty string to hide the banner.
+        :type text: str
+        :param severity: How serious the message is.
+        :type severity: StatusSeverity
+        :return: None
+        :rtype: None
+        """
+        if not text:
+            self.status_frame.hide()
+            return
+        self.status_label.setText(text)
+        self.status_icon_label.setPixmap(self.style().standardIcon(severity.icon).pixmap(20, 20))
+        self.status_frame.setStyleSheet(severity.style_sheet)
+        self.status_frame.show()
+        self._fit_height()
+
+    def _fit_height(self) -> None:
+        """
+        Makes the dialog tall enough for its wrapped summary and status text at its current width.  Qt does not grow a
+        window for wrapped labels by itself, so without this the end of a long summary is cut off.  The dialog never
+        shrinks here, so it does not jump while the user changes options.
+        :return: None
+        :rtype: None
+        """
+        needed = self.layout().totalHeightForWidth(self.width())
+        if needed > self.height():
+            self.resize(self.width(), needed)
 
     @staticmethod
     def _set_count(check_box: QCheckBox, label: str, count: int) -> None:
@@ -236,19 +318,21 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         name = bare_account_name(self.account_line_edit.text())
         list_id = self.account_list_id
         if not name or list_id is None:
-            self.summary_label.setText('Name the account and choose a user list to see what the import will do.'
-                                       if self.account_list_combo.count() else
-                                       'There are no user lists. Create a user list before importing.')
+            placeholder = ('Name the account and choose a user list to see what the import will do.'
+                           if self.account_list_combo.count() else
+                           'There are no user lists. Create a user list before importing.')
+            self.summary_label.setText(f'<i>{html.escape(placeholder)}</i>')
             return
         with injector.get_database_handler().get_scoped_session() as session:
             user_list = session.query(RedditObjectList).get(list_id)
+            list_name = bold(user_list.name)
             existing = session.query(User).filter(func.lower(User.name) == name.lower()).first()
             lines = [self._account_line(name, user_list, existing)]
             if self.chats_check_box.isChecked() or self.private_messages_check_box.isChecked():
-                lines.append(f"Add every user in the imported chats and private messages to '{user_list.name}'. Users "
+                lines.append(f"Add every user in the imported chats and private messages to {list_name}. Users "
                              "not on a list yet take the list's settings; users already on a list keep their own.")
             if self.hydrate_check_box.isChecked():
-                lines.append(f'Fill in scores and metadata from {user_list.post_download_source.display_name}.')
+                lines.append(f'Fill in scores and metadata from {bold(user_list.post_download_source.display_name)}.')
             else:
                 lines.append('Do not look up missing data.')
             if self.download_media:
@@ -256,10 +340,12 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
                 takes_list_settings = existing is None or not existing.significant
                 settings_user = User(name=name, **user_list.get_default_dict()) if takes_list_settings else existing
                 lines.append("Download media for each author whose download is enabled, into the author's own folder "
-                             f'(u/{name}: {save_folder(settings_user)}).')
+                             f'({bold(f"u/{name}")}: <code>{html.escape(save_folder(settings_user))}</code>).')
             else:
                 lines.append('Do not download media.')
-        self.summary_label.setText('\n'.join(lines))
+        items = ''.join(f'<li>{line}</li>' for line in lines)
+        self.summary_label.setText(f'<b>This import will:</b><ul style="margin-left: -24px;">{items}</ul>')
+        self._fit_height()
 
     @staticmethod
     def _account_line(name: str, user_list: RedditObjectList, existing: Optional[User]) -> str:
@@ -272,14 +358,16 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         :type user_list: RedditObjectList
         :param existing: The account when it is already in the database.
         :type existing: Optional[User]
-        :return: The description.
+        :return: The description, as rich text with the names escaped and in bold.
         :rtype: str
         """
+        list_name = bold(user_list.name)
         if existing is None or not existing.significant:
-            return f"Add u/{name} to list '{user_list.name}' with the list's download settings."
+            return f"Add {bold(f'u/{name}')} to list {list_name} with the list's download settings."
+        account = bold(f'u/{existing.name}')
         if user_list.reddit_objects.filter(RedditObject.id == existing.id).first() is not None:
-            return f"u/{existing.name} is already on list '{user_list.name}' and keeps its own settings."
-        return f"Add u/{existing.name} to list '{user_list.name}'; it keeps its own settings."
+            return f'{account} is already on list {list_name} and keeps its own settings.'
+        return f'Add {account} to list {list_name}; it keeps its own settings.'
 
     @property
     def options(self) -> ExportImportOptions:
