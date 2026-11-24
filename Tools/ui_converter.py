@@ -4,11 +4,15 @@ import sys
 import os
 import subprocess
 
+# The repository root, found from this file's location so the converter works from any working directory.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class Converter:
 
-    base_ui_path = os.path.relpath('Resources/ui_files')
-    base_out_path = os.path.relpath('DownloaderForReddit/guiresources')
+    # Relative to REPO_ROOT, which pyuic6 is run in, so the paths written into the generated files stay relative.
+    base_ui_path = os.path.join('Resources', 'ui_files')
+    base_out_path = os.path.join('DownloaderForReddit', 'guiresources')
 
     def __init__(self, ui_file):
         self.ui_file = ui_file
@@ -42,18 +46,28 @@ class Converter:
             'backup_dialog',
         ]
 
-    def run(self):
+    def run(self) -> int:
+        """
+        Converts the chosen .ui file, asking for one first when 'list' was given.
+        :return: The process exit code: 0 on success, 1 when the name is unknown or pyuic6 fails.
+        :rtype: int
+        """
         if self.ui_file == 'list':
             self.list_methods()
             self.ui_file = input('GUI file name (or number): ')
         try:
-            name = self.get_method()
-            method = getattr(self, name)
-            method()
-            print('Conversion successful')
+            method = getattr(self, self.get_method())
         except AttributeError:
-            print(f'Command not recognized.  Choices are: ')
+            print('Command not recognized.  Choices are: ')
             self.list_methods()
+            return 1
+        try:
+            method()
+        except subprocess.CalledProcessError as error:
+            print(f'Conversion failed (pyuic6 exit code {error.returncode})')
+            return 1
+        print('Conversion successful')
+        return 0
 
     def get_method(self):
         try:
@@ -66,16 +80,22 @@ class Converter:
         for x, y in enumerate(self.callable_methods):
             print(f'{x}: {y}')
 
-    def convert(self, name, *sub_paths):
-        original = os.getcwd()
-        os.chdir(os.path.dirname(original))  # change directories so that all file paths in created file are correct
+    def convert(self, name: str, *sub_paths: str) -> None:
+        """
+        Runs pyuic6 on one .ui file, writing the generated Python to the matching place under guiresources.  pyuic6 is
+        run from the repository root with this interpreter's PyQt6, so it works from any working directory and without
+        pyuic6 on the PATH.
+        :param name: The .ui file's name, without extension.
+        :type name: str
+        :param sub_paths: The subfolders the file is in, under both the ui_files and guiresources folders.
+        :type sub_paths: str
+        :return: None
+        :rtype: None
+        :raises subprocess.CalledProcessError: When pyuic6 fails.
+        """
         in_path = self.get_in_path(name, *sub_paths)
         out_path = self.get_out_path(name, *sub_paths)
-        command = f'pyuic6 {in_path} -o {out_path}'
-        # print(command)
-        subprocess.run(command)
-        # TODO: Post process the out_path so files work on non-windows platform
-        os.chdir(original)
+        subprocess.run([sys.executable, '-m', 'PyQt6.uic.pyuic', in_path, '-o', out_path], cwd=REPO_ROOT, check=True)
 
     def get_in_path(self, name, *sub_paths):
         name = f'{name}.ui'
@@ -201,7 +221,7 @@ def main():
         print('No class specified')
         command = input('GUI Name (or number): ')
     converter = Converter(command)
-    converter.run()
+    sys.exit(converter.run())
 
 
 if __name__ == '__main__':
