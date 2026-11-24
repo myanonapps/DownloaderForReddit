@@ -31,7 +31,7 @@ from sqlalchemy import or_
 from DownloaderForReddit.core.const import USER_OBJECT
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
-from DownloaderForReddit.database.models import Post, Comment, User, RedditObjectList, Subreddit
+from DownloaderForReddit.database.models import Post, Comment, User, ListAssociation, RedditObjectList, Subreddit
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.utils.importers.reddit_export.export_importer import (ExportImportOptions, ExportImportStats,
                                                                                RedditExportImporter)
@@ -39,7 +39,7 @@ from DownloaderForReddit.utils.importers.reddit_export.export_reader import Redd
 from Tests.unittests.utils.importers.export_fixture import ACCOUNT, CHAT_HISTORY, COMMENTS, POSTS, csv_text, write_export
 
 
-class TestRedditExportImporter(TestCase):
+class TestRedditExportImporter(TestCase):  # pylint: disable=too-many-public-methods  # one test method per import behaviour
     """Tests for RedditExportImporter."""
 
     def setUp(self) -> None:
@@ -103,6 +103,20 @@ class TestRedditExportImporter(TestCase):
         stats = self.run_import(newer)
         self.assertEqual(1, stats.posts_added)
         self.assertEqual(2, stats.posts_skipped)
+
+    def test_messages_with_links_left_to_extract(self) -> None:
+        """Messages with links are left unextracted and listed for download; messages without links are done."""
+        chats = CHAT_HISTORY + [['msg-5', '2024-04-04 09:00:00 UTC', '', ACCOUNT, 'look https://i.redd.it/x.jpg', '',
+                                 'sendbird_group_channel_1', '', '', 'direct']]
+        export = write_export(self.temp_dir.name, {'chat_history.csv': csv_text(chats)}, name='links.zip')
+        stats = self.run_import(export)
+        with self.db.get_scoped_session() as session:
+            linked = session.query(ChatMessage).filter(ChatMessage.message_id == 'msg-5').one()
+            self.assertEqual([linked.id], stats.new_chat_message_ids)
+            self.assertFalse(linked.extracted)
+            others = session.query(ChatMessage).filter(ChatMessage.message_id != 'msg-5').all()
+            self.assertTrue(all(message.extracted for message in others))
+        self.assertEqual([], stats.new_private_message_ids)
 
     def test_posts(self) -> None:
         """Posts belong to the owner, are left unextracted, and get a domain."""
@@ -304,27 +318,84 @@ class TestRedditExportImporterAccountList(TestCase):
         with RedditExportReader(self.export_path) as reader:
             RedditExportImporter(reader, ExportImportOptions(account_name=ACCOUNT, account_list_id=list_id)).run()
 
+    def member_names(self, list_id: int) -> set[str]:
+        """
+        Returns the names of a list's members.
+        :param list_id: The list id.
+        :type list_id: int
+        :return: The member names.
+        :rtype: set[str]
+        """
+        with self.db.get_scoped_session() as session:
+            return {member.name for member in session.query(RedditObjectList).get(list_id).reddit_objects}
+
     def test_new_account_added_to_list(self) -> None:
-        """A newly created account is added to the chosen list and takes its download defaults."""
+        """A newly created account is added to the chosen list, takes its download defaults and is significant."""
         list_id = self.make_user_list()
         self.import_into_list(list_id)
+        self.assertIn(ACCOUNT, self.member_names(list_id))
         with self.db.get_scoped_session() as session:
-            user_list = session.query(RedditObjectList).get(list_id)
-            members = user_list.reddit_objects.all()
-            self.assertEqual([ACCOUNT], [member.name for member in members])
-            self.assertEqual(77, members[0].post_limit)
-            self.assertTrue(members[0].significant)
+            owner = session.query(User).filter(User.name == ACCOUNT).one()
+            self.assertEqual(77, owner.post_limit)
+            self.assertTrue(owner.significant)
 
-    def test_existing_account_not_added_to_list(self) -> None:
-        """An account already in the database is not added to a list, and its settings are left as they were."""
+    def test_conversation_users_added_to_list(self) -> None:
+        """
+        Every user in the chats and private messages joins the list with its settings; subreddits (modmail) and
+        the deleted placeholder do not.
+        """
+        list_id = self.make_user_list()
+        stats = None
+        with RedditExportReader(self.export_path) as reader:
+            stats = RedditExportImporter(reader, ExportImportOptions(account_name=ACCOUNT, account_list_id=list_id)).run()
+        expected = {ACCOUNT, 'friend_one', 'friend_two', 'friend_three', 'ab'}
+        self.assertEqual(expected, self.member_names(list_id))
+        self.assertEqual(len(expected), stats.users_added_to_list)
         with self.db.get_scoped_session() as session:
-            session.add(User(name=ACCOUNT, post_limit=5))
+            friend = session.query(User).filter(User.name == 'friend_two').one()
+            self.assertTrue(friend.significant)
+            self.assertEqual(77, friend.post_limit)
+
+    def test_conversation_users_not_listed_without_list(self) -> None:
+        """Without a list, the people in conversations are stored but not made significant."""
+        with RedditExportReader(self.export_path) as reader:
+            RedditExportImporter(reader, ExportImportOptions(account_name=ACCOUNT)).run()
+        with self.db.get_scoped_session() as session:
+            self.assertFalse(session.query(User).filter(User.name == 'friend_two').one().significant)
+            self.assertEqual(0, session.query(ListAssociation).count())
+
+    def test_significant_user_keeps_settings(self) -> None:
+        """A user already on a list is added to the chosen list too, and keeps its own settings."""
+        with self.db.get_scoped_session() as session:
+            session.add(User(name='friend_two', post_limit=5, significant=True))
+            session.commit()
+        list_id = self.make_user_list()
+        self.import_into_list(list_id)
+        self.assertIn('friend_two', self.member_names(list_id))
+        with self.db.get_scoped_session() as session:
+            self.assertEqual(5, session.query(User).filter(User.name == 'friend_two').one().post_limit)
+
+    def test_insignificant_user_takes_list_settings(self) -> None:
+        """A user known only from earlier data (not on a list) takes the list's settings, as when added in the list view."""
+        with self.db.get_scoped_session() as session:
+            session.add(User(name=ACCOUNT, post_limit=5, significant=False))
             session.commit()
         list_id = self.make_user_list()
         self.import_into_list(list_id)
         with self.db.get_scoped_session() as session:
-            self.assertEqual(0, session.query(RedditObjectList).get(list_id).reddit_objects.count())
-            self.assertEqual(5, session.query(User).filter(User.name == ACCOUNT).one().post_limit)
+            owner = session.query(User).filter(User.name == ACCOUNT).one()
+            self.assertEqual(77, owner.post_limit)
+            self.assertTrue(owner.significant)
+
+    def test_users_not_added_twice(self) -> None:
+        """Importing again into the same list adds no one a second time."""
+        list_id = self.make_user_list()
+        self.import_into_list(list_id)
+        with self.db.get_scoped_session() as session:
+            first = session.query(ListAssociation).filter(ListAssociation.reddit_object_list_id == list_id).count()
+        self.import_into_list(list_id)
+        with self.db.get_scoped_session() as session:
+            self.assertEqual(first, session.query(ListAssociation).filter(ListAssociation.reddit_object_list_id == list_id).count())
 
     def test_unknown_list_raises(self) -> None:
         """A list id that names no user list is refused."""

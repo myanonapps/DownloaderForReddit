@@ -51,7 +51,8 @@ class SelfPostExtractor(BaseExtractor):
                 file.write(text)
                 content.set_downloaded(self.download_session_id)
         except Exception as e:
-            content.set_download_error(Error.TEXT_FAILURE, 'Failed to save text post', extra={'error': e})
+            self.logger.error('Failed to save text post', extra={'path': content.get_full_file_path()}, exc_info=True)
+            content.set_download_error(Error.TEXT_FAILURE, f'Failed to save text post: {e}')
 
     def __get_text(self, ext):
         if ext == 'txt':

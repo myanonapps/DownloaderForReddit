@@ -60,8 +60,12 @@ class DuplicateHandler:
         self.duplicate_deleted = False
 
     def setup(self) -> None:
+        """
+        Finds the content's post, if it has one, and the reddit object whose duplicate settings apply: the post's
+        significant reddit object, or for content from an imported message the message's author.
+        """
         self.post = self.content.post
-        self.sig_ro = self.post.significant_reddit_object
+        self.sig_ro = self.content.significant_reddit_object
 
     def handle_duplicate(self) -> None:
         """
@@ -87,7 +91,7 @@ class DuplicateHandler:
         file_path = self.content.get_full_file_path()
         system_util.delete_file(file_path)
         Message.send_info(
-            f'Duplicate deleted: {self.content.user.name}: {self.content.title}'
+            f'Duplicate deleted: {self.content.owner_name}: {self.content.title}'
         )
         self.duplicate_deleted = True
 
@@ -110,7 +114,7 @@ class DuplicateHandler:
         new_path = general_utils.ensure_file_path(new_path)
         os.rename(previous_file_path, new_path)
         Message.send_info(
-            f'Duplicate renamed: {self.content.user.name}: {self.content.title}\n'
+            f'Duplicate renamed: {self.content.owner_name}: {self.content.title}\n'
             f'{previous_file_path}\n{new_path}'
         )
 

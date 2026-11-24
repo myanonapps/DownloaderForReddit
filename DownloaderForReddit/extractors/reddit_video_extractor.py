@@ -36,6 +36,7 @@ from ..utils import video_merger
 class RedditVideoExtractor(BaseExtractor):
 
     url_key = ['v.redd.it']
+    needs_post = True  # the video and audio urls are read from the post's submission
 
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)

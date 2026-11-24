@@ -116,14 +116,14 @@ class RedditUploadsExtractor(BaseExtractor):
                     media_id = getattr(value, 'id', None)
                     if "s" not in value:
                         self.logger.error("Album image missing 's': {%s}", media_id)
-                        Message.send_extraction_error(f'Album image missing "s": {media_id}\nTitle: {self.post.title}\nUrl: {self.url}')
+                        Message.send_extraction_error(f'Album image missing "s": {media_id}\nTitle: {self.source_title}\nUrl: {self.url}')
                         continue
                     container = value['s']
 
                     if  "u" not in container:
                         if "gif" not in container:
                             self.logger.error("Album image missing 'u': {%s}", media_id)
-                            Message.send_extraction_error(f"Album image missing 'u': {media_id}\nTitle: {self.post.title}\nUrl: {self.url}")
+                            Message.send_extraction_error(f"Album image missing 'u': {media_id}\nTitle: {self.source_title}\nUrl: {self.url}")
                             continue
                         else:
                             url = container['gif']

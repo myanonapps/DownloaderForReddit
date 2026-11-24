@@ -436,7 +436,7 @@ class SettingsManager:
         # Reddit data export (the "Request your data" zip) import.  The hydration source is a PostDownloadSource name,
         # or an empty string to import the archive without looking anything up.
         self.last_export_import_directory = self.get('export_import', 'last_export_import_directory', os.path.expanduser('~'))
-        self.export_import_hydration_source = self.get('export_import', 'export_import_hydration_source', '')
+        self.export_import_hydrate = self.get('export_import', 'export_import_hydrate', False)
         self.export_import_queue_downloads = self.get('export_import', 'export_import_queue_downloads', False)
         self.export_import_chunk_size = self.get('export_import', 'export_import_chunk_size', 500)
         # endregion

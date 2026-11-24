@@ -30,7 +30,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Query, Session
 
 from .export_models import ChatChannel, ChatMessage, ExportImport, PrivateMessage, person_name
-from .models import RedditObject
+from .models import Content, RedditObject
 
 
 CHAT = 'CHAT'
@@ -38,6 +38,7 @@ PRIVATE_MESSAGE = 'PRIVATE_MESSAGE'
 _NO_SUBJECT = '[no subject]'
 _NONE = '—'
 _DATE_FORMAT = '%Y-%m-%d %H:%M'
+_ID_QUERY_SIZE = 500  # stays below SQLite's bound parameter limit
 PARTICIPANTS = 'Participants'
 
 
@@ -333,3 +334,47 @@ def set_chat_nickname(session: Session, channel_id: int, nickname: str) -> Optio
     channel.nickname = nickname.strip() or None
     session.commit()
     return channel.display_name
+
+
+def message_content(session: Session, kind: str, message_ids: Iterable[int]) -> dict[int, list[Content]]:
+    """
+    Returns the content extracted from messages' links, grouped by message.
+    :param session: The database session.
+    :type session: Session
+    :param kind: CHAT for chat messages, PRIVATE_MESSAGE for private messages.
+    :type kind: str
+    :param message_ids: The database ids of the messages.
+    :type message_ids: Iterable[int]
+    :return: Each message id that has content mapped to its content, oldest first.
+    :rtype: dict[int, list[Content]]
+    """
+    column = Content.chat_message_id if kind == CHAT else Content.private_message_id
+    grouped: dict[int, list[Content]] = {}
+    ids = list(message_ids)
+    for start in range(0, len(ids), _ID_QUERY_SIZE):
+        chunk = ids[start:start + _ID_QUERY_SIZE]
+        for content in session.query(Content).filter(column.in_(chunk)).order_by(Content.id):
+            grouped.setdefault(getattr(content, column.key), []).append(content)
+    return grouped
+
+
+def unextracted_message_ids(session: Session, summary: ConversationSummary) -> list[int]:
+    """
+    Returns the messages of a conversation whose links have not been extracted, or failed to be.  Messages without
+    links are recorded as extracted when they are imported, so these are the messages that may have media to download.
+    :param session: The database session.
+    :type session: Session
+    :param summary: The conversation.
+    :type summary: ConversationSummary
+    :return: The message ids, oldest first.
+    :rtype: list[int]
+    """
+    if summary.kind == CHAT:
+        query = session.query(ChatMessage.id).filter(ChatMessage.channel_id == summary.key) \
+            .filter(or_(ChatMessage.extracted.is_(None), ChatMessage.extracted.is_(False))) \
+            .order_by(ChatMessage.date_posted, ChatMessage.id)
+    else:
+        query = session.query(PrivateMessage.id).filter(PrivateMessage.thread_id == summary.key) \
+            .filter(or_(PrivateMessage.extracted.is_(None), PrivateMessage.extracted.is_(False))) \
+            .order_by(PrivateMessage.date_sent, PrivateMessage.id)
+    return [message_id for message_id, in query]

@@ -1,9 +1,13 @@
 """
 Dialog that sets up the import of a Reddit data export archive.
 
-The user picks the zip file, checks the detected account name and the record counts, chooses what to import and
-whether to fill in missing data from a download source, then accepts the dialog.  The import itself is run by the main
-window on a background thread.
+The user picks the zip file, checks the detected account name and the record counts, and chooses the user list that
+the account, and every user found in its chats and private messages, is added to, as when adding users anywhere else
+in the application.  The list decides the download source that missing data is filled in from, and users not on a list
+yet take the list's download settings, which then decide whether and where each author's media is downloaded.  Whether missing data is
+filled in, and whether the media in the imported posts and messages is downloaded afterwards, are chosen with two
+checkboxes, and a summary describes what the import will do.  The import itself is run by the main window on a
+background thread.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -35,10 +39,10 @@ from sqlalchemy import func
 
 from ..core.const import USER_OBJECT
 from ..database.export_models import ExportImport
-from ..database.models import RedditObjectList, User
+from ..database.models import RedditObject, RedditObjectList, User
 from ..database.model_enums import PostDownloadSource
 from ..guiresources.import_reddit_export_dialog_auto import Ui_ImportRedditExportDialog
-from ..utils import injector
+from ..utils import injector, system_util, TokenParser
 from ..utils.importers.reddit_export import InvalidExportError
 from ..utils.importers.reddit_export.export_importer import ExportImportOptions
 from ..utils.importers.reddit_export.export_reader import RedditExportReader
@@ -47,6 +51,31 @@ from ..utils.importers.reddit_export.export_records import (ExportManifest, POST
 
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+
+
+def bare_account_name(text: str) -> str:
+    """
+    Returns an account name as typed, without surrounding space or a 'u/' prefix.
+    :param text: The typed name.
+    :type text: str
+    :return: The bare name.
+    :rtype: str
+    """
+    return text.strip().removeprefix('/u/').removeprefix('u/')
+
+
+def save_folder(user: User) -> str:
+    """
+    Returns the folder a user's post media is saved in, which is also where the media in its imported messages is
+    saved.  Tokens in the save structure that depend on a post, such as the title, are left out.
+    :param user: The user, with its download settings.
+    :type user: User
+    :return: The folder.
+    :rtype: str
+    """
+    base = user.custom_post_save_path or injector.get_settings_manager().user_save_directory
+    sub_path = system_util.clean_path(TokenParser.parse_tokens(user, user.post_save_structure or ''), ends_with_dir=True)
+    return system_util.join_path(base, sub_path)
 
 
 class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
@@ -64,27 +93,22 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         self.manifest: Optional[ExportManifest] = None
         self.zip_path: Optional[str] = None
 
-        self.hydration_combo.addItem("Don't look anything up", None)
-        for source in PostDownloadSource:
-            self.hydration_combo.addItem(source.display_name, source)
-        saved_source = self.settings_manager.export_import_hydration_source
-        for index in range(self.hydration_combo.count()):
-            source = self.hydration_combo.itemData(index)
-            if source is not None and source.name == saved_source:
-                self.hydration_combo.setCurrentIndex(index)
+        self.hydrate_check_box.setChecked(bool(self.settings_manager.export_import_hydrate))
         self.download_media_check_box.setChecked(bool(self.settings_manager.export_import_queue_downloads))
 
-        self.account_list_combo.addItem("Don't add to a list", None)
         with injector.get_database_handler().get_scoped_session() as session:
             for list_id, list_name in session.query(RedditObjectList.id, RedditObjectList.name) \
                     .filter(RedditObjectList.list_type == USER_OBJECT).order_by(RedditObjectList.name):
                 self.account_list_combo.addItem(list_name, list_id)
+        if self.account_list_combo.count() == 0:
+            self.account_list_combo.setToolTip('There are no user lists. Create one before importing.')
 
         self.browse_button.clicked.connect(self.select_file)
-        self.account_line_edit.textChanged.connect(self.update_account_list_combo)
         self.account_line_edit.textChanged.connect(self.update_ok_button)
-        self.update_account_list_combo()
-        self.posts_check_box.toggled.connect(self.update_ok_button)
+        self.account_list_combo.currentIndexChanged.connect(self.update_ok_button)
+        for check_box in (self.posts_check_box, self.comments_check_box, self.chats_check_box,
+                          self.private_messages_check_box, self.hydrate_check_box, self.download_media_check_box):
+            check_box.toggled.connect(self.update_ok_button)
         self.button_box.accepted.connect(self.accept)
         self.update_ok_button()
 
@@ -177,48 +201,85 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
             return (f'This file was already imported on {previous.import_date_display}. Importing it again only adds '
                     'records that are not stored yet.')
 
-    def update_account_list_combo(self) -> None:
-        """
-        Enables the list choice only when the account named is not in the database yet, because the import adds only a
-        newly created account to a list.  An existing account keeps the lists it is already on.
-        :return: None
-        :rtype: None
-        """
-        name = self.account_line_edit.text().strip().removeprefix('/u/').removeprefix('u/')
-        is_new = bool(name)
-        if is_new:
-            with injector.get_database_handler().get_scoped_session() as session:
-                is_new = session.query(User.id).filter(func.lower(User.name) == name.lower()).first() is None
-        has_lists = self.account_list_combo.count() > 1
-        self.account_list_combo.setEnabled(is_new and has_lists)
-        self.account_list_label.setEnabled(is_new and has_lists)
-        if not has_lists:
-            self.account_list_combo.setToolTip('There are no user lists to add the account to.')
-        elif name and not is_new:
-            self.account_list_combo.setToolTip(f'{name} is already in the database, so it is not added to a list.')
-        else:
-            self.account_list_combo.setToolTip('The user list to add the account to.  Only available when the account is not in the database yet.')
-
     @property
     def account_list_id(self) -> Optional[int]:
         """
-        The id of the user list to add a newly created account to.
-        :return: The list id, or None when the account is not to be added to a list.
+        The id of the user list the account is added to.
+        :return: The list id, or None while no list is chosen (only when there are no user lists).
         :rtype: Optional[int]
         """
-        return self.account_list_combo.currentData() if self.account_list_combo.isEnabled() else None
+        return self.account_list_combo.currentData()
 
     def update_ok_button(self) -> None:
         """
-        Enables the OK button once a valid archive is loaded, an account is named and something is selected.
+        Enables the OK button once a valid archive is loaded, an account is named, a list is chosen and something is
+        selected, enables the media download checkbox when posts or messages are imported, and refreshes the summary.
         :return: None
         :rtype: None
         """
         anything_selected = any(box.isChecked() for box in (self.posts_check_box, self.comments_check_box,
                                                             self.chats_check_box, self.private_messages_check_box))
-        ready = self.zip_path is not None and bool(self.account_line_edit.text().strip()) and anything_selected
+        ready = (self.zip_path is not None and bool(bare_account_name(self.account_line_edit.text()))
+                 and self.account_list_id is not None and anything_selected)
         self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(ready)
-        self.download_media_check_box.setEnabled(self.posts_check_box.isChecked())
+        self.download_media_check_box.setEnabled(any(box.isChecked() for box in (
+            self.posts_check_box, self.chats_check_box, self.private_messages_check_box)))
+        self.update_summary()
+
+    def update_summary(self) -> None:
+        """
+        Describes what the import will do with the choices made: the users added to the list, whether and from where
+        missing data is filled in, and whether and where media is downloaded.
+        :return: None
+        :rtype: None
+        """
+        name = bare_account_name(self.account_line_edit.text())
+        list_id = self.account_list_id
+        if not name or list_id is None:
+            self.summary_label.setText('Name the account and choose a user list to see what the import will do.'
+                                       if self.account_list_combo.count() else
+                                       'There are no user lists. Create a user list before importing.')
+            return
+        with injector.get_database_handler().get_scoped_session() as session:
+            user_list = session.query(RedditObjectList).get(list_id)
+            existing = session.query(User).filter(func.lower(User.name) == name.lower()).first()
+            lines = [self._account_line(name, user_list, existing)]
+            if self.chats_check_box.isChecked() or self.private_messages_check_box.isChecked():
+                lines.append(f"Add every user in the imported chats and private messages to '{user_list.name}'. Users "
+                             "not on a list yet take the list's settings; users already on a list keep their own.")
+            if self.hydrate_check_box.isChecked():
+                lines.append(f'Fill in scores and metadata from {user_list.post_download_source.display_name}.')
+            else:
+                lines.append('Do not look up missing data.')
+            if self.download_media:
+                # An account not on a list yet takes the list's settings, so its folder is that of a user with them.
+                takes_list_settings = existing is None or not existing.significant
+                settings_user = User(name=name, **user_list.get_default_dict()) if takes_list_settings else existing
+                lines.append("Download media for each author whose download is enabled, into the author's own folder "
+                             f'(u/{name}: {save_folder(settings_user)}).')
+            else:
+                lines.append('Do not download media.')
+        self.summary_label.setText('\n'.join(lines))
+
+    @staticmethod
+    def _account_line(name: str, user_list: RedditObjectList, existing: Optional[User]) -> str:
+        """
+        Describes what happens to the account: added to the list with the list's settings when it is not on a list yet
+        (new, or known only from other people's posts and messages), added keeping its own settings, or already on it.
+        :param name: The account name.
+        :type name: str
+        :param user_list: The chosen list.
+        :type user_list: RedditObjectList
+        :param existing: The account when it is already in the database.
+        :type existing: Optional[User]
+        :return: The description.
+        :rtype: str
+        """
+        if existing is None or not existing.significant:
+            return f"Add u/{name} to list '{user_list.name}' with the list's download settings."
+        if user_list.reddit_objects.filter(RedditObject.id == existing.id).first() is not None:
+            return f"u/{existing.name} is already on list '{user_list.name}' and keeps its own settings."
+        return f"Add u/{existing.name} to list '{user_list.name}'; it keeps its own settings."
 
     @property
     def options(self) -> ExportImportOptions:
@@ -240,16 +301,21 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
     @property
     def hydration_source(self) -> Optional[PostDownloadSource]:
         """
-        The download source chosen to fill in missing data.
+        The download source missing data is filled in from: the chosen list's, when filling in is checked.
         :return: The source, or None when nothing is to be looked up.
         :rtype: Optional[PostDownloadSource]
         """
-        return self.hydration_combo.currentData()
+        list_id = self.account_list_id
+        if not self.hydrate_check_box.isChecked() or list_id is None:
+            return None
+        with injector.get_database_handler().get_scoped_session() as session:
+            user_list = session.query(RedditObjectList).get(list_id)
+            return user_list.post_download_source if user_list is not None else None
 
     @property
     def download_media(self) -> bool:
         """
-        Whether the imported posts' media is to be downloaded after the import.
+        Whether the media in the imported posts and messages is to be downloaded after the import.
         :return: True to download the media.
         :rtype: bool
         """
@@ -261,7 +327,6 @@ class ImportRedditExportDialog(QDialog, Ui_ImportRedditExportDialog):
         :return: None
         :rtype: None
         """
-        source = self.hydration_source
-        self.settings_manager.export_import_hydration_source = source.name if source is not None else ''
+        self.settings_manager.export_import_hydrate = self.hydrate_check_box.isChecked()
         self.settings_manager.export_import_queue_downloads = self.download_media_check_box.isChecked()
         super().accept()

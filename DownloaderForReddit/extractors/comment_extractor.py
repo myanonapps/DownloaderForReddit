@@ -21,7 +21,7 @@ class CommentExtractor(SelfPostExtractor):
             self.extraction_error = Error.TEXT_LINK_FAILURE
             self.failed_extraction_message = f'Failed to save comment text. ERROR: {e}'
             self.logger.error('Failed to save content text', extra={
-                'url': self.url, 'user': self.comment.url, 'subreddit': self.comment.subreddit,
+                'url': self.url, 'user': self.comment.author, 'subreddit': self.comment.subreddit,
                 'comment_id': self.comment.id, 'comment_reddit_id': self.comment.reddit_id,
                 'date_posted': self.comment.date_posted
             })

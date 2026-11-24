@@ -22,6 +22,30 @@ from ..messaging.message import Message
 from ..utils import injector
 
 
+def assign_extractor(url: str, extractor_dict: dict[str, bool]) -> Optional[type[BaseExtractor]]:
+    """
+    Returns the extractor class that handles a url: the first enabled extractor whose url key is found in the url, or
+    the direct extractor for a url ending in a known file extension.  Extractors made for particular sites are tried
+    before those whose keys match loosely (the generic video extractor), so a site's own extractor is not shadowed by
+    a short generic key that happens to occur in its urls.
+    :param url: The url to extract.
+    :type url: str
+    :param extractor_dict: Extractor class names mapped to whether they are enabled.  An extractor missing from it, as
+                           a newly added one is from settings saved before it existed, counts as enabled.
+    :type extractor_dict: dict[str, bool]
+    :return: The extractor class, or None when no enabled extractor handles the url.
+    :rtype: Optional[type[BaseExtractor]]
+    """
+    for extractor in sorted(BaseExtractor.__subclasses__(), key=lambda subclass: subclass.matches_loosely):
+        if extractor_dict.get(extractor.__name__, True):
+            key = extractor.get_url_key()
+            if key is not None and any(x in url.lower() for x in key):
+                return extractor
+    if url.lower().endswith(const.ALL_EXT) and extractor_dict.get('DirectExtractor', True):
+        return DirectExtractor
+    return None
+
+
 class SubmissionHandler(Runner):
 
     def __init__(self, submission: Optional[Submission], post: Post, download_session_id: int, session: Session,
@@ -137,15 +161,15 @@ class SubmissionHandler(Runner):
                 self.download_queue.put(content.id)
 
     @verify_run
-    def assign_extractor(self, url):
-        for extractor in BaseExtractor.__subclasses__():
-            if self.settings_manager.extractor_dict[extractor.__name__]:
-                key = extractor.get_url_key()
-                if key is not None and any(x in url.lower() for x in key):
-                    return extractor
-        if url.lower().endswith(const.ALL_EXT) and self.settings_manager.extractor_dict['DirectExtractor']:
-            return DirectExtractor
-        return None
+    def assign_extractor(self, url: str) -> Optional[type[BaseExtractor]]:
+        """
+        Returns the extractor class that handles a url, from the extractors enabled in the settings.
+        :param url: The url to extract.
+        :type url: str
+        :return: The extractor class, or None when no enabled extractor handles the url.
+        :rtype: Optional[type[BaseExtractor]]
+        """
+        return assign_extractor(url, self.settings_manager.extractor_dict)
 
     def handle_error(self, exception):
         if isinstance(exception, TypeError):

@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from DownloaderForReddit.core.download.downloader import Downloader
-from DownloaderForReddit.database.models import Content, BaseModel
+from DownloaderForReddit.database.models import Content, BaseModel, Post
 from DownloaderForReddit.utils import injector, general_utils
 
 
@@ -39,13 +39,14 @@ class TestDownloader(TestCase):
 
         # Insert some test data
         self.duplicate_hash = 'abcd1234'
-        self.content1 = Content(md5_hash=self.duplicate_hash)
-        self.content2 = Content(md5_hash='xyz9876')
+        self.content1 = Content(md5_hash=self.duplicate_hash, post=Post(title='one'))
+        self.content2 = Content(md5_hash='xyz9876', post=Post(title='two'))
         self.content3 = Content(
             url="http://example.com/file",
             title="example",
             extension="txt",
-            directory_path="/mock/path"
+            directory_path="/mock/path",
+            post=Post(title='three')
         )
         self.session.add_all([self.content1, self.content2, self.content3])
         self.session.commit()
@@ -103,12 +104,12 @@ class TestDownloader(TestCase):
 
     def test_should_use_hash_true(self):
         content = MagicMock()
-        content.post.significant_reddit_object.hash_duplicates = True
+        content.significant_reddit_object.hash_duplicates = True
         self.assertTrue(self.downloader.should_use_hash(content))
 
     def test_should_use_hash_false(self):
         content = MagicMock()
-        content.post.significant_reddit_object.hash_duplicates = False
+        content.significant_reddit_object.hash_duplicates = False
         self.assertFalse(self.downloader.should_use_hash(content))
 
     def test_finish_download_non_hashed_successful(self):

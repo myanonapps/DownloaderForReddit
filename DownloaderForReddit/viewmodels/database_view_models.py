@@ -235,10 +235,13 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
                 icon = self.get_icon(content)
                 return icon
             if role == Qt.ItemDataRole.ToolTipRole:
+                posted = content.get_display_datetime(content.source_date) if content.source_date is not None else None
                 tip = f'Title: {content.title}\n' \
-                       f'Posted: {content.post.date_posted_display}\n' \
-                       f'Author: {content.user.name}\n' \
-                       f'Subreddit: {content.subreddit.name}'
+                       f'Posted: {posted}\n' \
+                       f'Author: {content.user.name if content.user is not None else None}\n' \
+                       f'Subreddit: {content.subreddit.name if content.subreddit is not None else None}'
+                if content.post is None and content.message is not None:
+                    tip += f'\n{content.source_description}'
                 if content.error_message is not None:
                     tip += f'\nError: {content.error_message}'
                 return tip

@@ -7,11 +7,17 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterManager
 
 from .runner import Runner, verify_run
+from .message_handler import MessageHandler
 from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
 from ..database.models import Post
+from ..database.export_models import ChatMessage, PrivateMessage
 from ..utils import injector
 from ..messaging.message import Message
+
+# The extraction set types for imported messages, mapped to their models.
+MESSAGE_MODELS = {'CHAT_MESSAGE': ChatMessage, 'PRIVATE_MESSAGE': PrivateMessage}
+
 
 class ContentRunner(Runner):
 
@@ -55,6 +61,8 @@ class ContentRunner(Runner):
                         if extraction_type == 'SUBMISSION':
                             future = self.executor.submit(self.handle_submission, submission=extraction_object,
                                                           significant_id=significant_id)
+                        elif extraction_type in MESSAGE_MODELS:
+                            future = self.executor.submit(self.finish_message, extraction_type, extraction_object)
                         else:
                             future = self.executor.submit(self.finish_post, post_id=extraction_object)
                         self._track_future(future)
@@ -135,3 +143,21 @@ class ContentRunner(Runner):
                 submission = RedditAdapterManager().get_adapter_for_object(post.significant_reddit_object).submission(post.reddit_id)
                 submission_handler.submission = submission
                 submission_handler.extract_comments()
+
+    @verify_run
+    def finish_message(self, extraction_type: str, message_id: int) -> None:
+        """
+        Extracts the media linked in an imported message and queues it for download.
+        :param extraction_type: 'CHAT_MESSAGE' or 'PRIVATE_MESSAGE'.
+        :type extraction_type: str
+        :param message_id: The database id of the message.
+        :type message_id: int
+        :return: None
+        :rtype: None
+        """
+        with self.db.get_scoped_session() as session:
+            message = session.query(MESSAGE_MODELS[extraction_type]).get(message_id)
+            if message is None:
+                self.logger.warning('%s %s to extract was not found', extraction_type, message_id)
+                return
+            MessageHandler(message, self.download_queue, self.stop_run, self.download_session_id).extract()

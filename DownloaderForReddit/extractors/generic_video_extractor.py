@@ -37,6 +37,7 @@ class GenericVideoExtractor(BaseExtractor):
 
     key = None
     load_time = None
+    matches_loosely = True  # the supported site keys are short words found in many unrelated urls
 
     @classmethod
     def get_url_key(cls):
@@ -67,7 +68,7 @@ class GenericVideoExtractor(BaseExtractor):
         except:
             message = 'Failed to locate content'
             self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
-                                       failed_domain=self.post.domain)
+                                       failed_domain=self.source.domain)
 
     def extract_single_video(self, entry):
         self.make_content(entry['url'], 'mp4')

@@ -176,8 +176,15 @@ class Downloader(Runner):
         self.finish_multi_part_download(content, multi_part_downloader)
 
     def should_use_hash(self, content: Content) -> bool:
-        sig_ro = content.post.significant_reddit_object
-        return sig_ro.hash_duplicates
+        """
+        Whether the content's file is hashed to find duplicates, as its significant reddit object's settings say.
+        :param content: The content being downloaded; from a post, or from an imported message.
+        :type content: Content
+        :return: True to hash the file.
+        :rtype: bool
+        """
+        sig_ro = content.significant_reddit_object
+        return sig_ro is not None and bool(sig_ro.hash_duplicates)
 
     def download_with_hash(self, content: Content, response: requests.Response) -> None:
         file_path = content.get_full_file_path()
@@ -251,8 +258,9 @@ class Downloader(Runner):
 
         :param content: The content object for which the modified date is updated.
         """
-        if self.settings_manager.match_file_modified_to_post_date:
-            system_util.set_file_modify_time(content.get_full_file_path(), content.post.date_posted.timestamp())
+        source_date = content.source_date
+        if self.settings_manager.match_file_modified_to_post_date and source_date is not None:
+            system_util.set_file_modify_time(content.get_full_file_path(), source_date.timestamp())
 
     def output_downloaded_message(self, content: Content) -> None:
         """
@@ -278,7 +286,7 @@ class Downloader(Runner):
         if self.settings_manager.output_saved_content_format == ContentOutput.FULL_PATH.name:
             return content.get_full_file_path()
         elif self.settings_manager.output_saved_content_format == ContentOutput.USER_TITLE.name:
-            return f'{content.user.name}: {content.title}'
+            return f'{content.owner_name}: {content.title}'
         return ""
 
     def handle_download_stopped(self, content: Content) -> None:
@@ -353,7 +361,7 @@ class Downloader(Runner):
         extra = {
             'url': content.url,
             'title': content.title,
-            'submission_id': content.post.reddit_id,
+            'submission_id': content.source_reddit_id,
             'user': content.user,
             'subreddit': content.subreddit,
             'save_path': content.get_full_file_path(),
@@ -362,6 +370,6 @@ class Downloader(Runner):
         self.logger.error(message, extra=extra, exc_info=True)
 
     def output_error(self, content, message):
-        output_append = f'\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n' \
+        output_append = f'\n{content.source_description}\nUrl: {content.url}\nUser: {content.user}\n' \
                         f'Subreddit: {content.subreddit}\n'
         Message.send_download_error(message + output_append, session_id=self.download_session_id)

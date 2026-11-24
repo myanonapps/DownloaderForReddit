@@ -42,8 +42,8 @@ class TestDuplicateHandlerIsDuplicate(TestCase):
         self.post = get_post(user=self.user)
         self.content = get_content(post=self.post, user=self.user)
         self.duplicate_hash = '123asdf123'
-        self.original_content = Content(md5_hash='non_dup_hash')
-        self.duplicate_content = Content(md5_hash=self.duplicate_hash)
+        self.original_content = Content(md5_hash='non_dup_hash', post=Post(title='original'))
+        self.duplicate_content = Content(md5_hash=self.duplicate_hash, post=Post(title='duplicate'))
         self.session.add_all([self.original_content, self.duplicate_content])
         self.session.commit()
 
@@ -80,6 +80,7 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.post = post
+        content.significant_reddit_object = user
 
         dup_handler = DuplicateHandler(content)
         dup_handler.handle_duplicate()
@@ -96,6 +97,7 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.post = post
+        content.significant_reddit_object = user
 
         dup_handler = DuplicateHandler(content)
         dup_handler.handle_duplicate()
@@ -112,6 +114,7 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.post = post
+        content.significant_reddit_object = user
 
         dup_handler = DuplicateHandler(content)
         dup_handler.handle_duplicate()
@@ -128,6 +131,7 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.post = post
+        content.significant_reddit_object = user
 
         dup_handler = DuplicateHandler(content)
         dup_handler.handle_duplicate()
@@ -144,7 +148,9 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.user = user
+        content.owner_name = user.name
         content.post = post
+        content.significant_reddit_object = user
         content.title = 'Test Title'
         content.url = 'http://example.com/file'
         content.get_full_file_path.return_value = 'path/to/file/Test Title.mp4'
@@ -173,6 +179,7 @@ class TestDuplicateHandlerHandleDuplicate(TestCase):
         post.significant_reddit_object = user
         content = MagicMock(spec=Content)
         content.post = post
+        content.significant_reddit_object = user
         content.title = 'Test Title'
         content.url = 'http://example.com/file'
         content.extension = 'mp4'

@@ -33,3 +33,4 @@ from .reddit_uploads_extractor import RedditUploadsExtractor
 from .reddit_video_extractor import RedditVideoExtractor
 from .generic_video_extractor import GenericVideoExtractor
 from .erome_extractor import EromeExtractor
+from .reddit_chat_media_extractor import RedditChatMediaExtractor

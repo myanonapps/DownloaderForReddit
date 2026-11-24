@@ -5,7 +5,9 @@ The list on the left holds the chat channels or the private message threads, mos
 the search box.  Selecting one shows its transcript in the middle, one row per message with the author's icon, and the
 transcript can be exported as a text file.  The info button next to the transcript title opens a properties pane on
 the right that describes the selected conversation (its identity, participants, dates and the imports it came from)
-and lets a chat be given a nickname.  Participants are users, or subreddits for modmail, and each is shown with the
+and lets a chat be given a nickname.  Messages whose links held media say how many files were found and downloaded;
+the files can be opened from the transcript's context menu, and the media of the selected conversation can be
+downloaded with its download button, which asks the main window to run the download.  Participants are users, or subreddits for modmail, and each is shown with the
 icon the rest of the application uses for that kind of reddit object.
 
 
@@ -32,16 +34,16 @@ import logging
 import os
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
-from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QTableWidgetItem, QWidget
+from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMenu, QTableWidgetItem, QWidget
 
 from ...core.const import RESOURCES
 from ...database.conversation_queries import (CHAT, PRIVATE_MESSAGE, ConversationSummary, chat_messages, chat_summaries,
-                                              conversation_properties, private_message_thread, private_thread_summaries,
-                                              set_chat_nickname)
+                                              conversation_properties, message_content, private_message_thread,
+                                              private_thread_summaries, set_chat_nickname, unextracted_message_ids)
 from ...database.export_models import ChatChannel, person_name
-from ...database.models import RedditObject
+from ...database.models import Content, RedditObject
 from ...guiresources.database_views.conversation_viewer_auto import Ui_ConversationViewer
 from ...utils import injector, system_util
 from ...utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread
@@ -74,6 +76,17 @@ def participant_icon(display: RedditObjectStateDisplay, participant: Optional[Re
     return display.icon(participant)
 
 
+def downloaded_paths(contents: list[Content]) -> tuple[str, ...]:
+    """
+    Returns the paths of the downloaded files among a message's content.
+    :param contents: The content extracted from the message's links.
+    :type contents: list[Content]
+    :return: The file paths, oldest first.
+    :rtype: tuple[str, ...]
+    """
+    return tuple(content.get_full_file_path() for content in contents if content.downloaded and content.download_title)
+
+
 def _summary_text(summary: ConversationSummary) -> str:
     """
     Returns the text of a conversation's entry in the list: its title, then its message count and last date.
@@ -88,6 +101,9 @@ def _summary_text(summary: ConversationSummary) -> str:
 
 class ConversationViewer(QWidget, Ui_ConversationViewer):
     """Lists imported conversations and shows their transcripts."""
+
+    # Asks for the media linked in messages to be downloaded: chat message ids, private message ids.
+    download_requested = pyqtSignal(list, list)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         """
@@ -123,6 +139,9 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.search_line_edit.textChanged.connect(self.search_timer.start)
         self.refresh_button.clicked.connect(self.load_conversations)
         self.export_button.clicked.connect(self.export_transcript)
+        self.download_content_button.clicked.connect(self.download_content)
+        self.transcript_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.transcript_view.customContextMenuRequested.connect(self.transcript_context_menu)
         self.properties_button.toggled.connect(self.set_properties_visible)
         self.properties_close_button.clicked.connect(lambda: self.properties_button.setChecked(False))
         self.conversation_list.currentItemChanged.connect(self.show_selected)
@@ -166,6 +185,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.status_label.setText(f'{len(summaries):,} {noun}' if summaries else
                                   f'No {noun}. Import a Reddit data export from File > Import Reddit Data Export.')
         self.export_button.setEnabled(False)
+        self.download_content_button.setEnabled(False)
         if summaries:
             self.conversation_list.setCurrentRow(0)
 
@@ -205,21 +225,29 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         """
         summary = self.selected_summary()
         self.export_button.setEnabled(summary is not None)
+        self.download_content_button.setEnabled(summary is not None)
         if summary is None:
             self.clear_transcript()
             return
         with self.db.get_scoped_session() as session:
             if summary.kind == CHAT:
                 channel = session.query(ChatChannel).get(summary.key)
+                messages = chat_messages(session, summary.key)
+                content = message_content(session, CHAT, [message.id for message in messages])
                 entries = [TranscriptEntry(person_name(message.author), message.date_posted, message.body,
                                            'thread reply' if message.thread_parent_message_id else None,
-                                           participant_icon(self.icon_display, message.author))
-                           for message in chat_messages(session, summary.key)]
+                                           participant_icon(self.icon_display, message.author), message.id,
+                                           len(content.get(message.id, [])), downloaded_paths(content.get(message.id, [])))
+                           for message in messages]
                 title = channel.display_name if channel is not None else summary.title
             else:
+                messages = private_message_thread(session, summary.key)
+                content = message_content(session, PRIVATE_MESSAGE, [message.id for message in messages])
                 entries = [TranscriptEntry(person_name(message.sender), message.date_sent, message.body,
-                                           f'to {person_name(message.recipient)}', participant_icon(self.icon_display, message.sender))
-                           for message in private_message_thread(session, summary.key)]
+                                           f'to {person_name(message.recipient)}', participant_icon(self.icon_display, message.sender),
+                                           message.id, len(content.get(message.id, [])),
+                                           downloaded_paths(content.get(message.id, [])))
+                           for message in messages]
                 title = summary.title
         self.transcript_title_label.setText(title)
         self.transcript_model.set_entries(entries)
@@ -339,3 +367,64 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
             self.status_label.setText(f'Export failed: {error}')
             return
         self.status_label.setText(f'Exported {count:,} messages to {path}')
+
+    def download_content(self) -> None:
+        """
+        Asks for the media linked in the selected conversation's messages to be downloaded.  Only messages whose links
+        have not been extracted yet, or failed to be, are sent.
+        :return: None
+        :rtype: None
+        """
+        summary = self.selected_summary()
+        if summary is None:
+            return
+        with self.db.get_scoped_session() as session:
+            message_ids = unextracted_message_ids(session, summary)
+        if not message_ids:
+            self.status_label.setText('There is no media left to download in this conversation.')
+            return
+        if summary.kind == CHAT:
+            self.download_requested.emit(message_ids, [])
+        else:
+            self.download_requested.emit([], message_ids)
+        self.status_label.setText(f'Downloading media from {len(message_ids):,} messages. Refresh to see the files when it finishes.')
+
+    def transcript_context_menu(self, position: QPoint) -> None:
+        """
+        Shows the transcript's context menu: copy, and for a message with downloaded media, opening its files or
+        their folder.
+        :param position: Where the menu was asked for, in the view's viewport coordinates.
+        :type position: QPoint
+        :return: None
+        :rtype: None
+        """
+        entry = self.transcript_view.indexAt(position).data(Qt.ItemDataRole.UserRole)
+        paths = entry.content_paths if isinstance(entry, TranscriptEntry) else ()
+        menu = QMenu(self.transcript_view)
+        menu.addAction(self.copy_action)
+        menu.addSeparator()
+        open_action = menu.addAction('Open media' if len(paths) < 2 else f'Open media ({len(paths)} files)')
+        open_action.setEnabled(bool(paths))
+        open_action.triggered.connect(lambda: self.open_paths(paths))
+        folder_action = menu.addAction('Open media folder')
+        folder_action.setEnabled(bool(paths))
+        folder_action.triggered.connect(lambda: self.open_paths(paths[:1], folder=True))
+        menu.exec(self.transcript_view.viewport().mapToGlobal(position))
+
+    def open_paths(self, paths: tuple[str, ...], folder: bool = False) -> None:
+        """
+        Opens files, or the folders they are in, with the system's default application.
+        :param paths: The file paths.
+        :type paths: tuple[str, ...]
+        :param folder: Whether to open each file's folder instead of the file.
+        :type folder: bool
+        :return: None
+        :rtype: None
+        """
+        for path in paths:
+            target = os.path.dirname(path) if folder else path
+            try:
+                system_util.open_in_system(target)
+            except OSError:
+                logger.warning('Could not open %s', target, exc_info=True)
+                self.status_label.setText(f'Could not open {target}')

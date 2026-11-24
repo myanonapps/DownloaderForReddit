@@ -71,14 +71,14 @@
      <item row="2" column="0">
       <widget class="QLabel" name="account_list_label">
        <property name="text">
-        <string>Add to list:</string>
+        <string>List:</string>
        </property>
       </widget>
      </item>
      <item row="2" column="1">
       <widget class="QComboBox" name="account_list_combo">
        <property name="toolTip">
-        <string>The user list to add the account to.  Only available when the account is not in the database yet.</string>
+        <string>The user list the account is added to. The list decides where data is looked up from and where media is saved.</string>
        </property>
       </widget>
      </item>
@@ -134,27 +134,32 @@
     </widget>
    </item>
    <item>
-    <layout class="QFormLayout" name="options_layout">
-     <item row="0" column="0">
-      <widget class="QLabel" name="hydration_label">
-       <property name="text">
-        <string>Look up missing data:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QComboBox" name="hydration_combo">
-       <property name="toolTip">
-        <string>The export has no scores, nsfw flags or media details. Choose a source to fill these in, and to fetch the posts that imported comments were made on.</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+    <widget class="QCheckBox" name="hydrate_check_box">
+     <property name="toolTip">
+      <string>The export has no scores, nsfw flags or media details. Fill these in, and fetch the posts that imported comments were made on, from the chosen list's download source.</string>
+     </property>
+     <property name="text">
+      <string>Fill in missing data (scores, metadata)</string>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QCheckBox" name="download_media_check_box">
      <property name="text">
-      <string>Download media from the imported posts when the import finishes</string>
+      <string>Download media in posts and messages after import</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="summary_label">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::TextSelectableByMouse</set>
      </property>
     </widget>
    </item>

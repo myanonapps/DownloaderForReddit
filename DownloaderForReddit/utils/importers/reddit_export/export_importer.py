@@ -36,10 +36,11 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
-from ....core.const import SUBREDDIT_OBJECT, USER_OBJECT
+from ....core.const import DELETED_REDDIT_OBJECT_NAME, SUBREDDIT_OBJECT, USER_OBJECT
 from ....database.models import Post, Comment, User, Subreddit, DownloadSession, ListAssociation, RedditObject, RedditObjectList
 from ....database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
 from ...html_formatting import markdown_to_html
+from ...message_links import has_links
 from ... import injector
 from .export_reader import RedditExportReader, is_deleted_name, person_reference, strip_user_prefix
 from .export_records import ExportPost, ExportComment, ExportChatMessage, ExportPrivateMessage
@@ -85,11 +86,15 @@ class ExportImportStats:  # pylint: disable=too-many-instance-attributes  # plai
     chat_messages_skipped: int = 0
     private_messages_added: int = 0
     private_messages_skipped: int = 0
+    users_added_to_list: int = 0
     posts_hydrated: int = 0
     comments_hydrated: int = 0
     not_found: int = 0
     cancelled: bool = False
     new_post_ids: list[int] = field(default_factory=list)
+    # New messages with links in them, whose media can be downloaded.
+    new_chat_message_ids: list[int] = field(default_factory=list)
+    new_private_message_ids: list[int] = field(default_factory=list)
 
     @property
     def total_added(self) -> int:
@@ -168,6 +173,8 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         self._subreddits: dict[str, Subreddit] = {}
         self._channels: dict[str, ChatChannel] = {}
         self._owner: Optional[User] = None
+        self._list: Optional[RedditObjectList] = None
+        self._listed: set[str] = set()  # lowercase names of the users already handled by _add_to_list
 
     def run(self) -> ExportImportStats:
         """
@@ -230,36 +237,78 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
 
     def _get_owner(self, session: Session) -> User:
         """
-        Returns the account the export belongs to, creating it if needed.  As when a user is added to a list, a new
-        owner is created significant, and an existing user is left as it is.  A new owner is added to the user list
-        named in the options, and takes that list's download defaults.
+        Returns the account the export belongs to, creating it if needed, and adds it to the user list named in the
+        options, as every user found in the export's conversations is (see _add_to_list).  Without a list, a newly
+        created owner is still made significant, since the export's posts and comments are downloaded for it.
         :param session: The database session.
         :type session: Session
         :return: The owner.
         :rtype: User
         :raises ValueError: When the account name is not a valid reddit user name, or the list id names no user list.
         """
-        account_list = None
         if self.options.account_list_id is not None:
-            account_list = session.query(RedditObjectList).filter(RedditObjectList.id == self.options.account_list_id) \
+            self._list = session.query(RedditObjectList).filter(RedditObjectList.id == self.options.account_list_id) \
                 .filter(RedditObjectList.list_type == USER_OBJECT).first()
-            if account_list is None:
+            if self._list is None:
                 raise ValueError(f'There is no user list with id {self.options.account_list_id}')
         name = strip_user_prefix(self.options.account_name)
         if not name or not _USER_NAME.match(name) or is_deleted_name(name):
             raise ValueError(f'{self.options.account_name!r} is not a valid reddit user name')
-        defaults = account_list.get_default_dict() if account_list is not None else None
-        owner = self._get_user(session, name, significant=True, defaults=defaults)
-        if account_list is not None and owner in session.new:
-            session.add(ListAssociation(reddit_object=owner, reddit_object_list=account_list))
-            logger.info('Added %s to user list %s', owner.name, account_list.name)
+        owner = self._get_user(session, name, significant=self._list is None)
+        self._add_to_list(session, owner)
         return owner
+
+    def _add_to_list(self, session: Session, user: User) -> None:
+        """
+        Adds a user to the list named in the options, as adding a user to a list in the user list view does: a user
+        that is not significant yet (new, or only known from other people's posts and messages) takes the list's
+        download settings and becomes significant, while a significant user keeps its own settings.  The user's
+        settings, which for a new user are the list's, then decide whether and how its media is downloaded.  Each user
+        is handled once per import, and nothing is done when no list was named.
+        :param session: The database session.
+        :type session: Session
+        :param user: The user.
+        :type user: User
+        :return: None
+        :rtype: None
+        """
+        key = user.name.lower()
+        if self._list is None or key in self._listed:
+            return
+        self._listed.add(key)
+        if not user.significant:
+            self._list.sync_reddit_object_settings(user)
+            user.significant = True
+        if not self._in_list(session, user, self._list):
+            session.add(ListAssociation(reddit_object=user, reddit_object_list=self._list))
+            self.stats.users_added_to_list += 1
+            logger.info('Added %s to user list %s', user.name, self._list.name)
+
+    @staticmethod
+    def _in_list(session: Session, user: User, user_list: RedditObjectList) -> bool:
+        """
+        Whether a user is a member of a list.
+        :param session: The database session.
+        :type session: Session
+        :param user: The user; a newly created one is not on any list.
+        :type user: User
+        :param user_list: The list.
+        :type user_list: RedditObjectList
+        :return: True when the user is on the list.
+        :rtype: bool
+        """
+        if user in session.new:
+            return False
+        return session.query(ListAssociation.id).filter(ListAssociation.reddit_object_id == user.id) \
+            .filter(ListAssociation.reddit_object_list_id == user_list.id).first() is not None
 
     def _get_person(self, session: Session, name: Optional[str]) -> RedditObject:
         """
-        Returns the reddit object for a person named in a conversation, creating it, insignificant, if needed.  Every
-        name gets one: a subreddit sender (modmail) becomes a Subreddit, a deleted or missing account the shared
-        deleted placeholder user, and any other name a User.
+        Returns the reddit object for a person named in a conversation, creating it if needed.  Every name gets one: a
+        subreddit sender (modmail) becomes a Subreddit, a deleted or missing account the shared deleted placeholder
+        user, and any other name a User.  Users are added to the list named in the options, so that their media is
+        downloaded with the list's settings into their own folders; subreddits cannot go on a user list, and the
+        deleted placeholder is no account to add.
         :param session: The database session.
         :type session: Session
         :param name: The name as the export gives it.
@@ -270,21 +319,20 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         object_type, bare_name = person_reference(name)
         if object_type == SUBREDDIT_OBJECT:
             return self._get_subreddit(session, bare_name)
-        return self._get_user(session, bare_name)
+        user = self._get_user(session, bare_name)
+        if bare_name != DELETED_REDDIT_OBJECT_NAME:
+            self._add_to_list(session, user)
+        return user
 
-    def _get_user(self, session: Session, name: str, significant: bool = False,
-                  defaults: Optional[dict[str, object]] = None) -> User:
+    def _get_user(self, session: Session, name: str, significant: bool = False) -> User:
         """
-        Returns the User with a name, creating it if needed.
+        Returns the User with a name, creating it if needed.  Users that join a list get its settings in _add_to_list.
         :param session: The database session.
         :type session: Session
         :param name: The bare user name.
         :type name: str
-        :param significant: Whether a newly created user is significant.  An existing user's flag is never changed.
+        :param significant: Whether a newly created user is significant.  An existing user's flag is not changed here.
         :type significant: bool
-        :param defaults: Download settings for a newly created user, usually a list's defaults.  Never applied to an
-                         existing user.
-        :type defaults: Optional[dict[str, object]]
         :return: The user.
         :rtype: User
         """
@@ -293,7 +341,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
         if user is None:
             user = session.query(User).filter(User.name == name).first()
             if user is None:
-                user = User(name=name, significant=significant, **(defaults or {}))
+                user = User(name=name, significant=significant)
                 session.add(user)
             self._users[key] = user
         return user
@@ -508,6 +556,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
                 new_messages.append(self._make_chat_message(session, record, export_import))
             session.add_all(new_messages)
             session.commit()
+            self.stats.new_chat_message_ids.extend(message.id for message in new_messages if not message.extracted)
             self.stats.chat_messages_added += len(new_messages)
             self._report('chat messages', len(chunk))
 
@@ -559,6 +608,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             date_updated=record.date_updated,
             thread_parent_message_id=record.thread_parent_message_id,
             export_import=export_import,
+            extracted=not has_links(record.body),
         )
 
     def _import_private_messages(self, session: Session, export_import: ExportImport) -> None:
@@ -584,6 +634,7 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
                 new_messages.append(self._make_private_message(session, record, export_import))
             session.add_all(new_messages)
             session.commit()
+            self.stats.new_private_message_ids.extend(message.id for message in new_messages if not message.extracted)
             self.stats.private_messages_added += len(new_messages)
             self._report('private messages', len(chunk))
 
@@ -610,4 +661,5 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
             date_sent=record.date_sent,
             archived=record.archived,
             export_import=export_import,
+            extracted=not has_links(record.body),
         )

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import Column, Integer, SmallInteger, String, Boolean, DateTime, ForeignKey, Text, Enum, event
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.session import Session
@@ -798,6 +799,11 @@ class Content(BaseModel):
     post = relationship('Post', backref='content')
     comment_id = Column(ForeignKey('comment.id'), nullable=True)
     comment = relationship('Comment', backref='content')
+    # Content linked in an imported chat or private message.  Such content has no post; it is tied to its message.
+    chat_message_id = Column(ForeignKey('chat_message.id'), nullable=True, index=True)
+    chat_message = relationship('ChatMessage', backref='content')
+    private_message_id = Column(ForeignKey('private_message.id'), nullable=True, index=True)
+    private_message = relationship('PrivateMessage', backref='content')
     download_session_id = Column(ForeignKey('download_session.id'), nullable=True)
     # The session in which this content was actually downloaded.  May differ from the parent post/comment
     # download_session if the content was unable to be downloaded during the same session, and was downloaded at a
@@ -806,6 +812,76 @@ class Content(BaseModel):
 
     def __str__(self):
         return f'Content: {self.title}'
+
+    @property
+    def message(self):
+        """
+        The imported message the content was linked in.
+        :return: The chat message or private message, or None for content from a post or comment.
+        :rtype: Optional[ImportedMessage]
+        """
+        return self.chat_message if self.chat_message is not None else self.private_message
+
+    @property
+    def significant_reddit_object(self) -> Optional['RedditObject']:
+        """
+        The reddit object whose download settings apply to the content: the post's significant reddit object, or for
+        message content the message's author.
+        :return: The reddit object, or None when the content's source has none.
+        :rtype: Optional[RedditObject]
+        """
+        if self.post is not None:
+            return self.post.significant_reddit_object
+        message = self.message
+        return message.significant_reddit_object if message is not None else None
+
+    @property
+    def owner_name(self) -> Optional[str]:
+        """
+        The name the content is listed under in output messages: its user, or for content from a subreddit (such as a
+        modmail message) the subreddit.
+        :return: The name, or None when the content has neither.
+        :rtype: Optional[str]
+        """
+        if self.user is not None:
+            return self.user.name
+        return self.subreddit.name if self.subreddit is not None else None
+
+    @property
+    def source_date(self) -> Optional[datetime]:
+        """
+        The date the content was shared: the post's date, or the date its message was sent.
+        :return: The date, or None when the source has none.
+        :rtype: Optional[datetime]
+        """
+        if self.post is not None:
+            return self.post.date_posted
+        message = self.message
+        return message.message_date if message is not None else None
+
+    @property
+    def source_description(self) -> str:
+        """
+        Describes where the content was found, for log and output messages.
+        :return: 'Post: ' and the post title, or 'Message: ' and the message title.
+        :rtype: str
+        """
+        if self.post is not None:
+            return f'Post: {self.post.title}'
+        message = self.message
+        return f'Message: {message.title}' if message is not None else 'Unknown source'
+
+    @property
+    def source_reddit_id(self) -> Optional[str]:
+        """
+        The reddit id of the post, or the id of the message, the content was found in.
+        :return: The id, or None when the content has no source.
+        :rtype: Optional[str]
+        """
+        if self.post is not None:
+            return self.post.reddit_id
+        message = self.message
+        return message.reddit_id if message is not None else None
 
     @property
     def short_title(self):

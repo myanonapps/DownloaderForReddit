@@ -942,9 +942,30 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setVisible(False)
         self.update_download_action_states()
         self.user_list_model.refresh_session()
-        if self.export_import_download_media and stats.new_post_ids and not stats.cancelled:
-            Message.send_info(f'Downloading media from {len(stats.new_post_ids):,} imported posts')
-            self.run_unextracted_only(id_list=stats.new_post_ids)
+        message_count = len(stats.new_chat_message_ids) + len(stats.new_private_message_ids)
+        if self.export_import_download_media and (stats.new_post_ids or message_count) and not stats.cancelled:
+            Message.send_info(f'Downloading media from {len(stats.new_post_ids):,} imported posts and '
+                              f'{message_count:,} imported messages with links')
+            self.run(None, None, run_new=False, run_unextracted=bool(stats.new_post_ids),
+                     unextracted_id_list=stats.new_post_ids, chat_message_id_list=stats.new_chat_message_ids,
+                     private_message_id_list=stats.new_private_message_ids)
+
+    def run_unextracted_messages(self, *, chat_message_ids: Optional[list[int]] = None,
+                                 private_message_ids: Optional[list[int]] = None) -> None:
+        """
+        Extracts and downloads the media linked in imported chat and private messages.
+        :param chat_message_ids: The ids of the chat messages to extract.
+        :type chat_message_ids: Optional[list[int]]
+        :param private_message_ids: The ids of the private messages to extract.
+        :type private_message_ids: Optional[list[int]]
+        :return: None
+        :rtype: None
+        """
+        if self.running:
+            Message.send_warning('A download is running; message media can be downloaded once it has finished')
+            return
+        self.run(None, None, run_new=False, chat_message_id_list=chat_message_ids or [],
+                 private_message_id_list=private_message_ids or [])
 
     def open_backup_dialog(self) -> None:
         """
@@ -1352,6 +1373,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         if self.conversation_viewer is None:
             self.conversation_viewer = ConversationViewer()
+            self.conversation_viewer.download_requested.connect(
+                lambda chat_ids, private_ids: self.run_unextracted_messages(chat_message_ids=chat_ids,
+                                                                            private_message_ids=private_ids))
         else:
             self.conversation_viewer.load_conversations()
         self.conversation_viewer.show()

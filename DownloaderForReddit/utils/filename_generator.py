@@ -4,6 +4,7 @@ from DownloaderForReddit.core.const import USER_OBJECT
 
 from . import injector, TokenParser, system_util
 from ..database.models import Post, Content, Comment
+from ..database.export_models import ImportedMessage
 
 
 class FilenameGenerator:
@@ -28,15 +29,22 @@ class FilenameGenerator:
     :type is_duplicate: bool
     """
 
-    def __init__(self, obj: Union[Post, Content, Comment], is_duplicate: bool = False):
+    def __init__(self, obj: Union[Post, Content, Comment, ImportedMessage], is_duplicate: bool = False):
+        """
+        :param obj: What a file is named for: a post, a comment, an imported message, or content found in one of them.
+        :type obj: Union[Post, Content, Comment, ImportedMessage]
+        :param is_duplicate: Whether the name is for a duplicate, which uses the duplicate naming settings.
+        :type is_duplicate: bool
+        """
         self.settings_manager = injector.get_settings_manager()
         self.post = None
         self.reddit_object = None
         self.comment = None
+        self.message: Optional[ImportedMessage] = None
         self.is_duplicate = is_duplicate
         self.setup(obj)
 
-    def setup(self, obj: Union[Post, Content, Comment]) -> None:
+    def setup(self, obj: Union[Post, Content, Comment, ImportedMessage]) -> None:
         """
         Configures internal state based on the provided object type. It handles several types of input objects and
         sets the corresponding attributes such as post, comment, and reddit_object.
@@ -45,7 +53,11 @@ class FilenameGenerator:
                     containing a 'post' or 'significant_reddit_object' attribute.
         :type obj: Union[Comment, Content, Any]
         """
-        if isinstance(obj, Comment):
+        if isinstance(obj, ImportedMessage):
+            self._setup_message(obj)
+        elif isinstance(obj, Content) and obj.post is None and obj.message is not None:
+            self._setup_message(obj.message)
+        elif isinstance(obj, Comment):
             self.comment = obj
             self.post = obj.post
             self.reddit_object = self.post.significant_reddit_object
@@ -58,18 +70,33 @@ class FilenameGenerator:
             self.reddit_object = obj.significant_reddit_object
             self.comment = None
 
-    @property
-    def title_obj(self) -> Union[Post, Comment]:
+    def _setup_message(self, message: ImportedMessage) -> None:
         """
-        Provides a property to return either a post or comment object, depending on which one is set.
+        Names files for an imported message's content with the settings of the message's author, as a post's content
+        is named with its significant reddit object's settings: the post naming method, save structure and custom post
+        save path.  Folder tokens such as '%[author_name]' name the author, so each author's media goes to that
+        author's own folder.
+        :param message: The message.
+        :type message: ImportedMessage
+        """
+        self.message = message
+        self.post = None
+        self.comment = None
+        self.reddit_object = message.significant_reddit_object
 
-        :return: Returns the `comment` object if it is not None; otherwise, returns the `post` object.
-        :rtype: Union[Post, Comment]
+    @property
+    def title_obj(self) -> Union[Post, Comment, ImportedMessage]:
+        """
+        Provides a property to return the object that file names are made from.
+
+        :return: The comment if one is set, otherwise the message if one is set, otherwise the post.
+        :rtype: Union[Post, Comment, ImportedMessage]
         """
         if self.comment is not None:
             return self.comment
-        else:
-            return self.post
+        if self.message is not None:
+            return self.message
+        return self.post
 
     def make_title(self) -> str:
         """

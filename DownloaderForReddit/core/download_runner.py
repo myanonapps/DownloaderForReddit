@@ -67,6 +67,9 @@ class DownloadRunner(QObject):
         self.run_undownloaded = kwargs.get('run_undownloaded', False)
         self.undownloaded_id_list = kwargs.get('undownloaded_id_list', None)
         self.run_new = kwargs.get('run_new', True)
+        # Imported chat and private messages whose linked media is to be extracted and downloaded.
+        self.chat_message_id_list = list(kwargs.get('chat_message_id_list', None) or [])
+        self.private_message_id_list = list(kwargs.get('private_message_id_list', None) or [])
 
         self.stop_run = Event()
         self.continue_run = True
@@ -211,6 +214,22 @@ class DownloadRunner(QObject):
             self.submission_queue.put(extraction_set)
         self.logger.debug('Finished unextracted posts')
 
+    def run_messages(self) -> None:
+        """
+        Queues the imported chat and private messages given to the runner, so that the media linked in them is
+        extracted and downloaded.
+        :return: None
+        :rtype: None
+        """
+        for extraction_type, id_list in (('CHAT_MESSAGE', self.chat_message_id_list),
+                                         ('PRIVATE_MESSAGE', self.private_message_id_list)):
+            for message_id in id_list:
+                self.submission_queue.put(ExtractionSet(extraction_type=extraction_type, extraction_object=message_id,
+                                                        significant_id=None))
+        if self.chat_message_id_list or self.private_message_id_list:
+            self.logger.debug('Queued %d chat and %d private messages for link extraction', len(self.chat_message_id_list),
+                              len(self.private_message_id_list))
+
     def run_undownloaded_content(self):
         self.logger.debug('Running undownloaded content')
         if self.undownloaded_id_list is not None:
@@ -236,6 +255,7 @@ class DownloadRunner(QObject):
             self.run_unextracted_posts()
         if self.run_undownloaded:
             self.run_undownloaded_content()
+        self.run_messages()
         if self.run_new:
             self.run_download()
         if self.perpetual_download:
@@ -563,8 +583,8 @@ class DownloadRunner(QObject):
                 for comment in comments:
                     if comment.extraction_error:
                         comment_errors += 1
-                    if comment.user and comment.user.name:
-                        user_names.add(comment.user.name)
+                    if comment.author and comment.author.name:
+                        user_names.add(comment.author.name)
                     if comment.subreddit and comment.subreddit.name:
                         subreddit_names.add(comment.subreddit.name)
 
@@ -624,9 +644,9 @@ class DownloadRunner(QObject):
         extra_message = ""
         if self.stopped:
             message = "Download stopped"
+        users = ""
+        subs = ""
         if stats.get_user_names() or stats.get_subreddit_names():
-            users = ""
-            subs = ""
             if stats.get_user_names():
                 users = ', '.join(stats.get_user_names())
             if stats.get_subreddit_names():

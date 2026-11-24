@@ -41,10 +41,11 @@ _UNKNOWN_AUTHOR = '[unknown]'
 
 
 @dataclass
-class TranscriptEntry:
+class TranscriptEntry:  # pylint: disable=too-many-instance-attributes  # plain record of one transcript row
     """
     One message as shown in a transcript.  The icon is the author's reddit object icon (a user, or a subreddit for
-    modmail), shown in front of the author's name.
+    modmail), shown in front of the author's name.  The content paths are the files downloaded from the message's
+    links, and the content count also includes media found but not downloaded (yet).
     """
 
     author: Optional[str]
@@ -52,6 +53,27 @@ class TranscriptEntry:
     body: Optional[str]
     note: Optional[str] = None
     icon: Optional[QIcon] = None
+    message_id: Optional[int] = None
+    content_count: int = 0
+    content_paths: tuple[str, ...] = ()
+
+
+def media_marker(entry: TranscriptEntry) -> str:
+    """
+    Describes the media found in a message's links, for the line under its text.
+    :param entry: The message.
+    :type entry: TranscriptEntry
+    :return: For example '[2 media files downloaded]' or '[1 of 2 media files downloaded]'; empty when the message has
+             no media.
+    :rtype: str
+    """
+    if entry.content_count == 0:
+        return ''
+    noun = 'media file' if entry.content_count == 1 else 'media files'
+    downloaded = len(entry.content_paths)
+    if downloaded == entry.content_count:
+        return f'[{entry.content_count} {noun} downloaded]'
+    return f'[{downloaded} of {entry.content_count} {noun} downloaded]'
 
 
 def format_body_html(body: Optional[str]) -> str:
@@ -83,7 +105,9 @@ def render_entry_html(entry: TranscriptEntry) -> str:
     author = html.escape(entry.author or _UNKNOWN_AUTHOR)
     date = entry.date.strftime(DATE_FORMAT) if entry.date is not None else ''
     note = f' <i>{html.escape(entry.note)}</i>' if entry.note else ''
-    return f'{icon}<b>{author}</b> <span style="color:gray">{date}</span>{note}<br/>{format_body_html(entry.body)}'
+    marker = media_marker(entry)
+    media = f'<br/><span style="color:gray">{html.escape(marker)}</span>' if marker else ''
+    return f'{icon}<b>{author}</b> <span style="color:gray">{date}</span>{note}<br/>{format_body_html(entry.body)}{media}'
 
 
 def entry_plain_text(entry: TranscriptEntry) -> str:

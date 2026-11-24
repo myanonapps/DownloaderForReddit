@@ -98,6 +98,22 @@
           </widget>
          </item>
          <item>
+          <widget class="QToolButton" name="download_content_button">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>Download the media linked in this conversation's messages</string>
+           </property>
+           <property name="text">
+            <string>Download media</string>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QToolButton" name="export_button">
            <property name="enabled">
             <bool>false</bool>

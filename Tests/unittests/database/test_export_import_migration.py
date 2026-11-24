@@ -1,6 +1,7 @@
 """
-Tests for the migration that adds the Reddit data export import tables, comment.link_reddit_id and reddit object
-nicknames on top of revision 7b1f4c8a9d2e.
+Tests for the migration that adds the Reddit data export import tables, comment.link_reddit_id, reddit object
+nicknames, message link extraction state and the content columns tying content to a message, on top of revision
+7b1f4c8a9d2e.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -59,7 +60,11 @@ _INDEXES = {
     'chat_message': {'ix_chat_message_date_posted'},
     'private_message': {'ix_private_message_thread_id', 'ix_private_message_date_sent'},
     'comment': {'ix_comment_link_reddit_id'},
+    'content': {'ix_content_chat_message_id', 'ix_content_private_message_id'},
 }
+_EXTRACTION_COLUMNS = {'extracted', 'extraction_date', 'extraction_error', 'error_message'}
+# The content columns tying content to a message, and the tables they reference.
+_CONTENT_MESSAGE_KEYS = {'chat_message_id': 'chat_message', 'private_message_id': 'private_message'}
 
 
 def _load_migration() -> ModuleType:
@@ -125,6 +130,38 @@ class TestExportImportMigration(TestCase):
         references = {(table, key['constrained_columns'][0]): key['referred_table']
                       for table in _NEW_TABLES for key in inspector.get_foreign_keys(table)}
         self.assertEqual(_FOREIGN_KEYS, references)
+        content_references = {key['constrained_columns'][0]: key['referred_table'] for key in inspector.get_foreign_keys('content')}
+        for column, table in _CONTENT_MESSAGE_KEYS.items():
+            self.assertEqual(table, content_references.get(column))
+
+    def make_earlier_form(self) -> None:
+        """
+        Takes the database to the shape an earlier form of the revision left: the export import tables exist, but the
+        message tables lack their extraction columns and content lacks its message columns.  The downgrade removes
+        everything the revision adds; the export import tables are then made again without the newer columns.
+        """
+        self.reduce_to_base_revision()
+        metadata = sa.MetaData()
+        metadata.reflect(bind=self.engine)
+        for name in _NEW_TABLES:
+            columns = [sa.Column(column.name, column.type, *[sa.ForeignKey(key.target_fullname) for key in column.foreign_keys],
+                                 primary_key=column.primary_key, nullable=column.nullable, unique=column.unique)
+                       for column in BaseModel.metadata.tables[name].columns if column.name not in _EXTRACTION_COLUMNS]
+            sa.Table(name, metadata, *columns)
+        metadata.create_all(self.engine)
+
+    def test_upgrade_completes_earlier_form(self) -> None:
+        """On a database where an earlier form of the revision ran, upgrade adds the message extraction and content columns."""
+        self.make_earlier_form()
+        with self.engine.begin() as connection:
+            connection.execute(sa.text("INSERT INTO content (title, url) VALUES ('kept', 'https://i.redd.it/a.jpg')"))
+        schema = self.schema()
+        self.assertFalse(_EXTRACTION_COLUMNS & schema['chat_message'])
+        self.assertNotIn('chat_message_id', schema['content'])
+        self.run_migration('upgrade')
+        self.assert_final_schema()
+        with self.engine.connect() as connection:
+            self.assertEqual([('kept',)], [tuple(row) for row in connection.execute(sa.text('SELECT title FROM content'))])
 
     def test_upgrade_creates_final_schema(self) -> None:
         """From the base revision, upgrade builds the schema of the current models."""
@@ -149,6 +186,7 @@ class TestExportImportMigration(TestCase):
             self.assertNotIn(table, schema)
         self.assertNotIn('link_reddit_id', schema['comment'])
         self.assertNotIn('nickname', schema['reddit_object'])
+        self.assertFalse(set(_CONTENT_MESSAGE_KEYS) & schema['content'])
         self.assertNotIn('ix_comment_link_reddit_id', {index['name'] for index in sa.inspect(self.engine).get_indexes('comment')})
         with self.engine.connect() as connection:
             self.assertEqual([('someone',)], [tuple(row) for row in connection.execute(sa.text('SELECT name FROM reddit_object'))])
