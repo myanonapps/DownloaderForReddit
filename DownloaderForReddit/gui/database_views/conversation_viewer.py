@@ -7,8 +7,10 @@ transcript can be exported as a text file.  The info button next to the transcri
 the right that describes the selected conversation (its identity, participants, dates and the imports it came from)
 and lets a chat be given a nickname.  Messages whose links held media say how many files were found and downloaded;
 the files can be opened from the transcript's context menu, and the media of the selected conversation can be
-downloaded with its download button, which asks the main window to run the download.  Participants are users, or subreddits for modmail, and each is shown with the
-icon the rest of the application uses for that kind of reddit object.
+downloaded with its download button, which asks the main window to run the download.  The media button opens a pane
+under the transcript that shows thumbnails of the media of the selected messages, as the database viewer's content
+view does; a thumbnail opens its file when double clicked.  Participants are users, or subreddits for modmail, and each
+is shown with the icon the rest of the application uses for that kind of reddit object.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -32,24 +34,28 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon, QKeySequence
+from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QPoint, QSettings, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMenu, QTableWidgetItem, QWidget
 
 from ...core.const import RESOURCES
 from ...database.conversation_queries import (CHAT, PRIVATE_MESSAGE, ConversationSummary, chat_messages, chat_summaries,
-                                              conversation_properties, message_content, private_message_thread,
+                                              conversation_properties, message_content, message_content_query,
+                                              private_message_thread,
                                               private_thread_summaries, set_chat_nickname, unextracted_message_ids)
 from ...database.export_models import ChatChannel, person_name
 from ...database.models import Content, RedditObject
 from ...guiresources.database_views.conversation_viewer_auto import Ui_ConversationViewer
 from ...utils import injector, system_util
 from ...utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread
+from ...viewmodels.database_view_models import ContentListModel
 from ...viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
 from ...viewmodels.transcript_delegate import TranscriptDelegate
 from ...viewmodels.transcript_list_model import TranscriptEntry, TranscriptListModel
+from .database_viewer import DEFAULT_ICON_SIZE
 
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
@@ -58,6 +64,8 @@ _KINDS = (CHAT, PRIVATE_MESSAGE)
 _SEARCH_DELAY_MS = 250
 _INFO_ICON_PATH = os.path.join(RESOURCES, 'images', 'info.svg')
 _EXPORT_ICON_PATH = os.path.join(RESOURCES, 'images', 'download.svg')
+_CONTENT_ICON_PATH = os.path.join(RESOURCES, 'images', 'image_placeholder.png')
+_CONTENT_LOAD_PERCENT = 80  # how far down the media pane is scrolled before its next page is loaded
 
 
 def participant_icon(display: RedditObjectStateDisplay, participant: Optional[RedditObject]) -> QIcon:
@@ -99,7 +107,7 @@ def _summary_text(summary: ConversationSummary) -> str:
     return f'{summary.title}\n{summary.message_count:,} messages, last {last}'
 
 
-class ConversationViewer(QWidget, Ui_ConversationViewer):
+class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too-many-instance-attributes,too-many-public-methods  # a window with four panes and their slots
     """Lists imported conversations and shows their transcripts."""
 
     # Asks for the media linked in messages to be downloaded: chat message ids, private message ids.
@@ -133,6 +141,14 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.nickname_channel_id: Optional[int] = None
         self.properties_button.setIcon(QIcon(_INFO_ICON_PATH))
         self.export_button.setIcon(QIcon(_EXPORT_ICON_PATH))
+        # ContentListModel reads the content's relationships while it draws, long after a query returns, so the
+        # media pane keeps a session of its own open, as the database viewer does.
+        self.content_session = self.db.get_session()
+        self.content_query = None
+        self.content_model = ContentListModel()
+        self.qsettings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, 'DownloaderForReddit',
+                                   'ConversationViewer')
+        self.icon_size = DEFAULT_ICON_SIZE
 
         self.kind_combo.currentIndexChanged.connect(self.load_conversations)
         self.nickname_line_edit.editingFinished.connect(self.save_nickname)
@@ -145,7 +161,28 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.properties_button.toggled.connect(self.set_properties_visible)
         self.properties_close_button.clicked.connect(lambda: self.properties_button.setChecked(False))
         self.conversation_list.currentItemChanged.connect(self.show_selected)
+        self._setup_content_pane()
+        self.load_settings()
         self.load_conversations()
+
+    def _setup_content_pane(self) -> None:
+        """
+        Attaches the media pane's model to its view and connects the pane's controls.
+        :return: None
+        :rtype: None
+        """
+        self.content_button.setIcon(QIcon(_CONTENT_ICON_PATH))
+        self.content_view.setModel(self.content_model)
+        self.content_view.verticalScrollBar().setSingleStep(20)
+        self.transcript_splitter.setStretchFactor(0, 3)
+        self.transcript_splitter.setStretchFactor(1, 2)
+        self.transcript_view.selectionModel().selectionChanged.connect(self.show_selected_content)
+        self.content_button.toggled.connect(self.set_content_visible)
+        self.content_close_button.clicked.connect(lambda: self.content_button.setChecked(False))
+        self.icon_slider.valueChanged.connect(self.set_icon_size)
+        self.content_view.doubleClicked.connect(self.open_selected_content)
+        self.content_view.customContextMenuRequested.connect(self.content_context_menu)
+        self.content_view.verticalScrollBar().valueChanged.connect(self.load_more_content)
 
     @property
     def kind(self) -> str:
@@ -199,6 +236,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.transcript_title_label.clear()
         self.properties_table.setRowCount(0)
         self._fill_nickname(None, None)
+        self.show_selected_content()
 
     def _fill_nickname(self, channel_id: Optional[int], nickname: Optional[str]) -> None:
         """
@@ -253,6 +291,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         self.transcript_model.set_entries(entries)
         self.transcript_view.scrollToBottom()
         self.show_properties()
+        self.show_selected_content()
 
     def set_properties_visible(self, visible: bool) -> None:
         """
@@ -409,7 +448,24 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
         folder_action = menu.addAction('Open media folder')
         folder_action.setEnabled(bool(paths))
         folder_action.triggered.connect(lambda: self.open_paths(paths[:1], folder=True))
+        index = self.transcript_view.indexAt(position)
+        show_action = menu.addAction('Show media')
+        show_action.setEnabled(isinstance(entry, TranscriptEntry) and entry.content_count > 0)
+        show_action.triggered.connect(lambda: self.show_media_of(index))
         menu.exec(self.transcript_view.viewport().mapToGlobal(position))
+
+    def show_media_of(self, index: QModelIndex) -> None:
+        """
+        Opens the media pane on one message: the message becomes the only one selected, so the pane shows its media.
+        :param index: The message's row in the transcript.
+        :type index: QModelIndex
+        :return: None
+        :rtype: None
+        """
+        if not index.isValid():
+            return
+        self.transcript_view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        self.content_button.setChecked(True)
 
     def open_paths(self, paths: tuple[str, ...], folder: bool = False) -> None:
         """
@@ -428,3 +484,154 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):
             except OSError:
                 logger.warning('Could not open %s', target, exc_info=True)
                 self.status_label.setText(f'Could not open {target}')
+
+    def set_content_visible(self, visible: bool) -> None:
+        """
+        Shows or hides the media pane, filling it with the media of the selected messages when it is shown.
+        :param visible: Whether the pane is shown.
+        :type visible: bool
+        :return: None
+        :rtype: None
+        """
+        self.content_frame.setVisible(visible)
+        if visible:
+            self.show_selected_content()
+
+    def selected_message_ids(self) -> list[int]:
+        """
+        Returns the database ids of the selected messages.
+        :return: The ids, in transcript order.
+        :rtype: list[int]
+        """
+        entries = self.transcript_model.entries
+        rows = sorted({index.row() for index in self.transcript_view.selectionModel().selectedIndexes()})
+        return [entries[row].message_id for row in rows if 0 <= row < len(entries) and entries[row].message_id is not None]
+
+    def show_selected_content(self) -> None:
+        """
+        Fills the media pane with the content of the selected messages: downloaded files as thumbnails, and media not
+        downloaded (yet) with the placeholders and overlays the database viewer uses.  The pane's session is expired
+        first, so files downloaded since it was last filled show.  Nothing is looked up while the pane is hidden.
+        :return: None
+        :rtype: None
+        """
+        if self.content_frame.isHidden():
+            return
+        summary = self.selected_summary()
+        message_ids = self.selected_message_ids() if summary is not None else []
+        kind = summary.kind if summary is not None else CHAT
+        self.content_session.expire_all()
+        self.content_query = message_content_query(self.content_session, kind, message_ids)
+        self.content_model.set_data(self.content_query)
+        self.content_view.scrollToTop()
+        if not message_ids:
+            self.content_count_label.setText('Select messages to see their media')
+            return
+        count = self.content_model.total_items
+        files = 'file' if count == 1 else 'files'
+        messages = 'message' if len(message_ids) == 1 else 'messages'
+        self.content_count_label.setText(f'{count:,} {files} in {len(message_ids):,} {messages}')
+
+    def load_more_content(self, value: int) -> None:
+        """
+        Loads the next page of the media pane once it is scrolled most of the way down.
+        :param value: The scroll bar's position.
+        :type value: int
+        :return: None
+        :rtype: None
+        """
+        maximum = self.content_view.verticalScrollBar().maximum()
+        if self.content_query is not None and maximum > 0 and value >= maximum * _CONTENT_LOAD_PERCENT / 100:
+            self.content_model.load_next_page(self.content_query)
+
+    def set_icon_size(self, size: int) -> None:
+        """
+        Sets the size of the thumbnails in the media pane.
+        :param size: The width and height of a thumbnail, in pixels.
+        :type size: int
+        :return: None
+        :rtype: None
+        """
+        self.icon_size = size
+        self.content_view.setIconSize(QSize(size, size))
+        self.content_view.setGridSize(QSize(size + 24, size + 36))
+
+    def selected_content(self) -> list[Content]:
+        """
+        Returns the content selected in the media pane.
+        :return: The content, in the pane's order.
+        :rtype: list[Content]
+        """
+        items = self.content_model.items
+        rows = sorted({index.row() for index in self.content_view.selectedIndexes()})
+        return [items[row] for row in rows if 0 <= row < len(items)]
+
+    def open_selected_content(self) -> None:
+        """
+        Opens the first downloaded file selected in the media pane with the system's default application.
+        :return: None
+        :rtype: None
+        """
+        selected = self.selected_content()
+        paths = downloaded_paths(selected)
+        if paths:
+            self.open_paths(paths[:1])
+        elif selected:
+            self.status_label.setText('That media has not been downloaded.')
+
+    def content_context_menu(self, position: QPoint) -> None:
+        """
+        Shows the media pane's context menu: opening the selected file or its folder, and copying the selected files'
+        paths.
+        :param position: Where the menu was asked for, in the view's viewport coordinates.
+        :type position: QPoint
+        :return: None
+        :rtype: None
+        """
+        paths = downloaded_paths(self.selected_content())
+        menu = QMenu(self.content_view)
+        open_action = menu.addAction('Open')
+        open_action.setEnabled(bool(paths))
+        open_action.triggered.connect(lambda: self.open_paths(paths[:1]))
+        folder_action = menu.addAction('Open folder')
+        folder_action.setEnabled(bool(paths))
+        folder_action.triggered.connect(lambda: self.open_paths(paths[:1], folder=True))
+        menu.addSeparator()
+        copy_action = menu.addAction('Copy as path')
+        copy_action.setEnabled(bool(paths))
+        copy_action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(str(Path(path)) for path in paths)))
+        menu.exec(self.content_view.viewport().mapToGlobal(position))
+
+    def load_settings(self) -> None:
+        """
+        Restores the thumbnail size and whether the media pane is open.
+        :return: None
+        :rtype: None
+        """
+        size = self.qsettings.value('icon_size', DEFAULT_ICON_SIZE, type=int)
+        self.icon_slider.blockSignals(True)
+        self.icon_slider.setValue(size)
+        self.icon_slider.blockSignals(False)
+        self.set_icon_size(self.icon_slider.value())
+        self.content_button.setChecked(self.qsettings.value('content_visible', False, type=bool))
+
+    def save_settings(self) -> None:
+        """
+        Saves the thumbnail size and whether the media pane is open.
+        :return: None
+        :rtype: None
+        """
+        self.qsettings.setValue('icon_size', self.icon_size)
+        self.qsettings.setValue('content_visible', self.content_button.isChecked())
+        self.qsettings.sync()
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name  # Qt override
+        """
+        Saves the media pane's settings when the window is closed.
+        :param event: The close event.
+        :type event: QCloseEvent
+        :return: None
+        :rtype: None
+        """
+        self.save_settings()
+        super().closeEvent(event)

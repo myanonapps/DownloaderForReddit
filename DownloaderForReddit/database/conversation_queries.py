@@ -28,6 +28,7 @@ from typing import Iterable, Optional, Union
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Query, Session
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from .export_models import ChatChannel, ChatMessage, ExportImport, PrivateMessage, person_name
 from .models import Content, RedditObject
@@ -336,6 +337,33 @@ def set_chat_nickname(session: Session, channel_id: int, nickname: str) -> Optio
     return channel.display_name
 
 
+def _message_column(kind: str) -> InstrumentedAttribute:
+    """
+    Returns the content column that ties content to a message of the given kind.
+    :param kind: CHAT for chat messages, PRIVATE_MESSAGE for private messages.
+    :type kind: str
+    :return: Content.chat_message_id or Content.private_message_id.
+    :rtype: InstrumentedAttribute
+    """
+    return Content.chat_message_id if kind == CHAT else Content.private_message_id
+
+
+def message_content_query(session: Session, kind: str, message_ids: Iterable[int]) -> Query:
+    """
+    Returns a query for the content extracted from messages' links.  The ids are bound as one list, so callers with
+    more than a few hundred messages should chunk them (see message_content).
+    :param session: The database session.
+    :type session: Session
+    :param kind: CHAT for chat messages, PRIVATE_MESSAGE for private messages.
+    :type kind: str
+    :param message_ids: The database ids of the messages.
+    :type message_ids: Iterable[int]
+    :return: The query, oldest content first.
+    :rtype: Query
+    """
+    return session.query(Content).filter(_message_column(kind).in_(list(message_ids))).order_by(Content.id)
+
+
 def message_content(session: Session, kind: str, message_ids: Iterable[int]) -> dict[int, list[Content]]:
     """
     Returns the content extracted from messages' links, grouped by message.
@@ -348,13 +376,12 @@ def message_content(session: Session, kind: str, message_ids: Iterable[int]) -> 
     :return: Each message id that has content mapped to its content, oldest first.
     :rtype: dict[int, list[Content]]
     """
-    column = Content.chat_message_id if kind == CHAT else Content.private_message_id
+    key = _message_column(kind).key
     grouped: dict[int, list[Content]] = {}
     ids = list(message_ids)
     for start in range(0, len(ids), _ID_QUERY_SIZE):
-        chunk = ids[start:start + _ID_QUERY_SIZE]
-        for content in session.query(Content).filter(column.in_(chunk)).order_by(Content.id):
-            grouped.setdefault(getattr(content, column.key), []).append(content)
+        for content in message_content_query(session, kind, ids[start:start + _ID_QUERY_SIZE]):
+            grouped.setdefault(getattr(content, key), []).append(content)
     return grouped
 
 

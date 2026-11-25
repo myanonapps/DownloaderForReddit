@@ -33,9 +33,10 @@ from PyQt6.QtWidgets import QApplication
 
 from DownloaderForReddit.core.const import DISABLED_OBJECT_KEY, SUBREDDIT_OBJECT, USER_OBJECT
 from DownloaderForReddit.database.conversation_queries import (CHAT, PRIVATE_MESSAGE, ConversationSummary, chat_messages, chat_summaries,
-                                                               conversation_properties, private_thread_summaries, set_chat_nickname)
-from DownloaderForReddit.database.export_models import ChatChannel, person_name
-from DownloaderForReddit.database.models import Subreddit, User
+                                                               conversation_properties, message_content, message_content_query,
+                                                               private_thread_summaries, set_chat_nickname)
+from DownloaderForReddit.database.export_models import ChatChannel, ChatMessage, PrivateMessage, person_name
+from DownloaderForReddit.database.models import Content, Subreddit, User
 from DownloaderForReddit.gui.database_views.conversation_viewer import participant_icon
 from DownloaderForReddit.utils.exporters.conversation_exporter import format_chat_transcript
 from DownloaderForReddit.viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
@@ -92,6 +93,23 @@ class TestConversationQueries(TestCase):
         """Searching threads matches message bodies."""
         with self.db.get_scoped_session() as session:
             self.assertEqual(['m0'], [summary.key for summary in private_thread_summaries(session, 'archived')])
+
+    def test_message_content_query(self) -> None:
+        """The query finds only the content of the given messages of the given kind, oldest first."""
+        with self.db.get_scoped_session() as session:
+            chat_ids = [message.id for message in session.query(ChatMessage).order_by(ChatMessage.id)]
+            private_id = session.query(PrivateMessage.id).order_by(PrivateMessage.id).first()[0]
+            first = Content(url='https://i.redd.it/a.jpg', chat_message_id=chat_ids[0])
+            second = Content(url='https://i.redd.it/b.jpg', chat_message_id=chat_ids[0])
+            other_chat = Content(url='https://i.redd.it/c.jpg', chat_message_id=chat_ids[1])
+            private = Content(url='https://i.redd.it/d.jpg', private_message_id=private_id)
+            session.add_all([first, second, other_chat, private])
+            session.commit()
+            self.assertEqual([first.id, second.id], [content.id for content in message_content_query(session, CHAT, [chat_ids[0]])])
+            self.assertEqual([private.id], [content.id for content in message_content_query(session, PRIVATE_MESSAGE, [private.private_message_id])])
+            self.assertEqual([], message_content_query(session, CHAT, []).all())
+            grouped = message_content(session, CHAT, chat_ids)
+            self.assertEqual({chat_ids[0]: [first, second], chat_ids[1]: [other_chat]}, grouped)
 
     def _set_nickname(self, name: str, nickname: str) -> None:
         """
