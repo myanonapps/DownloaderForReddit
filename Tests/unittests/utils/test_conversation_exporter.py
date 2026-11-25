@@ -25,8 +25,10 @@ import os
 import tempfile
 from unittest import TestCase
 
+from DownloaderForReddit.database.chat_threads import ORPHAN_NOTE
 from DownloaderForReddit.database.export_models import ChatChannel
-from DownloaderForReddit.utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread
+from DownloaderForReddit.utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread, format_chat_transcript
+from Tests.unittests.database.test_chat_threads import chat_message
 from Tests.unittests.utils.importers.export_fixture import ACCOUNT, import_into_memory_database
 
 
@@ -64,6 +66,20 @@ class TestConversationExporter(TestCase):
         self.assertTrue(text.startswith(f'Chat: {ACCOUNT}, friend_two'))
         self.assertLess(text.index('hi there'), text.index('hello!'))
         self.assertIn(f'[2024-04-01 10:00:00 UTC] {ACCOUNT}:', text)
+
+    def test_chat_threads_follow_their_root(self) -> None:
+        """Thread replies follow the message that started the thread, indented by depth, with notes in the headers."""
+        messages = [chat_message('root', minute=0, author='alice'), chat_message('other', minute=1, author='bob'),
+                    chat_message('r1', 'root', minute=2, author='bob'), chat_message('r1a', 'r1', minute=3, author='carol'),
+                    chat_message('orphan', 'gone', minute=4, author='dave')]
+        text = format_chat_transcript(ChatChannel(channel_name='Room'), messages)
+        expected = ('Chat: Room\n\n'
+                    '[2024-01-01 00:00:00 UTC] alice (2 replies):\nroot\n\n'
+                    '    [2024-01-01 00:02:00 UTC] bob:\n    r1\n\n'
+                    '        [2024-01-01 00:03:00 UTC] carol (replying to bob):\n        r1a\n\n'
+                    '[2024-01-01 00:01:00 UTC] bob:\nother\n\n'
+                    f'[2024-01-01 00:04:00 UTC] dave ({ORPHAN_NOTE}):\norphan\n')
+        self.assertEqual(expected, text)
 
     def test_unknown_channel_raises(self) -> None:
         """Exporting a channel that does not exist raises ValueError."""

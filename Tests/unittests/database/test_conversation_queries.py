@@ -40,8 +40,8 @@ from DownloaderForReddit.database.models import Content, Subreddit, User
 from DownloaderForReddit.gui.database_views.conversation_viewer import participant_icon
 from DownloaderForReddit.utils.exporters.conversation_exporter import format_chat_transcript
 from DownloaderForReddit.viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
-from DownloaderForReddit.viewmodels.transcript_list_model import (AUTHOR_ICON_URL, TranscriptEntry, TranscriptListModel,
-                                                                  format_body_html, render_entry_html)
+from DownloaderForReddit.viewmodels.transcript_list_model import (AUTHOR_ICON_URL, THREAD_LINK_PREFIX, TranscriptEntry, TranscriptListModel,
+                                                                  format_body_html, render_entry_html, thread_link_text)
 from Tests.unittests.utils.importers.export_fixture import import_into_memory_database
 
 
@@ -319,6 +319,19 @@ class TestTranscriptRendering(TestCase):
         self.assertEqual('a 2024-01-02 03:04\nfirst\n\nb (to a)\nsecond', model.plain_text([1, 0]))
         model.clear()
         self.assertEqual(0, model.rowCount())
+
+    def test_thread_link_only_for_thread_roots(self) -> None:
+        """A message that started a thread links to it with its reply count and last reply date; others have no link."""
+        self.assertNotIn(THREAD_LINK_PREFIX, render_entry_html(TranscriptEntry('a', None, 'x')))
+        root = TranscriptEntry('a', None, 'x', thread_key='$root', reply_count=3, last_reply_date=datetime(2024, 1, 2, 3, 4))
+        self.assertIn(f'<a href="{THREAD_LINK_PREFIX}$root">3 replies, last 2024-01-02 03:04</a>', render_entry_html(root))
+        self.assertEqual('1 reply', thread_link_text(TranscriptEntry('a', None, 'x', thread_key='$root', reply_count=1)))
+
+    def test_copy_text_is_indented_by_depth(self) -> None:
+        """Copied thread replies are indented by their depth, body lines included."""
+        model = TranscriptListModel()
+        model.set_entries([TranscriptEntry('a', None, 'top'), TranscriptEntry('b', None, 'one\ntwo', depth=2)])
+        self.assertEqual('a\ntop\n\n        b\n        one\n        two', model.plain_text([0, 1]))
 
     def test_author_icon_only_when_given(self) -> None:
         """The author's icon is put in front of the name only when the entry has one."""

@@ -12,6 +12,10 @@ under the transcript that shows thumbnails of the media of the selected messages
 view does; a thumbnail opens its file when double clicked.  Participants are users, or subreddits for modmail, and each
 is shown with the icon the rest of the application uses for that kind of reddit object.
 
+A chat's transcript holds only its top level messages.  A message that started a thread shows how many replies it has
+and a link that opens the thread pane beside the transcript, where the thread's first message and all of its replies
+are listed together, replies to replies indented further.  Selecting messages in the thread pane shows their media.
+
 
 Copyright (C) 2017, Kyle Hickey
 
@@ -39,14 +43,15 @@ from typing import Optional
 
 from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QPoint, QSettings, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
-from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMenu, QTableWidgetItem, QWidget
+from PyQt6.QtWidgets import QApplication, QFileDialog, QListView, QListWidgetItem, QMenu, QTableWidgetItem, QWidget
 
 from ...core.const import RESOURCES
+from ...database.chat_threads import ORPHAN_NOTE, ChatThreads, ThreadRow, build_chat_threads
 from ...database.conversation_queries import (CHAT, PRIVATE_MESSAGE, ConversationSummary, chat_messages, chat_summaries,
                                               conversation_properties, message_content, message_content_query,
                                               private_message_thread,
                                               private_thread_summaries, set_chat_nickname, unextracted_message_ids)
-from ...database.export_models import ChatChannel, person_name
+from ...database.export_models import ChatChannel, ChatMessage, person_name
 from ...database.models import Content, RedditObject
 from ...guiresources.database_views.conversation_viewer_auto import Ui_ConversationViewer
 from ...utils import injector, system_util
@@ -54,7 +59,7 @@ from ...utils.exporters.conversation_exporter import export_chat_transcript, exp
 from ...viewmodels.database_view_models import ContentListModel
 from ...viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
 from ...viewmodels.transcript_delegate import TranscriptDelegate
-from ...viewmodels.transcript_list_model import TranscriptEntry, TranscriptListModel
+from ...viewmodels.transcript_list_model import DATE_FORMAT, TranscriptEntry, TranscriptListModel
 from .database_viewer import DEFAULT_ICON_SIZE
 
 
@@ -122,7 +127,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         super().__init__(parent)
         self.setupUi(self)
         self.db = injector.get_database_handler()
-        self.splitter.setSizes([300, 700, 280])
+        self.splitter.setSizes([300, 700, 420, 280])
         self.search_timer = QTimer(self)
         self.search_timer.setSingleShot(True)
         self.search_timer.setInterval(_SEARCH_DELAY_MS)
@@ -132,11 +137,16 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.transcript_view.setModel(self.transcript_model)
         self.transcript_delegate = TranscriptDelegate(self.transcript_view)
         self.transcript_view.setItemDelegate(self.transcript_delegate)
-        self.copy_action = QAction('Copy', self.transcript_view)
-        self.copy_action.setShortcut(QKeySequence.StandardKey.Copy)
-        self.copy_action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
-        self.copy_action.triggered.connect(self.copy_selected_messages)
-        self.transcript_view.addAction(self.copy_action)
+        self.thread_model = TranscriptListModel(self)
+        self.thread_view.setModel(self.thread_model)
+        self.thread_delegate = TranscriptDelegate(self.thread_view)
+        self.thread_view.setItemDelegate(self.thread_delegate)
+        self.copy_action = self._copy_action(self.transcript_view)
+        self.thread_copy_action = self._copy_action(self.thread_view)
+        # The rows of each thread of the chat shown, keyed by the message id of the thread's first message.
+        self.thread_entries: dict[str, list[TranscriptEntry]] = {}
+        # The view whose selected messages the media pane shows.
+        self.media_source_view: QListView = self.transcript_view
         self.icon_display = RedditObjectStateDisplay(injector.get_settings_manager())
         self.nickname_channel_id: Optional[int] = None
         self.properties_button.setIcon(QIcon(_INFO_ICON_PATH))
@@ -157,7 +167,11 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.export_button.clicked.connect(self.export_transcript)
         self.download_content_button.clicked.connect(self.download_content)
         self.transcript_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.transcript_view.customContextMenuRequested.connect(self.transcript_context_menu)
+        self.transcript_view.customContextMenuRequested.connect(lambda position: self.transcript_context_menu(self.transcript_view, position))
+        self.thread_view.customContextMenuRequested.connect(lambda position: self.transcript_context_menu(self.thread_view, position))
+        self.transcript_delegate.thread_link_clicked.connect(self.show_thread)
+        self.thread_delegate.thread_link_clicked.connect(self.show_thread)
+        self.thread_close_button.clicked.connect(self.close_thread)
         self.properties_button.toggled.connect(self.set_properties_visible)
         self.properties_close_button.clicked.connect(lambda: self.properties_button.setChecked(False))
         self.conversation_list.currentItemChanged.connect(self.show_selected)
@@ -176,13 +190,40 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.content_view.verticalScrollBar().setSingleStep(20)
         self.transcript_splitter.setStretchFactor(0, 3)
         self.transcript_splitter.setStretchFactor(1, 2)
-        self.transcript_view.selectionModel().selectionChanged.connect(self.show_selected_content)
+        self.transcript_view.selectionModel().selectionChanged.connect(lambda: self.use_selection_of(self.transcript_view))
+        self.thread_view.selectionModel().selectionChanged.connect(lambda: self.use_selection_of(self.thread_view))
         self.content_button.toggled.connect(self.set_content_visible)
         self.content_close_button.clicked.connect(lambda: self.content_button.setChecked(False))
         self.icon_slider.valueChanged.connect(self.set_icon_size)
         self.content_view.doubleClicked.connect(self.open_selected_content)
         self.content_view.customContextMenuRequested.connect(self.content_context_menu)
         self.content_view.verticalScrollBar().valueChanged.connect(self.load_more_content)
+
+    def _copy_action(self, view: QListView) -> QAction:
+        """
+        Creates the action that copies the messages selected in a transcript view, bound to the copy shortcut while
+        the view has focus.
+        :param view: The transcript view or the thread view.
+        :type view: QListView
+        :return: The action, already added to the view.
+        :rtype: QAction
+        """
+        action = QAction('Copy', view)
+        action.setShortcut(QKeySequence.StandardKey.Copy)
+        action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
+        action.triggered.connect(lambda: self.copy_selected_messages(view))
+        view.addAction(action)
+        return action
+
+    def _model_of(self, view: QListView) -> TranscriptListModel:
+        """
+        Returns the model a transcript view shows.
+        :param view: The transcript view or the thread view.
+        :type view: QListView
+        :return: The view's model.
+        :rtype: TranscriptListModel
+        """
+        return self.thread_model if view is self.thread_view else self.transcript_model
 
     @property
     def kind(self) -> str:
@@ -228,10 +269,12 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
 
     def clear_transcript(self) -> None:
         """
-        Empties the transcript, its title and the properties pane.
+        Empties the transcript, its title, the thread pane and the properties pane.
         :return: None
         :rtype: None
         """
+        self.close_thread(refresh_media=False)
+        self.thread_entries = {}
         self.transcript_model.clear()
         self.transcript_title_label.clear()
         self.properties_table.setRowCount(0)
@@ -267,16 +310,17 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         if summary is None:
             self.clear_transcript()
             return
+        self.close_thread(refresh_media=False)
+        self.thread_entries = {}
         with self.db.get_scoped_session() as session:
             if summary.kind == CHAT:
                 channel = session.query(ChatChannel).get(summary.key)
                 messages = chat_messages(session, summary.key)
                 content = message_content(session, CHAT, [message.id for message in messages])
-                entries = [TranscriptEntry(person_name(message.author), message.date_posted, message.body,
-                                           'thread reply' if message.thread_parent_message_id else None,
-                                           participant_icon(self.icon_display, message.author), message.id,
-                                           len(content.get(message.id, [])), downloaded_paths(content.get(message.id, [])))
-                           for message in messages]
+                threads = build_chat_threads(messages)
+                entries = [self._chat_entry(message, content, threads) for message in threads.timeline]
+                self.thread_entries = {key: [self._chat_entry(row.message, content, threads, row) for row in rows]
+                                       for key, rows in threads.threads.items()}
                 title = channel.display_name if channel is not None else summary.title
             else:
                 messages = private_message_thread(session, summary.key)
@@ -292,6 +336,75 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.transcript_view.scrollToBottom()
         self.show_properties()
         self.show_selected_content()
+
+    def _chat_entry(self, message: ChatMessage, content: dict[int, list[Content]], threads: ChatThreads,
+                    row: Optional[ThreadRow] = None) -> TranscriptEntry:
+        """
+        Builds the transcript row of a chat message.  In the transcript a message that started a thread carries the
+        thread's key, reply count and last reply date, so its row links to the thread; in the thread pane a reply is
+        indented by its depth, and a reply to a reply names whom it answers.
+        :param message: The message.
+        :type message: ChatMessage
+        :param content: The content of the chat's messages, keyed by message id.
+        :type content: dict[int, list[Content]]
+        :param threads: The chat's messages arranged into threads.
+        :type threads: ChatThreads
+        :param row: The message's place in a thread, when the row is for the thread pane; None for the transcript.
+        :type row: Optional[ThreadRow]
+        :return: The row.
+        :rtype: TranscriptEntry
+        """
+        contents = content.get(message.id, [])
+        depth = row.depth if row is not None else 0
+        note = None
+        if depth == 0 and threads.is_orphan(message):
+            note = ORPHAN_NOTE
+        elif row is not None and row.depth >= 2:
+            note = f'replying to {row.parent_author}'
+        reply_count = threads.reply_count(message.message_id) if row is None else 0
+        return TranscriptEntry(person_name(message.author), message.date_posted, message.body, note,
+                               participant_icon(self.icon_display, message.author), message.id, len(contents),
+                               downloaded_paths(contents), depth=depth,
+                               thread_key=message.message_id if reply_count else None, reply_count=reply_count,
+                               last_reply_date=threads.last_reply_date(message.message_id) if reply_count else None)
+
+    def show_thread(self, key: str) -> None:
+        """
+        Opens the thread pane on one thread of the chat shown: the thread's first message, then its replies.
+        :param key: The message id of the thread's first message.
+        :type key: str
+        :return: None
+        :rtype: None
+        """
+        entries = self.thread_entries.get(key)
+        if not entries:
+            logger.debug('No thread %s in the chat shown', key)
+            return
+        root = entries[0]
+        date = root.date.strftime(DATE_FORMAT) if root.date is not None else ''
+        self.thread_title_label.setText(f'Thread · {root.author} {date}'.rstrip())
+        self.thread_model.set_entries(entries)
+        self.thread_frame.setVisible(True)
+        self.thread_view.scrollToTop()
+        if self.media_source_view is self.thread_view:
+            self.show_selected_content()
+
+    def close_thread(self, refresh_media: bool = True) -> None:
+        """
+        Hides and empties the thread pane.  When the media pane showed the thread's messages, it goes back to the
+        messages selected in the transcript.
+        :param refresh_media: Whether to refill the media pane when it showed the thread's messages.
+        :type refresh_media: bool
+        :return: None
+        :rtype: None
+        """
+        self.thread_frame.setVisible(False)
+        self.thread_model.clear()
+        self.thread_title_label.clear()
+        if self.media_source_view is self.thread_view:
+            self.media_source_view = self.transcript_view
+            if refresh_media:
+                self.show_selected_content()
 
     def set_properties_visible(self, visible: bool) -> None:
         """
@@ -370,15 +483,17 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
             self.transcript_title_label.setText(title)
             self.show_properties()
 
-    def copy_selected_messages(self) -> None:
+    def copy_selected_messages(self, view: QListView) -> None:
         """
-        Copies the selected messages to the clipboard as plain text.
+        Copies the messages selected in a transcript view to the clipboard as plain text.
+        :param view: The transcript view or the thread view.
+        :type view: QListView
         :return: None
         :rtype: None
         """
-        rows = [index.row() for index in self.transcript_view.selectionModel().selectedIndexes()]
+        rows = [index.row() for index in view.selectionModel().selectedIndexes()]
         if rows:
-            QApplication.clipboard().setText(self.transcript_model.plain_text(rows))
+            QApplication.clipboard().setText(self._model_of(view).plain_text(rows))
 
     def export_transcript(self) -> None:
         """
@@ -428,19 +543,26 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
             self.download_requested.emit([], message_ids)
         self.status_label.setText(f'Downloading media from {len(message_ids):,} messages. Refresh to see the files when it finishes.')
 
-    def transcript_context_menu(self, position: QPoint) -> None:
+    def transcript_context_menu(self, view: QListView, position: QPoint) -> None:
         """
-        Shows the transcript's context menu: copy, and for a message with downloaded media, opening its files or
-        their folder.
+        Shows the context menu of the transcript or the thread pane: copy, opening the thread a message started, and
+        for a message with downloaded media, opening its files or their folder.
+        :param view: The transcript view or the thread view.
+        :type view: QListView
         :param position: Where the menu was asked for, in the view's viewport coordinates.
         :type position: QPoint
         :return: None
         :rtype: None
         """
-        entry = self.transcript_view.indexAt(position).data(Qt.ItemDataRole.UserRole)
+        index = view.indexAt(position)
+        entry = index.data(Qt.ItemDataRole.UserRole)
         paths = entry.content_paths if isinstance(entry, TranscriptEntry) else ()
-        menu = QMenu(self.transcript_view)
-        menu.addAction(self.copy_action)
+        menu = QMenu(view)
+        menu.addAction(self.thread_copy_action if view is self.thread_view else self.copy_action)
+        if isinstance(entry, TranscriptEntry) and entry.thread_key is not None:
+            thread_key = entry.thread_key
+            thread_action = menu.addAction('Open thread')
+            thread_action.triggered.connect(lambda: self.show_thread(thread_key))
         menu.addSeparator()
         open_action = menu.addAction('Open media' if len(paths) < 2 else f'Open media ({len(paths)} files)')
         open_action.setEnabled(bool(paths))
@@ -448,24 +570,27 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         folder_action = menu.addAction('Open media folder')
         folder_action.setEnabled(bool(paths))
         folder_action.triggered.connect(lambda: self.open_paths(paths[:1], folder=True))
-        index = self.transcript_view.indexAt(position)
         show_action = menu.addAction('Show media')
         show_action.setEnabled(isinstance(entry, TranscriptEntry) and entry.content_count > 0)
-        show_action.triggered.connect(lambda: self.show_media_of(index))
-        menu.exec(self.transcript_view.viewport().mapToGlobal(position))
+        show_action.triggered.connect(lambda: self.show_media_of(view, index))
+        menu.exec(view.viewport().mapToGlobal(position))
 
-    def show_media_of(self, index: QModelIndex) -> None:
+    def show_media_of(self, view: QListView, index: QModelIndex) -> None:
         """
         Opens the media pane on one message: the message becomes the only one selected, so the pane shows its media.
-        :param index: The message's row in the transcript.
+        :param view: The transcript view or the thread view the message is in.
+        :type view: QListView
+        :param index: The message's row in the view.
         :type index: QModelIndex
         :return: None
         :rtype: None
         """
         if not index.isValid():
             return
-        self.transcript_view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        self.media_source_view = view
         self.content_button.setChecked(True)
+        self.show_selected_content()
 
     def open_paths(self, paths: tuple[str, ...], folder: bool = False) -> None:
         """
@@ -497,14 +622,27 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         if visible:
             self.show_selected_content()
 
+    def use_selection_of(self, view: QListView) -> None:
+        """
+        Makes the media pane show the messages selected in a view, after its selection changed.
+        :param view: The transcript view or the thread view.
+        :type view: QListView
+        :return: None
+        :rtype: None
+        """
+        self.media_source_view = view
+        self.show_selected_content()
+
     def selected_message_ids(self) -> list[int]:
         """
-        Returns the database ids of the selected messages.
-        :return: The ids, in transcript order.
+        Returns the database ids of the messages selected in the view the media pane follows: the transcript, or the
+        thread pane once messages were selected there.
+        :return: The ids, in the view's order.
         :rtype: list[int]
         """
-        entries = self.transcript_model.entries
-        rows = sorted({index.row() for index in self.transcript_view.selectionModel().selectedIndexes()})
+        view = self.media_source_view
+        entries = self._model_of(view).entries
+        rows = sorted({index.row() for index in view.selectionModel().selectedIndexes()})
         return [entries[row].message_id for row in rows if 0 <= row < len(entries) and entries[row].message_id is not None]
 
     def show_selected_content(self) -> None:

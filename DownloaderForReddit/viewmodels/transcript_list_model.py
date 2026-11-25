@@ -1,7 +1,9 @@
 """
 A list model holding the messages of one imported conversation, one row per message, for the conversation viewer.
 
-Each row's display text is a small HTML fragment (author, date, note and body) that TranscriptDelegate renders.
+Each row's display text is a small HTML fragment (author, date, note and body) that TranscriptDelegate renders.  A
+chat message that started a thread also shows a link, under THREAD_LINK_PREFIX, that opens the thread; the delegate
+indents the rows of a thread by their depth.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -35,6 +37,8 @@ from ..utils.html_formatting import linkify_urls
 
 
 DATE_FORMAT = '%Y-%m-%d %H:%M'
+THREAD_LINK_PREFIX = 'thread:'
+INDENT_TEXT = '    '
 AUTHOR_ICON_URL = 'author-icon'
 AUTHOR_ICON_SIZE = 16
 _UNKNOWN_AUTHOR = '[unknown]'
@@ -45,7 +49,8 @@ class TranscriptEntry:  # pylint: disable=too-many-instance-attributes  # plain 
     """
     One message as shown in a transcript.  The icon is the author's reddit object icon (a user, or a subreddit for
     modmail), shown in front of the author's name.  The content paths are the files downloaded from the message's
-    links, and the content count also includes media found but not downloaded (yet).
+    links, and the content count also includes media found but not downloaded (yet).  The depth is how far a thread
+    reply is nested; a message that started a thread has its thread key, reply count and last reply date set.
     """
 
     author: Optional[str]
@@ -56,6 +61,10 @@ class TranscriptEntry:  # pylint: disable=too-many-instance-attributes  # plain 
     message_id: Optional[int] = None
     content_count: int = 0
     content_paths: tuple[str, ...] = ()
+    depth: int = 0
+    thread_key: Optional[str] = None
+    reply_count: int = 0
+    last_reply_date: Optional[datetime] = None
 
 
 def media_marker(entry: TranscriptEntry) -> str:
@@ -76,6 +85,21 @@ def media_marker(entry: TranscriptEntry) -> str:
     return f'[{downloaded} of {entry.content_count} {noun} downloaded]'
 
 
+def thread_link_text(entry: TranscriptEntry) -> str:
+    """
+    Describes the thread a message started, for the link that opens it.
+    :param entry: The message.
+    :type entry: TranscriptEntry
+    :return: For example '3 replies, last 2024-01-02 03:04'; empty when the message started no thread.
+    :rtype: str
+    """
+    if entry.reply_count == 0 or entry.thread_key is None:
+        return ''
+    noun = 'reply' if entry.reply_count == 1 else 'replies'
+    last = f', last {entry.last_reply_date.strftime(DATE_FORMAT)}' if entry.last_reply_date is not None else ''
+    return f'{entry.reply_count:,} {noun}{last}'
+
+
 def format_body_html(body: Optional[str]) -> str:
     """
     Turns a message body into safe HTML: special characters are escaped, links are made clickable and line breaks are
@@ -93,8 +117,9 @@ def format_body_html(body: Optional[str]) -> str:
 def render_entry_html(entry: TranscriptEntry) -> str:
     """
     Renders one message as HTML for a transcript row: the author's icon when there is one, the author in bold, the
-    date in gray, an optional note, and the body below.  The icon is referenced as the AUTHOR_ICON_URL image resource,
-    which the delegate adds to the document.
+    date in gray, an optional note, and the body below, followed by the media found and the link to the thread the
+    message started, when there are any.  The icon is referenced as the AUTHOR_ICON_URL image resource, which the
+    delegate adds to the document.
     :param entry: The message.
     :type entry: TranscriptEntry
     :return: The HTML fragment.
@@ -107,7 +132,10 @@ def render_entry_html(entry: TranscriptEntry) -> str:
     note = f' <i>{html.escape(entry.note)}</i>' if entry.note else ''
     marker = media_marker(entry)
     media = f'<br/><span style="color:gray">{html.escape(marker)}</span>' if marker else ''
-    return f'{icon}<b>{author}</b> <span style="color:gray">{date}</span>{note}<br/>{format_body_html(entry.body)}{media}'
+    link_text = thread_link_text(entry)
+    thread = (f'<br/><a href="{html.escape(THREAD_LINK_PREFIX + (entry.thread_key or ""))}">{html.escape(link_text)}</a>'
+              if link_text else '')
+    return f'{icon}<b>{author}</b> <span style="color:gray">{date}</span>{note}<br/>{format_body_html(entry.body)}{media}{thread}'
 
 
 def entry_plain_text(entry: TranscriptEntry) -> str:
@@ -115,13 +143,15 @@ def entry_plain_text(entry: TranscriptEntry) -> str:
     Renders one message as plain text, for copying.
     :param entry: The message.
     :type entry: TranscriptEntry
-    :return: A header line with the author, date and note, followed by the body.
+    :return: A header line with the author, date and note, followed by the body, every line indented by the message's
+             depth in its thread.
     :rtype: str
     """
     header = ' '.join(part for part in (entry.author or _UNKNOWN_AUTHOR,
                                         entry.date.strftime(DATE_FORMAT) if entry.date is not None else '',
                                         f'({entry.note})' if entry.note else '') if part)
-    return f'{header}\n{entry.body or ""}'
+    indent = INDENT_TEXT * entry.depth
+    return '\n'.join(f'{indent}{line}' for line in f'{header}\n{entry.body or ""}'.split('\n'))
 
 
 class TranscriptListModel(QAbstractListModel):

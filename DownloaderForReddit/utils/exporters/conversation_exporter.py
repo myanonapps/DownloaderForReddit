@@ -27,6 +27,7 @@ from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
+from ...database.chat_threads import ORPHAN_NOTE, ChatThreads, ThreadRow, build_chat_threads
 from ...database.conversation_queries import chat_messages, private_message_thread
 from ...database.export_models import ChatChannel, ChatMessage, PrivateMessage, person_name
 
@@ -34,6 +35,7 @@ from ...database.export_models import ChatChannel, ChatMessage, PrivateMessage, 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
 _DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+_INDENT = '    '
 
 
 def _format_date(value: Optional[datetime]) -> str:
@@ -47,12 +49,42 @@ def _format_date(value: Optional[datetime]) -> str:
     return f'{value.strftime(_DATE_FORMAT)} UTC' if value is not None else '[no date]'
 
 
+def _chat_message_lines(row: ThreadRow, threads: ChatThreads) -> list[str]:
+    """
+    Formats one chat message for a transcript: a header with its date, author and notes, then its body, every line
+    indented by the message's depth in its thread, followed by a blank line.
+    :param row: The message and its place in its thread; depth 0 for a top level message.
+    :type row: ThreadRow
+    :param threads: The channel's messages arranged into threads.
+    :type threads: ChatThreads
+    :return: The lines.
+    :rtype: list[str]
+    """
+    message = row.message
+    indent = _INDENT * row.depth
+    notes = []
+    if row.depth == 0:
+        if threads.is_orphan(message):
+            notes.append(ORPHAN_NOTE)
+        replies = threads.reply_count(message.message_id)
+        if replies:
+            notes.append(f'{replies} {"reply" if replies == 1 else "replies"}')
+    elif row.depth >= 2:
+        notes.append(f'replying to {row.parent_author}')
+    note = f' ({"; ".join(notes)})' if notes else ''
+    lines = [f'{indent}[{_format_date(message.date_posted)}] {person_name(message.author)}{note}:']
+    lines.extend(f'{indent}{line}' for line in (message.body or '').split('\n'))
+    lines.append('')
+    return lines
+
+
 def format_chat_transcript(channel: ChatChannel, messages: Iterable[ChatMessage]) -> str:
     """
-    Formats a chat channel as a transcript, one message per block.
+    Formats a chat channel as a transcript, one message per block.  Each thread's replies follow the message that
+    started it, indented by their depth, instead of being scattered among the channel's other messages.
     :param channel: The channel.
     :type channel: ChatChannel
-    :param messages: The channel's messages, in the order to show them.
+    :param messages: The channel's messages, oldest first.
     :type messages: Iterable[ChatMessage]
     :return: The transcript text, with people shown under their nicknames where they have one.
     :rtype: str
@@ -63,11 +95,10 @@ def format_chat_transcript(channel: ChatChannel, messages: Iterable[ChatMessage]
     if channel.conversation_type:
         lines.append(f'Type: {channel.conversation_type}')
     lines.append('')
-    for message in messages:
-        reply = ' (thread reply)' if message.thread_parent_message_id else ''
-        lines.append(f'[{_format_date(message.date_posted)}] {person_name(message.author)}{reply}:')
-        lines.append(message.body or '')
-        lines.append('')
+    threads = build_chat_threads(list(messages))
+    for message in threads.timeline:
+        for row in threads.threads.get(message.message_id or '', [ThreadRow(message, 0)]):
+            lines.extend(_chat_message_lines(row, threads))
     return '\n'.join(lines)
 
 
