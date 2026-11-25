@@ -13,10 +13,16 @@ Add the Reddit data export import tables, the comment parent post id, and reddit
 - chat_message and private_message record whether their media links were extracted (extracted, extraction_date,
   extraction_error, error_message), and content.chat_message_id / content.private_message_id tie the content
   extracted from a message to that message.
+- chat_reaction stores each distinct chat reaction image once, shared by every chat, and chat_message.reaction_id
+  points a reaction message to it.  Reddit's export records a reaction as a chat message whose whole text is the url
+  of one of Reddit's reaction images (GIF or PNG) on i.redd.it, replying to the message reacted to; reaction messages already stored
+  are linked here, with the same rule the application uses, and marked extracted so their image is not downloaded
+  again for each message.
 
 DatabaseHandler runs create_all() before the migrator runs, so the new tables and their indexes normally exist
 already, empty, by the time this migration runs.  Every step is therefore skipped when what it creates exists, and the
-message extraction columns are also added to message tables created by an earlier form of this revision.
+message extraction columns and chat_message.reaction_id are also added to message tables created by an earlier form of
+this revision.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -38,9 +44,15 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import logging
+import re
+from datetime import datetime
+
 import sqlalchemy as sa
 from alembic import op
 
+
+logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
 # revision identifiers, used by Alembic.
 revision = 'c4f7a2e9d1b3'  # pylint: disable=invalid-name  # names required by alembic
@@ -48,13 +60,18 @@ down_revision = '7b1f4c8a9d2e'  # pylint: disable=invalid-name  # names required
 branch_labels = None  # pylint: disable=invalid-name  # names required by alembic
 depends_on = None  # pylint: disable=invalid-name  # names required by alembic
 
-_NEW_TABLES = ('private_message', 'chat_message', 'chat_channel', 'export_import')  # dependants first
+_NEW_TABLES = ('private_message', 'chat_message', 'chat_reaction', 'chat_channel', 'export_import')  # dependants first
 _MESSAGE_TABLES = ('chat_message', 'private_message')
 # The content columns tying content to a message: column name -> (referenced table, index name, foreign key name).
 _CONTENT_MESSAGE_COLUMNS = {
     'chat_message_id': ('chat_message', 'ix_content_chat_message_id', 'fk_content_chat_message_id'),
     'private_message_id': ('private_message', 'ix_content_private_message_id', 'fk_content_private_message_id'),
 }
+_REACTION_INDEX = 'ix_chat_message_reaction_id'
+_REACTION_FOREIGN_KEY = 'fk_chat_message_reaction_id'
+_STORED_DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%f'  # how SQLAlchemy's DateTime stores dates in SQLite
+# The rule of utils.chat_reactions.REACTION_URL, copied so the migration does not change if the rule does.
+_REACTION_URL = re.compile(r'^https?://i\.redd\.it/[a-z0-9]+\.(gif|png)$', re.IGNORECASE)
 # The members of core.errors.Error, as stored by the Enum(Error) columns.  Listed here so the migration does not
 # change if the enum does.
 _ERROR_NAMES = ('UNSUCCESSFUL_RESPONSE', 'UNSUPPORTED_DOMAIN', 'DOES_NOT_EXIST', 'FAILED_TO_LOCATE', 'FORBIDDEN',
@@ -165,7 +182,8 @@ def _add_column(table: str, column: sa.Column) -> None:
 
 def upgrade() -> None:
     """
-    Creates the export import tables and adds comment.link_reddit_id and reddit_object.nickname.
+    Creates the export import tables, adds comment.link_reddit_id and reddit_object.nickname, and links the chat
+    reaction messages already stored.
     :return: None
     :rtype: None
     """
@@ -195,6 +213,17 @@ def upgrade() -> None:
     )
 
     _create_table(
+        'chat_reaction',
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('url', sa.String(collation='NOCASE'), nullable=True, unique=True),
+        sa.Column('name', sa.String(), nullable=True),
+        sa.Column('enabled', sa.Boolean(create_constraint=False), nullable=True),
+        sa.Column('file_name', sa.String(), nullable=True),
+        sa.Column('fetch_error', sa.String(), nullable=True),
+        sa.Column('date_added', sa.DateTime(), nullable=True),
+    )
+
+    _create_table(
         'chat_message',
         sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column('message_id', sa.String(), nullable=True, unique=True),
@@ -205,6 +234,7 @@ def upgrade() -> None:
         sa.Column('channel_id', sa.Integer(), sa.ForeignKey('chat_channel.id'), nullable=True),
         sa.Column('author_id', sa.Integer(), sa.ForeignKey('reddit_object.id'), nullable=True),
         sa.Column('export_import_id', sa.Integer(), sa.ForeignKey('export_import.id'), nullable=True),
+        sa.Column('reaction_id', sa.Integer(), sa.ForeignKey('chat_reaction.id'), nullable=True),
         *_extraction_columns(),
     )
     _create_index('ix_chat_message_date_posted', 'chat_message', ['date_posted'])
@@ -234,6 +264,49 @@ def upgrade() -> None:
         for column in _extraction_columns():
             _add_column(table, column)
     _add_content_message_columns()
+    _add_chat_reaction_column()
+    _link_existing_reactions()
+
+
+def _add_chat_reaction_column() -> None:
+    """
+    Adds chat_message.reaction_id, with its foreign key and index, unless it exists.  SQLite cannot add a foreign key
+    to an existing table, so a batch operation rebuilds the chat_message table.
+    :return: None
+    :rtype: None
+    """
+    if 'reaction_id' not in _column_names('chat_message'):
+        with op.batch_alter_table('chat_message') as batch_op:  # pylint: disable=no-member  # approved: alembic.op is a runtime proxy
+            batch_op.add_column(sa.Column('reaction_id', sa.Integer(), nullable=True))
+            batch_op.create_foreign_key(_REACTION_FOREIGN_KEY, 'chat_reaction', ['reaction_id'], ['id'])
+    _create_index(_REACTION_INDEX, 'chat_message', ['reaction_id'])
+
+
+def _link_existing_reactions() -> None:
+    """
+    Links the chat messages already stored that are reactions: replies whose whole text is a reaction image url.  Each
+    distinct url becomes one chat_reaction row, and its messages are marked extracted.
+    :return: None
+    :rtype: None
+    """
+    bind = op.get_bind()  # pylint: disable=no-member  # approved: alembic.op is a runtime proxy
+    reaction_ids = {url.lower(): reaction_id for reaction_id, url in bind.execute(sa.text('SELECT id, url FROM chat_reaction'))}
+    rows = bind.execute(sa.text("SELECT id, body FROM chat_message WHERE reaction_id IS NULL AND body LIKE '%i.redd.it/%' "
+                                "AND thread_parent_message_id IS NOT NULL AND thread_parent_message_id != ''")).fetchall()
+    linked = 0
+    for message_id, body in rows:
+        url = (body or '').strip()
+        if not _REACTION_URL.match(url):
+            continue
+        if url.lower() not in reaction_ids:
+            bind.execute(sa.text('INSERT INTO chat_reaction (url, enabled, date_added) VALUES (:url, 1, :now)'),
+                         {'url': url, 'now': datetime.now().strftime(_STORED_DATE_FORMAT)})
+            reaction_ids[url.lower()] = bind.execute(sa.text('SELECT id FROM chat_reaction WHERE url = :url'), {'url': url}).scalar()
+        bind.execute(sa.text('UPDATE chat_message SET reaction_id = :reaction_id, extracted = 1 WHERE id = :id'),
+                     {'reaction_id': reaction_ids[url.lower()], 'id': message_id})
+        linked += 1
+    if linked:
+        logger.info('Linked %d chat reaction messages to %d reactions', linked, len(reaction_ids))
 
 
 def _add_content_message_columns() -> None:

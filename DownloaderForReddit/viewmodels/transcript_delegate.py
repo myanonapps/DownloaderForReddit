@@ -4,7 +4,7 @@ An item delegate that draws the messages of a conversation transcript as wrapped
 Rows keep the view's alternating background, a selected row is outlined instead of filled so that its text keeps its
 colors, and links in a message open in the browser and show a pointing cursor.  A link to a thread is not opened but
 reported through the thread_link_clicked signal.  Thread replies are indented by their depth, with a thin rail drawn
-for each level.
+for each level.  The images of the reactions a row shows are loaded from their files once, scaled, and kept.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -26,11 +26,16 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import os
+from typing import Optional
+
 from PyQt6.QtCore import QAbstractItemModel, QEvent, QModelIndex, QObject, QPointF, QRectF, QSize, Qt, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QIcon, QMouseEvent, QPainter, QPalette, QPen, QTextDocument
+from PyQt6.QtGui import QDesktopServices, QIcon, QMouseEvent, QPainter, QPalette, QPen, QPixmap, QTextDocument
 from PyQt6.QtWidgets import QAbstractItemView, QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
-from .transcript_list_model import AUTHOR_ICON_SIZE, AUTHOR_ICON_URL, THREAD_LINK_PREFIX, TranscriptEntry
+from ..core.const import RESOURCES
+from .transcript_list_model import (AUTHOR_ICON_SIZE, AUTHOR_ICON_URL, REACTION_IMAGE_PREFIX, REACTION_IMAGE_SIZE, THREAD_LINK_PREFIX,
+                                    ReactionBadge, TranscriptEntry)
 
 
 _PADDING = 6
@@ -39,6 +44,7 @@ _OUTLINE_RADIUS = 4
 _INDENT_PX = 18
 _MAX_VISUAL_DEPTH = 8  # deeper replies are drawn at this depth so their text keeps a usable width
 _RAIL_WIDTH = 2
+_PLACEHOLDER_PATH = os.path.join(RESOURCES, 'images', 'image_placeholder.png')
 
 
 class TranscriptDelegate(QStyledItemDelegate):
@@ -55,6 +61,7 @@ class TranscriptDelegate(QStyledItemDelegate):
         """
         super().__init__(view)
         self.view = view
+        self._reaction_pixmaps: dict[Optional[str], QPixmap] = {}
         view.setMouseTracking(True)
         view.viewport().installEventFilter(self)
 
@@ -83,10 +90,44 @@ class TranscriptDelegate(QStyledItemDelegate):
         """
         return max((self.view.viewport().width() or row_width) - 2 * _PADDING - indent, 1)
 
-    @staticmethod
-    def _document(index: QModelIndex, width: int) -> QTextDocument:
+    def reaction_pixmap(self, path: Optional[str]) -> QPixmap:
         """
-        Lays out a row's HTML, with the author's icon (the row's decoration) available as the image the HTML refers to.
+        Returns a reaction's image at the size reactions are shown, centered on a transparent square; the first frame
+        of an animated image.  A placeholder is used when the image has not been fetched or cannot be read.
+        :param path: The image file, or None when it has not been fetched.
+        :type path: Optional[str]
+        :return: The pixmap.
+        :rtype: QPixmap
+        """
+        key = path if path is not None and os.path.isfile(path) else None
+        pixmap = self._reaction_pixmaps.get(key)
+        if pixmap is None:
+            image = QPixmap(key) if key is not None else QPixmap()
+            if image.isNull():
+                image = QPixmap(_PLACEHOLDER_PATH)
+            pixmap = QPixmap(REACTION_IMAGE_SIZE, REACTION_IMAGE_SIZE)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            if not image.isNull():
+                scaled = image.scaled(REACTION_IMAGE_SIZE, REACTION_IMAGE_SIZE, Qt.AspectRatioMode.KeepAspectRatio,
+                                      Qt.TransformationMode.SmoothTransformation)
+                painter = QPainter(pixmap)
+                painter.drawPixmap((REACTION_IMAGE_SIZE - scaled.width()) // 2, (REACTION_IMAGE_SIZE - scaled.height()) // 2, scaled)
+                painter.end()
+            self._reaction_pixmaps[key] = pixmap
+        return pixmap
+
+    def clear_reaction_images(self) -> None:
+        """
+        Forgets the reaction images loaded so far, so images fetched since are read from their files.
+        :return: None
+        :rtype: None
+        """
+        self._reaction_pixmaps.clear()
+
+    def _document(self, index: QModelIndex, width: int) -> QTextDocument:
+        """
+        Lays out a row's HTML, with the author's icon (the row's decoration) and the images of its reactions available
+        as the images the HTML refers to.
         :param index: The row.
         :type index: QModelIndex
         :param width: The width to wrap the text at.
@@ -100,6 +141,12 @@ class TranscriptDelegate(QStyledItemDelegate):
         if isinstance(icon, QIcon):
             doc.addResource(QTextDocument.ResourceType.ImageResource.value, QUrl(AUTHOR_ICON_URL),
                             icon.pixmap(AUTHOR_ICON_SIZE, AUTHOR_ICON_SIZE))
+        entry = index.data(Qt.ItemDataRole.UserRole)
+        if isinstance(entry, TranscriptEntry):
+            badges: tuple[ReactionBadge, ...] = entry.reactions + ((entry.reaction,) if entry.reaction is not None else ())
+            for badge in badges:
+                doc.addResource(QTextDocument.ResourceType.ImageResource.value, QUrl(f'{REACTION_IMAGE_PREFIX}{badge.reaction_id}'),
+                                self.reaction_pixmap(badge.image_path))
         doc.setHtml(index.data(Qt.ItemDataRole.DisplayRole) or '')
         doc.setTextWidth(width)
         return doc

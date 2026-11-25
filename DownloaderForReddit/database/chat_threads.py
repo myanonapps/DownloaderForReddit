@@ -6,6 +6,9 @@ message that started the thread, a few reply to another reply, and some point to
 Shown in date order, a thread's replies end up scattered among unrelated messages, so the timeline is built from the
 top level messages only and each thread is kept apart, root first, then its replies depth first.
 
+Reactions are recorded as replies too, but are neither shown nor counted as replies: they are grouped under the message
+they react to.  A reaction to a message the channel does not hold stays in the timeline, where it is shown on its own.
+
 
 Copyright (C) 2017, Kyle Hickey
 
@@ -37,6 +40,7 @@ from .export_models import ChatMessage, person_name
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
 ORPHAN_NOTE = 'reply to a message not in the export'
+ORPHAN_REACTION_NOTE = 'reaction to a message not in the export'
 
 
 @dataclass
@@ -57,12 +61,25 @@ class ChatThreads:
     A channel's messages arranged into threads.  The timeline holds the top level messages in the order they were
     given.  Each thread is keyed by its root's message id and lists the root, then every reply depth first, replies to
     the same message in the order they were given; only roots with at least one reply have a thread.  Orphans are the
-    ids of top level messages that reply to a message missing from the channel.
+    ids of top level messages that reply to a message missing from the channel.  Reactions holds the reactions to each
+    message, keyed by the id of the message reacted to, in the order they were given; a reaction in the timeline is one
+    whose message is missing.
     """
 
     timeline: list[ChatMessage] = field(default_factory=list)
     threads: dict[str, list[ThreadRow]] = field(default_factory=dict)
     orphans: set[str] = field(default_factory=set)
+    reactions: dict[str, list[ChatMessage]] = field(default_factory=dict)
+
+    def reactions_to(self, message: ChatMessage) -> list[ChatMessage]:
+        """
+        Returns the reactions to a message.
+        :param message: The message reacted to.
+        :type message: ChatMessage
+        :return: The reaction messages, in the order they were given; empty when there are none.
+        :rtype: list[ChatMessage]
+        """
+        return self.reactions.get(message.message_id, []) if message.message_id is not None else []
 
     def reply_count(self, root_id: Optional[str]) -> int:
         """
@@ -149,26 +166,58 @@ def _break_cycles(messages: list[ChatMessage], parents: dict[str, str]) -> None:
         settled.update(path)
 
 
+def _group_reactions(reactions: list[ChatMessage], known: set[str], result: ChatThreads) -> list[ChatMessage]:
+    """
+    Groups reactions under the messages they react to.
+    :param reactions: The channel's reaction messages, in the order they were given.
+    :type reactions: list[ChatMessage]
+    :param known: The ids of the channel's messages that are not reactions.
+    :type known: set[str]
+    :param result: The arrangement the reactions are added to; reactions to missing messages are recorded as orphans.
+    :type result: ChatThreads
+    :return: The reactions to no message the channel holds, which stay in the timeline.
+    :rtype: list[ChatMessage]
+    """
+    standalone = []
+    for reaction in reactions:
+        target = reaction.thread_parent_message_id
+        if target and target in known and target != reaction.message_id:
+            result.reactions.setdefault(target, []).append(reaction)
+            continue
+        standalone.append(reaction)
+        if target and reaction.message_id is not None:
+            result.orphans.add(reaction.message_id)
+    return standalone
+
+
 def build_chat_threads(messages: list[ChatMessage]) -> ChatThreads:
     """
     Arranges a channel's messages into its timeline and threads.  A reply whose parent is not among the messages stays
-    in the timeline and is recorded as an orphan; replies to it still form a thread under it.
+    in the timeline and is recorded as an orphan; replies to it still form a thread under it.  Reactions are grouped
+    under the message they react to and are not replies.
     :param messages: The channel's messages, oldest first, as chat_messages returns them.
     :type messages: list[ChatMessage]
-    :return: The timeline and the threads.
+    :return: The timeline, the threads and the reactions.
     :rtype: ChatThreads
     """
-    parents, orphans = _parent_links(messages)
-    _break_cycles(messages, parents)
-    by_id = {message.message_id: message for message in messages if message.message_id is not None}
+    reactions = [message for message in messages if message.is_reaction]
+    others = [message for message in messages if not message.is_reaction]
+    parents, orphans = _parent_links(others)
+    _break_cycles(others, parents)
+    by_id = {message.message_id: message for message in others if message.message_id is not None}
     children: dict[str, list[ChatMessage]] = {}
-    for message in messages:
+    for message in others:
         parent_id = parents.get(message.message_id) if message.message_id is not None else None
         if parent_id is not None:
             children.setdefault(parent_id, []).append(message)
 
     result = ChatThreads(orphans=orphans)
+    standalone = {id(reaction) for reaction in _group_reactions(reactions, set(by_id), result)}
     for message in messages:
+        if message.is_reaction:
+            if id(message) in standalone:
+                result.timeline.append(message)
+            continue
         if message.message_id is not None and message.message_id in parents:
             continue
         result.timeline.append(message)

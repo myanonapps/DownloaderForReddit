@@ -179,6 +179,7 @@ QListView::item:active {
     </property>
     <addaction name="database_browser_menu_item"/>
     <addaction name="conversations_menu_item"/>
+    <addaction name="reactions_menu_item"/>
     <addaction name="separator"/>
     <addaction name="database_view_menu_item"/>
     <addaction name="separator"/>
@@ -635,6 +636,14 @@ QListView::item:selected {
    </property>
    <property name="toolTip">
     <string>Browse the chats and private messages imported from Reddit data exports</string>
+   </property>
+  </action>
+  <action name="reactions_menu_item">
+   <property name="text">
+    <string>Chat Reactions</string>
+   </property>
+   <property name="toolTip">
+    <string>Manage the reaction images shared by every imported chat</string>
    </property>
   </action>
   <action name="import_reddit_export_menu_item">

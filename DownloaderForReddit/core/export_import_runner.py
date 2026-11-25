@@ -35,7 +35,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..data_interface.adapter_manager import RedditAdapterManager
 from ..database.model_enums import PostDownloadSource
+from .reaction_fetcher import fetch_missing_reaction_images, report_fetch
 from ..messaging.message import Message, MessageType
+from ..utils import injector
 from ..utils.importers.reddit_export import InvalidExportError
 from ..utils.importers.reddit_export.export_hydrator import ExportHydrator
 from ..utils.importers.reddit_export.export_importer import ExportImportOptions, ExportImportStats, RedditExportImporter
@@ -81,13 +83,16 @@ class ExportImportRunner(QObject):
 
     def run(self) -> None:
         """
-        Runs the import and emits finished with the results, even when it fails.
+        Runs the import, stores the images of the chat reactions it found, then hydrates when asked to, and emits
+        finished with the results, even when it fails.
         :return: None
         :rtype: None
         """
         stats = ExportImportStats()
         try:
             stats = self._import()
+            if stats.chat_reactions_linked and not self.stop_event.is_set():
+                self._fetch_reaction_images()
             if self.hydration_source is not None and not self.stop_event.is_set() and stats.download_session_id is not None:
                 stats = self._hydrate(stats)
         except InvalidExportError as error:
@@ -109,13 +114,24 @@ class ExportImportRunner(QObject):
             self._importer = RedditExportImporter(reader, self.options, self.stop_event, self._import_progress)
             stats = self._importer.run()
         Message.send_info(f'Imported {stats.posts_added:,} posts, {stats.comments_added:,} comments, '
-                          f'{stats.chat_messages_added:,} chat messages in {stats.chat_channels_added:,} new channels and '
+                          f'{stats.chat_messages_added:,} chat messages ({stats.chat_reactions_linked:,} of them reactions) in '
+                          f'{stats.chat_channels_added:,} new channels and '
                           f'{stats.private_messages_added:,} private messages '
                           f'({stats.posts_skipped + stats.comments_skipped + stats.chat_messages_skipped + stats.private_messages_skipped:,} '
                           f'already stored)')
         if stats.cancelled:
             Message.send_warning('Reddit export import was stopped before it finished')
         return stats
+
+    def _fetch_reaction_images(self) -> None:
+        """
+        Stores the images of the reactions that have none yet, so chats show them.
+        :return: None
+        :rtype: None
+        """
+        with injector.get_database_handler().get_scoped_session() as session:
+            fetched, failed = fetch_missing_reaction_images(session, self.stop_event)
+        report_fetch(fetched, failed)
 
     def _import_progress(self, record_type: str, count: int) -> None:
         """

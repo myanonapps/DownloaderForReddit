@@ -43,6 +43,7 @@ class Converter:
             'database_viewer',
             'import_reddit_export_dialog',
             'conversation_viewer',
+            'reactions_dialog',
             'backup_dialog',
         ]
 
@@ -203,6 +204,10 @@ class Converter:
 
     def conversation_viewer(self):
         name = 'conversation_viewer'
+        self.convert(name, 'database_views')
+
+    def reactions_dialog(self):
+        name = 'reactions_dialog'
         self.convert(name, 'database_views')
 
     def backup_dialog(self):

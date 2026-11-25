@@ -34,7 +34,7 @@ from DownloaderForReddit.core.errors import Error
 from DownloaderForReddit.core.message_handler import MessageHandler
 from DownloaderForReddit.database import UnlinkedContentError
 from DownloaderForReddit.database.database_handler import DatabaseHandler
-from DownloaderForReddit.database.export_models import ChatChannel, ChatMessage, ExportImport, PrivateMessage
+from DownloaderForReddit.database.export_models import ChatChannel, ChatMessage, ChatReaction, ExportImport, PrivateMessage
 from DownloaderForReddit.database.models import Content, Post, Subreddit, User
 from DownloaderForReddit.utils import injector, system_util
 
@@ -104,6 +104,18 @@ class TestMessageHandler(TestCase):
         while not self.queue.empty():
             ids.append(self.queue.get())
         return ids
+
+    def test_reaction_is_not_extracted(self) -> None:
+        """A chat reaction is recorded as extracted without content, since its image is stored once for every chat."""
+        message_id = self.add_chat_message('https://i.redd.it/abc7081.gif')
+        with self.db.get_scoped_session() as session:
+            session.query(ChatMessage).get(message_id).reaction = ChatReaction(url='https://i.redd.it/abc7081.gif', enabled=True)
+            session.commit()
+        self.extract(ChatMessage, message_id)
+        with self.db.get_scoped_session() as session:
+            self.assertEqual(0, session.query(Content).count())
+            self.assertTrue(session.query(ChatMessage).get(message_id).extracted)
+        self.assertEqual([], self.queued_ids())
 
     def test_media_link_becomes_message_content(self) -> None:
         """A media link becomes content tied to the message, with no post, saved in its author's folder."""

@@ -26,11 +26,12 @@ from typing import Optional
 from unittest import TestCase
 
 from DownloaderForReddit.database.chat_threads import ChatThreads, build_chat_threads
-from DownloaderForReddit.database.export_models import ChatMessage
+from DownloaderForReddit.database.export_models import ChatMessage, ChatReaction
 from DownloaderForReddit.database.models import User
 
 
-def chat_message(message_id: Optional[str], parent_id: Optional[str] = None, minute: int = 0, author: str = 'someone') -> ChatMessage:
+def chat_message(message_id: Optional[str], parent_id: Optional[str] = None, minute: int = 0, author: str = 'someone',
+                 reaction: Optional[ChatReaction] = None) -> ChatMessage:
     """
     Creates a chat message that is not stored in any database.
     :param message_id: The message's id.
@@ -41,11 +42,13 @@ def chat_message(message_id: Optional[str], parent_id: Optional[str] = None, min
     :type minute: int
     :param author: The name of the user who wrote it.
     :type author: str
+    :param reaction: The reaction the message is, if any; its text is then the reaction's url.
+    :type reaction: Optional[ChatReaction]
     :return: The message.
     :rtype: ChatMessage
     """
-    return ChatMessage(message_id=message_id, thread_parent_message_id=parent_id, body=message_id,
-                       date_posted=datetime(2024, 1, 1, 0, minute), author=User(name=author))
+    return ChatMessage(message_id=message_id, thread_parent_message_id=parent_id, body=reaction.url if reaction is not None else message_id,
+                       date_posted=datetime(2024, 1, 1, 0, minute), author=User(name=author), reaction=reaction)
 
 
 def ids(messages: list[ChatMessage]) -> list[Optional[str]]:
@@ -126,6 +129,44 @@ class TestBuildChatThreads(TestCase):
                                       chat_message('z', 'y', minute=2)])
         self.assertEqual(['x'], ids(threads.timeline))
         self.assertEqual([('x', 0), ('y', 1), ('z', 2)], thread_layout(threads, 'x'))
+
+    def test_reactions_are_grouped_under_their_message(self) -> None:
+        """Reactions are neither timeline rows nor replies: they are listed under the message they react to."""
+        heart = ChatReaction(url='https://i.redd.it/heart.gif', enabled=True)
+        threads = build_chat_threads([chat_message('root', minute=0), chat_message('reply', 'root', minute=1),
+                                      chat_message('like-root', 'root', minute=2, reaction=heart),
+                                      chat_message('like-reply', 'reply', minute=3, reaction=heart),
+                                      chat_message('other', minute=4)])
+        self.assertEqual(['root', 'other'], ids(threads.timeline))
+        self.assertEqual([('root', 0), ('reply', 1)], thread_layout(threads, 'root'))
+        self.assertEqual(1, threads.reply_count('root'))
+        self.assertEqual(datetime(2024, 1, 1, 0, 1), threads.last_reply_date('root'))
+        self.assertEqual(['like-root'], ids(threads.reactions_to(threads.timeline[0])))
+        self.assertEqual(['like-reply'], ids(threads.reactions_to(threads.threads['root'][1].message)))
+        self.assertEqual([], threads.reactions_to(threads.timeline[1]))
+
+    def test_reaction_alone_does_not_start_a_thread(self) -> None:
+        """A message whose only answers are reactions has no thread."""
+        heart = ChatReaction(url='https://i.redd.it/heart.gif', enabled=True)
+        threads = build_chat_threads([chat_message('root'), chat_message('like', 'root', minute=1, reaction=heart)])
+        self.assertEqual({}, threads.threads)
+        self.assertEqual(0, threads.reply_count('root'))
+
+    def test_reaction_to_a_missing_message_stays_in_the_timeline(self) -> None:
+        """A reaction whose message is missing is a timeline row, recorded as an orphan; one replying to nothing is not."""
+        heart = ChatReaction(url='https://i.redd.it/heart.gif', enabled=True)
+        threads = build_chat_threads([chat_message('a', minute=0), chat_message('lost', 'gone', minute=1, reaction=heart),
+                                      chat_message('alone', minute=2, reaction=heart)])
+        self.assertEqual(['a', 'lost', 'alone'], ids(threads.timeline))
+        self.assertTrue(threads.is_orphan(threads.timeline[1]))
+        self.assertFalse(threads.is_orphan(threads.timeline[2]))
+
+    def test_disabled_reaction_is_a_reply(self) -> None:
+        """A message linked to a reaction marked as not one is an ordinary reply."""
+        threads = build_chat_threads([chat_message('root'), chat_message('gif', 'root', minute=1,
+                                                                          reaction=ChatReaction(url='https://i.redd.it/x.gif', enabled=False))])
+        self.assertEqual([('root', 0), ('gif', 1)], thread_layout(threads, 'root'))
+        self.assertEqual({}, threads.reactions)
 
     def test_message_without_id(self) -> None:
         """A message without an id stays in the timeline and starts no thread."""

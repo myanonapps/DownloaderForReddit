@@ -40,7 +40,8 @@ from DownloaderForReddit.database.models import Content, Subreddit, User
 from DownloaderForReddit.gui.database_views.conversation_viewer import participant_icon
 from DownloaderForReddit.utils.exporters.conversation_exporter import format_chat_transcript
 from DownloaderForReddit.viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
-from DownloaderForReddit.viewmodels.transcript_list_model import (AUTHOR_ICON_URL, THREAD_LINK_PREFIX, TranscriptEntry, TranscriptListModel,
+from DownloaderForReddit.viewmodels.transcript_list_model import (AUTHOR_ICON_URL, REACTION_IMAGE_PREFIX, THREAD_LINK_PREFIX, ReactionBadge,
+                                                                  TranscriptEntry, TranscriptListModel, entry_plain_text, entry_tooltip,
                                                                   format_body_html, render_entry_html, thread_link_text)
 from Tests.unittests.utils.importers.export_fixture import import_into_memory_database
 
@@ -326,6 +327,27 @@ class TestTranscriptRendering(TestCase):
         root = TranscriptEntry('a', None, 'x', thread_key='$root', reply_count=3, last_reply_date=datetime(2024, 1, 2, 3, 4))
         self.assertIn(f'<a href="{THREAD_LINK_PREFIX}$root">3 replies, last 2024-01-02 03:04</a>', render_entry_html(root))
         self.assertEqual('1 reply', thread_link_text(TranscriptEntry('a', None, 'x', thread_key='$root', reply_count=1)))
+
+    def test_reaction_badges(self) -> None:
+        """Reactions a message got are shown as images, with a count past one, and named in the copy text and tooltip."""
+        heart = ReactionBadge(1, 'Heart', 'https://i.redd.it/heart.gif', reactors=('bob 2024-01-02 03:04', 'carol'))
+        laugh = ReactionBadge(2, 'Laugh', 'https://i.redd.it/laugh.gif', reactors=('dave',))
+        entry = TranscriptEntry('a', datetime(2024, 1, 2, 3, 4), 'hello', reactions=(heart, laugh))
+        rendered = render_entry_html(entry)
+        self.assertIn(f'<img src="{REACTION_IMAGE_PREFIX}1"', rendered)
+        self.assertIn('&nbsp;×2', rendered)
+        self.assertNotIn('×1', rendered)
+        self.assertEqual('a 2024-01-02 03:04\nhello\nReactions: Heart (bob 2024-01-02 03:04, carol); Laugh (dave)', entry_plain_text(entry))
+        self.assertEqual('2024-01-02 03:04:00\nHeart: bob 2024-01-02 03:04, carol\nLaugh: dave', entry_tooltip(entry))
+        self.assertNotIn(REACTION_IMAGE_PREFIX, render_entry_html(TranscriptEntry('a', None, 'x')))
+
+    def test_reaction_row(self) -> None:
+        """A row that is itself a reaction shows the reaction's image in place of its text."""
+        entry = TranscriptEntry('a', None, 'https://i.redd.it/heart.gif', reaction=ReactionBadge(1, 'Heart', 'https://i.redd.it/heart.gif'))
+        self.assertIn(f'<i>reacted</i> <img src="{REACTION_IMAGE_PREFIX}1"', render_entry_html(entry))
+        self.assertNotIn('i.redd.it', render_entry_html(entry))
+        self.assertEqual('a\nreacted Heart', entry_plain_text(entry))
+        self.assertEqual('Reaction: Heart', entry_tooltip(entry))
 
     def test_copy_text_is_indented_by_depth(self) -> None:
         """Copied thread replies are indented by their depth, body lines included."""

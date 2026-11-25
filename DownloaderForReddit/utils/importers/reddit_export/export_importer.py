@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from ....core.const import DELETED_REDDIT_OBJECT_NAME, SUBREDDIT_OBJECT, USER_OBJECT
 from ....database.models import Post, Comment, User, Subreddit, DownloadSession, ListAssociation, RedditObject, RedditObjectList
 from ....database.export_models import ExportImport, ChatChannel, ChatMessage, PrivateMessage
+from ...chat_reactions import link_chat_reactions
 from ...html_formatting import markdown_to_html
 from ...message_links import has_links
 from ... import injector
@@ -83,6 +84,7 @@ class ExportImportStats:  # pylint: disable=too-many-instance-attributes  # plai
     comments_skipped: int = 0
     chat_channels_added: int = 0
     chat_messages_added: int = 0
+    chat_reactions_linked: int = 0
     chat_messages_skipped: int = 0
     private_messages_added: int = 0
     private_messages_skipped: int = 0
@@ -535,7 +537,8 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
 
     def _import_chat_messages(self, session: Session, export_import: ExportImport) -> None:
         """
-        Imports chat_history.csv, grouping the messages into their channels.
+        Imports chat_history.csv, grouping the messages into their channels.  Messages that are reactions are linked to
+        their reaction instead of having their media downloaded.
         :param session: The database session.
         :type session: Session
         :param export_import: The import being run.
@@ -556,6 +559,10 @@ class RedditExportImporter:  # pylint: disable=too-many-instance-attributes,too-
                 new_messages.append(self._make_chat_message(session, record, export_import))
             session.add_all(new_messages)
             session.commit()
+            linked = link_chat_reactions(session, [message.id for message in new_messages])
+            if linked:
+                session.commit()
+                self.stats.chat_reactions_linked += linked
             self.stats.new_chat_message_ids.extend(message.id for message in new_messages if not message.extracted)
             self.stats.chat_messages_added += len(new_messages)
             self._report('chat messages', len(chunk))

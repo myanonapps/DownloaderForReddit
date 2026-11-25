@@ -16,6 +16,10 @@ A chat's transcript holds only its top level messages.  A message that started a
 and a link that opens the thread pane beside the transcript, where the thread's first message and all of its replies
 are listed together, replies to replies indented further.  Selecting messages in the thread pane shows their media.
 
+Chat reactions are not shown as messages: the reactions a message got are shown as small images under it, and the
+tooltip names who reacted with what.  A message's context menu can mark the image it consists of as a reaction, or a
+reaction as not being one, in every chat at once.  Reaction images not stored yet are fetched in the background.
+
 
 Copyright (C) 2017, Kyle Hickey
 
@@ -41,25 +45,27 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QPoint, QSettings, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QPoint, QSettings, QSize, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QFileDialog, QListView, QListWidgetItem, QMenu, QTableWidgetItem, QWidget
 
 from ...core.const import RESOURCES
-from ...database.chat_threads import ORPHAN_NOTE, ChatThreads, ThreadRow, build_chat_threads
+from ...core.reaction_fetcher import ReactionFetcher, start_fetch_thread
+from ...database.chat_threads import ORPHAN_NOTE, ORPHAN_REACTION_NOTE, ChatThreads, ThreadRow, build_chat_threads
 from ...database.conversation_queries import (CHAT, PRIVATE_MESSAGE, ConversationSummary, chat_messages, chat_summaries,
                                               conversation_properties, message_content, message_content_query,
                                               private_message_thread,
                                               private_thread_summaries, set_chat_nickname, unextracted_message_ids)
-from ...database.export_models import ChatChannel, ChatMessage, person_name
+from ...database.export_models import ChatChannel, ChatMessage, ChatReaction, person_name
 from ...database.models import Content, RedditObject
 from ...guiresources.database_views.conversation_viewer_auto import Ui_ConversationViewer
 from ...utils import injector, system_util
+from ...utils.chat_reactions import set_reaction_enabled, single_url
 from ...utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread
 from ...viewmodels.database_view_models import ContentListModel
 from ...viewmodels.reddit_object_display import ICONS, RedditObjectStateDisplay
 from ...viewmodels.transcript_delegate import TranscriptDelegate
-from ...viewmodels.transcript_list_model import DATE_FORMAT, TranscriptEntry, TranscriptListModel
+from ...viewmodels.transcript_list_model import DATE_FORMAT, ReactionBadge, TranscriptEntry, TranscriptListModel
 from .database_viewer import DEFAULT_ICON_SIZE
 
 
@@ -89,6 +95,17 @@ def participant_icon(display: RedditObjectStateDisplay, participant: Optional[Re
     return display.icon(participant)
 
 
+def _entry_badges(entry: TranscriptEntry) -> tuple[ReactionBadge, ...]:
+    """
+    Returns every reaction a transcript row shows: those the message got, and the message's own when it is a reaction.
+    :param entry: The row.
+    :type entry: TranscriptEntry
+    :return: The badges.
+    :rtype: tuple[ReactionBadge, ...]
+    """
+    return entry.reactions + ((entry.reaction,) if entry.reaction is not None else ())
+
+
 def downloaded_paths(contents: list[Content]) -> tuple[str, ...]:
     """
     Returns the paths of the downloaded files among a message's content.
@@ -98,6 +115,35 @@ def downloaded_paths(contents: list[Content]) -> tuple[str, ...]:
     :rtype: tuple[str, ...]
     """
     return tuple(content.get_full_file_path() for content in contents if content.downloaded and content.download_title)
+
+
+def reaction_badge(reaction: ChatReaction, messages: tuple[ChatMessage, ...] = ()) -> ReactionBadge:
+    """
+    Describes a reaction for display on a message.
+    :param reaction: The reaction.
+    :type reaction: ChatReaction
+    :param messages: The reaction messages a message got with this reaction; none for a reaction shown on its own.
+    :type messages: tuple[ChatMessage, ...]
+    :return: The badge, naming who reacted and when.
+    :rtype: ReactionBadge
+    """
+    reactors = tuple(f'{person_name(message.author)} {message.date_posted.strftime(DATE_FORMAT)}' if message.date_posted is not None
+                     else person_name(message.author) for message in messages)
+    return ReactionBadge(reaction.id, reaction.display_name, reaction.url, reaction.file_path if reaction.has_image else None, reactors)
+
+
+def reaction_badges(reactions: list[ChatMessage]) -> tuple[ReactionBadge, ...]:
+    """
+    Groups the reactions a message got by reaction, in the order each reaction was first used.
+    :param reactions: The reaction messages, oldest first.
+    :type reactions: list[ChatMessage]
+    :return: One badge per reaction.
+    :rtype: tuple[ReactionBadge, ...]
+    """
+    groups: dict[int, list[ChatMessage]] = {}
+    for message in reactions:
+        groups.setdefault(message.reaction_id, []).append(message)
+    return tuple(reaction_badge(messages[0].reaction, tuple(messages)) for messages in groups.values())
 
 
 def _summary_text(summary: ConversationSummary) -> str:
@@ -137,16 +183,19 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.transcript_view.setModel(self.transcript_model)
         self.transcript_delegate = TranscriptDelegate(self.transcript_view)
         self.transcript_view.setItemDelegate(self.transcript_delegate)
-        self.thread_model = TranscriptListModel(self)
-        self.thread_view.setModel(self.thread_model)
-        self.thread_delegate = TranscriptDelegate(self.thread_view)
-        self.thread_view.setItemDelegate(self.thread_delegate)
         self.copy_action = self._copy_action(self.transcript_view)
+        self.thread_model = TranscriptListModel(self)
+        self.thread_delegate = TranscriptDelegate(self.thread_view)
         self.thread_copy_action = self._copy_action(self.thread_view)
         # The rows of each thread of the chat shown, keyed by the message id of the thread's first message.
         self.thread_entries: dict[str, list[TranscriptEntry]] = {}
         # The view whose selected messages the media pane shows.
         self.media_source_view: QListView = self.transcript_view
+        # The message id of the first message of the thread the thread pane shows.
+        self.open_thread_key: Optional[str] = None
+        self.reaction_thread: Optional[QThread] = None
+        self.reaction_fetcher: Optional[ReactionFetcher] = None
+        self.reaction_fetch_tried = False
         self.icon_display = RedditObjectStateDisplay(injector.get_settings_manager())
         self.nickname_channel_id: Optional[int] = None
         self.properties_button.setIcon(QIcon(_INFO_ICON_PATH))
@@ -168,16 +217,26 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.download_content_button.clicked.connect(self.download_content)
         self.transcript_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.transcript_view.customContextMenuRequested.connect(lambda position: self.transcript_context_menu(self.transcript_view, position))
+        self.properties_button.toggled.connect(self.set_properties_visible)
+        self.properties_close_button.clicked.connect(lambda: self.properties_button.setChecked(False))
+        self.conversation_list.currentItemChanged.connect(self.show_selected)
+        self._setup_thread_pane()
+        self._setup_content_pane()
+        self.load_settings()
+        self.load_conversations()
+
+    def _setup_thread_pane(self) -> None:
+        """
+        Attaches the thread pane's model and delegate to its view and connects the thread links of both views.
+        :return: None
+        :rtype: None
+        """
+        self.thread_view.setModel(self.thread_model)
+        self.thread_view.setItemDelegate(self.thread_delegate)
         self.thread_view.customContextMenuRequested.connect(lambda position: self.transcript_context_menu(self.thread_view, position))
         self.transcript_delegate.thread_link_clicked.connect(self.show_thread)
         self.thread_delegate.thread_link_clicked.connect(self.show_thread)
         self.thread_close_button.clicked.connect(self.close_thread)
-        self.properties_button.toggled.connect(self.set_properties_visible)
-        self.properties_close_button.clicked.connect(lambda: self.properties_button.setChecked(False))
-        self.conversation_list.currentItemChanged.connect(self.show_selected)
-        self._setup_content_pane()
-        self.load_settings()
-        self.load_conversations()
 
     def _setup_content_pane(self) -> None:
         """
@@ -312,6 +371,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
             return
         self.close_thread(refresh_media=False)
         self.thread_entries = {}
+        missing_images = False
         with self.db.get_scoped_session() as session:
             if summary.kind == CHAT:
                 channel = session.query(ChatChannel).get(summary.key)
@@ -321,6 +381,8 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
                 entries = [self._chat_entry(message, content, threads) for message in threads.timeline]
                 self.thread_entries = {key: [self._chat_entry(row.message, content, threads, row) for row in rows]
                                        for key, rows in threads.threads.items()}
+                shown = [*entries, *(entry for rows in self.thread_entries.values() for entry in rows)]
+                missing_images = any(badge.image_path is None for entry in shown for badge in _entry_badges(entry))
                 title = channel.display_name if channel is not None else summary.title
             else:
                 messages = private_message_thread(session, summary.key)
@@ -336,6 +398,61 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         self.transcript_view.scrollToBottom()
         self.show_properties()
         self.show_selected_content()
+        if missing_images:
+            self.fetch_reaction_images()
+
+    def refresh_conversation(self) -> None:
+        """
+        Shows the selected conversation again, after its messages changed, keeping the thread pane on the thread it
+        showed.
+        :return: None
+        :rtype: None
+        """
+        key = self.open_thread_key
+        position = self.transcript_view.verticalScrollBar().value()
+        self.show_selected()
+        self.transcript_view.verticalScrollBar().setValue(position)
+        if key is not None:
+            self.show_thread(key)
+
+    def fetch_reaction_images(self) -> None:
+        """
+        Fetches the reaction images not stored yet, in the background, once per window; the conversation is shown again
+        when any image was stored.
+        :return: None
+        :rtype: None
+        """
+        if self.reaction_fetch_tried or self.reaction_thread is not None:
+            return
+        self.reaction_fetch_tried = True
+        self.reaction_thread, self.reaction_fetcher = start_fetch_thread(self.reaction_images_fetched, self.reaction_fetch_done)
+
+    def reaction_images_fetched(self, fetched: int, failed: int) -> None:
+        """
+        Shows the reaction images just stored.
+        :param fetched: The number of images stored.
+        :type fetched: int
+        :param failed: The number of images that could not be fetched.
+        :type failed: int
+        :return: None
+        :rtype: None
+        """
+        logger.debug('Reaction images fetched: %d, failed: %d', fetched, failed)
+        if fetched:
+            self.transcript_delegate.clear_reaction_images()
+            self.thread_delegate.clear_reaction_images()
+            self.refresh_conversation()
+
+    def reaction_fetch_done(self) -> None:
+        """
+        Releases the reaction fetch thread once it has finished.
+        :return: None
+        :rtype: None
+        """
+        if self.reaction_thread is not None:
+            self.reaction_thread.wait()
+        self.reaction_thread = None
+        self.reaction_fetcher = None
 
     def _chat_entry(self, message: ChatMessage, content: dict[int, list[Content]], threads: ChatThreads,
                     row: Optional[ThreadRow] = None) -> TranscriptEntry:
@@ -358,7 +475,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         depth = row.depth if row is not None else 0
         note = None
         if depth == 0 and threads.is_orphan(message):
-            note = ORPHAN_NOTE
+            note = ORPHAN_REACTION_NOTE if message.is_reaction else ORPHAN_NOTE
         elif row is not None and row.depth >= 2:
             note = f'replying to {row.parent_author}'
         reply_count = threads.reply_count(message.message_id) if row is None else 0
@@ -366,7 +483,9 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
                                participant_icon(self.icon_display, message.author), message.id, len(contents),
                                downloaded_paths(contents), depth=depth,
                                thread_key=message.message_id if reply_count else None, reply_count=reply_count,
-                               last_reply_date=threads.last_reply_date(message.message_id) if reply_count else None)
+                               last_reply_date=threads.last_reply_date(message.message_id) if reply_count else None,
+                               reactions=reaction_badges(threads.reactions_to(message)),
+                               reaction=reaction_badge(message.reaction) if message.is_reaction else None)
 
     def show_thread(self, key: str) -> None:
         """
@@ -382,6 +501,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
             return
         root = entries[0]
         date = root.date.strftime(DATE_FORMAT) if root.date is not None else ''
+        self.open_thread_key = key
         self.thread_title_label.setText(f'Thread · {root.author} {date}'.rstrip())
         self.thread_model.set_entries(entries)
         self.thread_frame.setVisible(True)
@@ -398,6 +518,7 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         :return: None
         :rtype: None
         """
+        self.open_thread_key = None
         self.thread_frame.setVisible(False)
         self.thread_model.clear()
         self.thread_title_label.clear()
@@ -545,8 +666,9 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
 
     def transcript_context_menu(self, view: QListView, position: QPoint) -> None:
         """
-        Shows the context menu of the transcript or the thread pane: copy, opening the thread a message started, and
-        for a message with downloaded media, opening its files or their folder.
+        Shows the context menu of the transcript or the thread pane: copy, opening the thread a message started,
+        marking a chat message's image as a reaction or a reaction as not being one, and for a message with downloaded
+        media, opening its files or their folder.
         :param view: The transcript view or the thread view.
         :type view: QListView
         :param position: Where the menu was asked for, in the view's viewport coordinates.
@@ -563,6 +685,8 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
             thread_key = entry.thread_key
             thread_action = menu.addAction('Open thread')
             thread_action.triggered.connect(lambda: self.show_thread(thread_key))
+        if isinstance(entry, TranscriptEntry):
+            self._add_reaction_actions(menu, entry)
         menu.addSeparator()
         open_action = menu.addAction('Open media' if len(paths) < 2 else f'Open media ({len(paths)} files)')
         open_action.setEnabled(bool(paths))
@@ -574,6 +698,48 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
         show_action.setEnabled(isinstance(entry, TranscriptEntry) and entry.content_count > 0)
         show_action.triggered.connect(lambda: self.show_media_of(view, index))
         menu.exec(view.viewport().mapToGlobal(position))
+
+    def _add_reaction_actions(self, menu: QMenu, entry: TranscriptEntry) -> None:
+        """
+        Adds the actions that change what counts as a reaction to a chat message's context menu: marking the image a
+        message consists of as a reaction, and marking a reaction (the message's own, or one it got) as not being one.
+        :param menu: The context menu.
+        :type menu: QMenu
+        :param entry: The message the menu is for.
+        :type entry: TranscriptEntry
+        :return: None
+        :rtype: None
+        """
+        summary = self.selected_summary()
+        if summary is None or summary.kind != CHAT:
+            return
+        if entry.reaction is not None:
+            url = entry.reaction.url
+            menu.addAction('Not a reaction (all chats)').triggered.connect(lambda: self.set_reaction(url, False))
+            return
+        url = single_url(entry.body)
+        if url is not None:
+            menu.addAction('Treat this image as a reaction (all chats)').triggered.connect(lambda: self.set_reaction(url, True))
+        if entry.reactions:
+            submenu = menu.addMenu('Not a reaction (all chats)')
+            for badge in entry.reactions:
+                submenu.addAction(badge.label).triggered.connect(lambda _checked=False, target=badge.url: self.set_reaction(target, False))
+
+    def set_reaction(self, url: str, enabled: bool) -> None:
+        """
+        Marks an image url as a reaction, or as not being one, in every chat, and shows the conversation again.
+        :param url: The image url.
+        :type url: str
+        :param enabled: True to treat the url as a reaction, False to treat it as ordinary media.
+        :type enabled: bool
+        :return: None
+        :rtype: None
+        """
+        with self.db.get_scoped_session() as session:
+            set_reaction_enabled(session, url, enabled)
+        self.status_label.setText(f'{url} is {"now" if enabled else "no longer"} treated as a reaction in every chat')
+        self.reaction_fetch_tried = False
+        self.refresh_conversation()
 
     def show_media_of(self, view: QListView, index: QModelIndex) -> None:
         """
@@ -765,11 +931,13 @@ class ConversationViewer(QWidget, Ui_ConversationViewer):  # pylint: disable=too
 
     def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name  # Qt override
         """
-        Saves the media pane's settings when the window is closed.
+        Saves the media pane's settings, and stops fetching reaction images, when the window is closed.
         :param event: The close event.
         :type event: QCloseEvent
         :return: None
         :rtype: None
         """
         self.save_settings()
+        if self.reaction_fetcher is not None:
+            self.reaction_fetcher.stop()
         super().closeEvent(event)

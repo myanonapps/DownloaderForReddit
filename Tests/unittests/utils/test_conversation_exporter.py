@@ -25,8 +25,8 @@ import os
 import tempfile
 from unittest import TestCase
 
-from DownloaderForReddit.database.chat_threads import ORPHAN_NOTE
-from DownloaderForReddit.database.export_models import ChatChannel
+from DownloaderForReddit.database.chat_threads import ORPHAN_NOTE, ORPHAN_REACTION_NOTE
+from DownloaderForReddit.database.export_models import ChatChannel, ChatReaction
 from DownloaderForReddit.utils.exporters.conversation_exporter import export_chat_transcript, export_private_message_thread, format_chat_transcript
 from Tests.unittests.database.test_chat_threads import chat_message
 from Tests.unittests.utils.importers.export_fixture import ACCOUNT, import_into_memory_database
@@ -79,6 +79,18 @@ class TestConversationExporter(TestCase):
                     '        [2024-01-01 00:03:00 UTC] carol (replying to bob):\n        r1a\n\n'
                     '[2024-01-01 00:01:00 UTC] bob:\nother\n\n'
                     f'[2024-01-01 00:04:00 UTC] dave ({ORPHAN_NOTE}):\norphan\n')
+        self.assertEqual(expected, text)
+
+    def test_chat_reactions(self) -> None:
+        """Reactions are listed under the message they react to; a reaction to a missing message is a line of its own."""
+        heart = ChatReaction(url='https://i.redd.it/heart.gif', name='Heart', enabled=True)
+        messages = [chat_message('root', minute=0, author='alice'),
+                    chat_message('like', 'root', minute=1, author='bob', reaction=heart),
+                    chat_message('lost', 'gone', minute=2, author='carol', reaction=heart)]
+        text = format_chat_transcript(ChatChannel(channel_name='Room'), messages)
+        expected = ('Chat: Room\n\n'
+                    '[2024-01-01 00:00:00 UTC] alice:\nroot\nReactions: bob (Heart, 2024-01-01 00:01:00 UTC)\n\n'
+                    f'[2024-01-01 00:02:00 UTC] carol reacted Heart ({ORPHAN_REACTION_NOTE})\n')
         self.assertEqual(expected, text)
 
     def test_unknown_channel_raises(self) -> None:

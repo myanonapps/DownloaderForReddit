@@ -42,6 +42,7 @@ from DownloaderForReddit.data_interface.adapter_manager import RedditAdapterMana
 from DownloaderForReddit.database.model_enums import PostDownloadSource
 from DownloaderForReddit.gui.database_views.database_viewer import DatabaseViewer
 from DownloaderForReddit.gui.database_views.conversation_viewer import ConversationViewer
+from DownloaderForReddit.gui.database_views.reactions_dialog import ReactionsDialog
 from DownloaderForReddit.persistence.settings_manager import DownloadScope, SettingsManager
 
 from ..core.user_auth import UserAuth
@@ -126,6 +127,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.export_import_runner = None
         self.export_import_thread = None
         self.conversation_viewer = None
+        self.reactions_dialog = None
         self.export_import_download_media = False
         self.importing_export = False
         self.backup_runner = None
@@ -216,6 +218,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # region Database Menu
         self.database_browser_menu_item.triggered.connect(self.display_database_browser)
         self.conversations_menu_item.triggered.connect(self.display_conversation_viewer)
+        self.reactions_menu_item.triggered.connect(self.display_reactions_dialog)
         self.database_view_menu_item.triggered.connect(self.open_database_view_dialog)
         self.download_sessions_view_menu_item.triggered.connect(self.open_download_sessions_dialog)
         self.reddit_objects_view_menu_item.triggered.connect(self.open_reddit_objects_dialog)
@@ -1382,6 +1385,31 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.conversation_viewer.raise_()
         self.conversation_viewer.activateWindow()
     
+    def display_reactions_dialog(self) -> None:
+        """
+        Shows the dialog for managing chat reactions, reusing it if it was opened before.  Changes made there are shown
+        in the conversation viewer when it is open.
+        :return: None
+        :rtype: None
+        """
+        if self.reactions_dialog is None:
+            self.reactions_dialog = ReactionsDialog(self)
+            self.reactions_dialog.reactions_changed.connect(self.refresh_conversation_viewer)
+        else:
+            self.reactions_dialog.load()
+        self.reactions_dialog.show()
+        self.reactions_dialog.raise_()
+        self.reactions_dialog.activateWindow()
+
+    def refresh_conversation_viewer(self) -> None:
+        """
+        Shows the conversation open in the conversation viewer again, when the viewer is open.
+        :return: None
+        :rtype: None
+        """
+        if self.conversation_viewer is not None and self.conversation_viewer.isVisible():
+            self.conversation_viewer.refresh_conversation()
+
     def display_database_dialog(self, **kwargs):
         """
         Creates the database dialog instance with the supplied kwargs, connects the appropriate signals, and returns the

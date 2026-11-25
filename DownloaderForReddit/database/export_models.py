@@ -4,6 +4,8 @@ Database models for data imported from a Reddit data export (the "Request your d
 These hold the conversations (chat and legacy private messages) that cannot be retrieved through any of the
 download sources, along with a record of each import that was performed.  Media linked in a message is extracted into
 Content rows tied to that message, and downloaded with the settings of the message's author, into the author's folder.
+Chat reactions are the exception: a message that is a reaction points to a ChatReaction, whose image is stored once,
+in the application's data directory, for every chat.
 
 
 Copyright (C) 2017, Kyle Hickey
@@ -25,6 +27,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -43,6 +46,7 @@ _ROOM_ID_DISPLAY_LENGTH = 10
 _TITLE_DATE_FORMAT = '%Y-%m-%d %H-%M-%S'
 DELETED_PERSON = '[deleted]'
 NO_SUBJECT = '[no subject]'
+REACTIONS_FOLDER_NAME = 'chat_reactions'
 
 
 def person_name(reddit_object: Optional['RedditObject']) -> str:
@@ -159,6 +163,82 @@ class ChatChannel(BaseModel):
         """
         room = (self.channel_url or '').rstrip('/').rsplit('/', 1)[-1].split(':', 1)[0].lstrip('!')
         return f'Chat {room[:_ROOM_ID_DISPLAY_LENGTH]}' if room else 'Chat'
+
+
+def reactions_folder() -> str:
+    """
+    Returns the folder that holds the images of chat reactions.  It is part of the application's data, not of the
+    download folder, since every chat shares the same few images.
+    :return: The folder's path; it may not exist yet.
+    :rtype: str
+    """
+    return os.path.join(system_util.get_data_directory(), REACTIONS_FOLDER_NAME)
+
+
+class ChatReaction(BaseModel):
+    """
+    One reaction image that chat messages react with, stored once and shared by every chat.  Reddit's export records a
+    reaction as a chat message whose whole text is the image's url, replying to the message reacted to; such messages
+    point to the reaction through ChatMessage.reaction.  A reaction that is not enabled was marked by the user as not
+    being a reaction: its messages are shown as ordinary messages, and the row is kept so it is not recognized again.
+    """
+
+    __tablename__ = 'chat_reaction'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    url = Column(String(collation='NOCASE'), unique=True)
+    name = Column(String, nullable=True)
+    enabled = Column(Boolean, default=True)
+    file_name = Column(String, nullable=True)
+    fetch_error = Column(String, nullable=True)
+    date_added = Column(DateTime, default=datetime.now)
+
+    messages = relationship('ChatMessage', back_populates='reaction')
+
+    def __str__(self) -> str:
+        """
+        Returns a readable description of the reaction.
+        :return: The description.
+        :rtype: str
+        """
+        return f'Chat reaction: {self.display_name}'
+
+    @property
+    def image_id(self) -> str:
+        """
+        The id of the reaction's image: the last part of its url without the extension.
+        :return: The id, or an empty string when the reaction has no url.
+        :rtype: str
+        """
+        return (self.url or '').rstrip('/').rsplit('/', 1)[-1].rsplit('.', 1)[0]
+
+    @property
+    def display_name(self) -> str:
+        """
+        The name the reaction is shown under: the name the user gave it, otherwise its image id.
+        :return: The name.
+        :rtype: str
+        """
+        return self.name.strip() if self.name and self.name.strip() else self.image_id or 'reaction'
+
+    @property
+    def file_path(self) -> Optional[str]:
+        """
+        The full path of the reaction's image file.
+        :return: The path, or None when the image has not been fetched.
+        :rtype: Optional[str]
+        """
+        return os.path.join(reactions_folder(), self.file_name) if self.file_name else None
+
+    @property
+    def has_image(self) -> bool:
+        """
+        Tells whether the reaction's image file is on disk.
+        :return: True when the file exists.
+        :rtype: bool
+        """
+        path = self.file_path
+        return path is not None and os.path.isfile(path)
 
 
 class ImportedMessage(BaseModel):
@@ -387,6 +467,8 @@ class ChatMessage(ImportedMessage):
     author = relationship('RedditObject', backref='chat_messages')
     export_import_id = Column(ForeignKey('export_import.id'), nullable=True)
     export_import = relationship('ExportImport', backref='chat_messages')
+    reaction_id = Column(ForeignKey('chat_reaction.id'), nullable=True, index=True)
+    reaction = relationship('ChatReaction', back_populates='messages')
 
     def __str__(self) -> str:
         """
@@ -395,6 +477,15 @@ class ChatMessage(ImportedMessage):
         :rtype: str
         """
         return f'Chat message: {self.message_id}'
+
+    @property
+    def is_reaction(self) -> bool:
+        """
+        Tells whether the message is a reaction to the message it replies to, rather than a message of its own.
+        :return: True when the message points to a reaction that is enabled.
+        :rtype: bool
+        """
+        return self.reaction is not None and bool(self.reaction.enabled)
 
     @property
     def date_posted_display(self) -> Optional[str]:

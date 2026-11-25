@@ -27,7 +27,7 @@ from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
-from ...database.chat_threads import ORPHAN_NOTE, ChatThreads, ThreadRow, build_chat_threads
+from ...database.chat_threads import ORPHAN_NOTE, ORPHAN_REACTION_NOTE, ChatThreads, ThreadRow, build_chat_threads
 from ...database.conversation_queries import chat_messages, private_message_thread
 from ...database.export_models import ChatChannel, ChatMessage, PrivateMessage, person_name
 
@@ -51,8 +51,9 @@ def _format_date(value: Optional[datetime]) -> str:
 
 def _chat_message_lines(row: ThreadRow, threads: ChatThreads) -> list[str]:
     """
-    Formats one chat message for a transcript: a header with its date, author and notes, then its body, every line
-    indented by the message's depth in its thread, followed by a blank line.
+    Formats one chat message for a transcript: a header with its date, author and notes, then its body and the
+    reactions it got, every line indented by the message's depth in its thread, followed by a blank line.  A reaction
+    to a message the channel does not hold is written as a single line naming the reaction.
     :param row: The message and its place in its thread; depth 0 for a top level message.
     :type row: ThreadRow
     :param threads: The channel's messages arranged into threads.
@@ -65,15 +66,22 @@ def _chat_message_lines(row: ThreadRow, threads: ChatThreads) -> list[str]:
     notes = []
     if row.depth == 0:
         if threads.is_orphan(message):
-            notes.append(ORPHAN_NOTE)
+            notes.append(ORPHAN_REACTION_NOTE if message.is_reaction else ORPHAN_NOTE)
         replies = threads.reply_count(message.message_id)
         if replies:
             notes.append(f'{replies} {"reply" if replies == 1 else "replies"}')
     elif row.depth >= 2:
         notes.append(f'replying to {row.parent_author}')
     note = f' ({"; ".join(notes)})' if notes else ''
-    lines = [f'{indent}[{_format_date(message.date_posted)}] {person_name(message.author)}{note}:']
+    header = f'{indent}[{_format_date(message.date_posted)}] {person_name(message.author)}'
+    if message.is_reaction:
+        return [f'{header} reacted {message.reaction.display_name}{note}', '']
+    lines = [f'{header}{note}:']
     lines.extend(f'{indent}{line}' for line in (message.body or '').split('\n'))
+    reactions = threads.reactions_to(message)
+    if reactions:
+        lines.append(f'{indent}Reactions: ' + ', '.join(f'{person_name(reaction.author)} ({reaction.reaction.display_name}, '
+                                                          f'{_format_date(reaction.date_posted)})' for reaction in reactions))
     lines.append('')
     return lines
 

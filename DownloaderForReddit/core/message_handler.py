@@ -79,10 +79,14 @@ class MessageHandler(Runner):
         Extracts every link in the message, queues the content made, and records the message as extracted, or as
         failed with the reasons when a media link could not be extracted.  Nothing is recorded when the run is stopped
         part way.  A message whose author has download disabled is skipped and left unextracted, so its media is
-        downloaded once download is enabled again; one without a linked author is recorded as failed.
+        downloaded once download is enabled again; one without a linked author is recorded as failed.  A chat reaction is
+        recorded as extracted without extracting anything, since the reaction's image is stored once for every chat.
         :return: None
         :rtype: None
         """
+        if getattr(self.message, 'is_reaction', False):
+            self.message.set_extracted()
+            return
         author = self.message.significant_reddit_object
         if author is None:
             self.message.set_extraction_failed(Error.FAILED_TO_EXTRACT, 'The message has no known author')
